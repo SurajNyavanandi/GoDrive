@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const { errorResponse } = require('../utils/apiResponse');
 
@@ -22,8 +23,20 @@ const protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || 'virat-tom-secure-jwt-secret-key-2026'
+      process.env.JWT_SECRET || 'jwt_secret_dev_2026'
     );
+
+    const isDbConnected = mongoose.connection.readyState === 1;
+    if (!isDbConnected) {
+      req.user = {
+        _id: decoded.id,
+        name: decoded.name || 'Sandbox User',
+        email: decoded.email || 'user@example.com',
+        role: decoded.role || 'user',
+      };
+      return next();
+    }
+
     req.user = await User.findById(decoded.id).select('-password');
     if (!req.user) {
       return errorResponse(res, 'User not found', 401);

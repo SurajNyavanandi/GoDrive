@@ -1,6 +1,11 @@
 const User = require('../models/User');
 const { successResponse, errorResponse } = require('../utils/apiResponse');
 const { asyncHandler } = require('../utils/errorHandler');
+const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+
+// In-memory fallback user store when MongoDB is offline
+const mockUsers = new Map();
 
 /**
  * Register User
@@ -11,6 +16,40 @@ const register = asyncHandler(async (req, res) => {
 
   if (!name || !email || !password) {
     return errorResponse(res, 'Please provide name, email, and password', 400);
+  }
+
+  const isDbConnected = mongoose.connection.readyState === 1;
+
+  if (!isDbConnected) {
+    const cleanEmail = email.toLowerCase().trim();
+    if (mockUsers.has(cleanEmail)) {
+      return errorResponse(res, 'An account with this email already exists', 400);
+    }
+
+    const mockUser = {
+      _id: `user_mock_${Date.now()}`,
+      name: name.trim(),
+      email: cleanEmail,
+      role: 'user',
+    };
+    mockUsers.set(cleanEmail, { ...mockUser, password });
+
+    const token = jwt.sign(
+      { id: mockUser._id, email: mockUser.email, role: mockUser.role },
+      process.env.JWT_SECRET || 'jwt_secret_dev_2026',
+      { expiresIn: '30d' }
+    );
+
+    return successResponse(
+      res,
+      {
+        user: mockUser,
+        token,
+        simulated: true,
+      },
+      'User registered successfully (sandbox mode)',
+      201
+    );
   }
 
   const userExists = await User.findOne({ email });
@@ -53,6 +92,47 @@ const login = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Please provide email and password', 400);
   }
 
+  const isDbConnected = mongoose.connection.readyState === 1;
+
+  if (!isDbConnected) {
+    const cleanEmail = email.toLowerCase().trim();
+    let existing = mockUsers.get(cleanEmail);
+
+    // If not found, create or accept demo user
+    if (!existing) {
+      existing = {
+        _id: `user_mock_${Date.now()}`,
+        name: cleanEmail.split('@')[0] || 'Demo User',
+        email: cleanEmail,
+        password,
+        role: 'user',
+      };
+      mockUsers.set(cleanEmail, existing);
+    }
+
+    const token = jwt.sign(
+      { id: existing._id, email: existing.email, role: existing.role },
+      process.env.JWT_SECRET || 'jwt_secret_dev_2026',
+      { expiresIn: '30d' }
+    );
+
+    return successResponse(
+      res,
+      {
+        user: {
+          id: existing._id,
+          name: existing.name,
+          email: existing.email,
+          role: existing.role,
+        },
+        token,
+        simulated: true,
+      },
+      'User logged in successfully (sandbox mode)',
+      200
+    );
+  }
+
   const user = await User.findOne({ email }).select('+password');
   if (!user) {
     return errorResponse(res, 'Invalid credentials', 401);
@@ -93,4 +173,5 @@ module.exports = {
   register,
   login,
   getMe,
+  mockUsers,
 };

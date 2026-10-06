@@ -15,7 +15,10 @@ const api = axios.create({
 // Request Interceptor: Attach bearer token if present
 api.interceptors.request.use(
   (config) => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('vt_auth_token') || localStorage.getItem('token')
+        : null;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
