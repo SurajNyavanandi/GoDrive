@@ -7,9 +7,9 @@ export default function Footer() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-xs">
-              A
+              G
             </div>
-            <span className="font-semibold text-slate-800 text-sm">AppName</span>
+            <span className="font-semibold text-slate-800 text-sm">GoDrive</span>
           </div>
 
           <nav className="flex items-center gap-6 text-xs text-slate-500">
@@ -25,7 +25,7 @@ export default function Footer() {
           </nav>
 
           <p className="text-xs text-slate-400">
-            © {new Date().getFullYear()} AppName. All rights reserved.
+            © {new Date().getFullYear()} GoDrive. All rights reserved.
           </p>
         </div>
       </div>

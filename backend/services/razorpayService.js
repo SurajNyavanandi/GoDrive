@@ -1,4 +1,9 @@
-const Razorpay = require('razorpay');
+let Razorpay;
+try {
+  Razorpay = require('razorpay');
+} catch {
+  Razorpay = null;
+}
 const crypto = require('crypto');
 
 const keyId = process.env.RAZORPAY_KEY_ID;
@@ -6,7 +11,7 @@ const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
 const isConfigured = keyId && keySecret && !keyId.startsWith('rzp_test_xxx') && keyId !== 'your_razorpay_key_id';
 
-const razorpayInstance = isConfigured
+const razorpayInstance = isConfigured && Razorpay
   ? new Razorpay({
       key_id: keyId,
       key_secret: keySecret,

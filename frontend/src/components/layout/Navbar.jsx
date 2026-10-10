@@ -26,10 +26,10 @@ export default function Navbar() {
           {/* Brand Logo */}
           <Link to="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-xs">
-              A
+              G
             </div>
             <span className="font-bold text-slate-900 text-base tracking-tight">
-              App<span className="text-blue-600">Name</span>
+              Go<span className="text-blue-600">Drive</span>
             </span>
           </Link>
 

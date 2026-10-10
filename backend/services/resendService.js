@@ -1,10 +1,15 @@
-const { Resend } = require('resend');
+let Resend;
+try {
+  Resend = require('resend').Resend;
+} catch {
+  Resend = null;
+}
 
 const apiKey = process.env.RESEND_API_KEY;
 const defaultFromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
 // Initialize Resend SDK instance if valid API key is present
-const resendClient = apiKey && !apiKey.startsWith('re_xxx') ? new Resend(apiKey) : null;
+const resendClient = apiKey && !apiKey.startsWith('re_xxx') && Resend ? new Resend(apiKey) : null;
 
 /**
  * Send a general email via Resend

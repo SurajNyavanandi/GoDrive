@@ -3,8 +3,10 @@
 :root {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
-  --system-blue: #0071e3;
-  --system-blue-hover: #0077ed;
+  --system-blue: #0066ff;
+  --system-blue-hover: #0052cc;
+  --system-amber: #f59e0b;
+  --system-mint: #10b981;
   --bg-primary: #ffffff;
   --bg-secondary: #f8fafc;
   --text-primary: #0f172a;
@@ -16,7 +18,7 @@
 }
 
 html {
-  background-color: #ffffff;
+  background-color: #f8fafc;
   color: #0f172a;
   font-family: var(--font-sans);
   scroll-behavior: smooth;
@@ -27,7 +29,7 @@ html {
 body {
   margin: 0;
   padding: 0;
-  background-color: #ffffff;
+  background-color: #f8fafc;
   color: #0f172a;
   min-height: 100vh;
   overflow-x: hidden;
@@ -42,7 +44,7 @@ body {
   transform-style: preserve-3d;
 }
 
-/* Custom Clean Scrollbar */
+/* Custom Clean Light Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
