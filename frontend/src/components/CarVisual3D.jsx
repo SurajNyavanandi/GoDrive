@@ -1,12 +1,9 @@
-import React from 'react';
-
 /**
  * 3D Isometric Car Visual Component
  * Renders stylized 3D automobile graphics with metallic paint gradients and lighting.
  */
 export default function CarVisual3D({
   category = 'Sedan',
-  vehicle = 'Car',
   className = '',
 }) {
   const getCarPalette = () => {

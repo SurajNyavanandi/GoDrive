@@ -1,5 +1,3 @@
-import React from 'react';
-
 /**
  * 3D Stylized Chauffeur Avatar Component
  * Rendered with volumetric gradient lighting, specular highlights, and 3D depth.

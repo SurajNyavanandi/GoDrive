@@ -70,7 +70,7 @@ export async function triggerDirectRazorpay({ onPaymentSuccess }) {
           description: 'Unlock All 10+ Verified Drivers',
           image: 'https://cdn.razorpay.com/static/assets/logo/rzp.svg',
           theme: {
-            color: '#2563EB',
+            color: '#FF5500',
           },
           prefill: {
             name: 'Hyderabad Customer',

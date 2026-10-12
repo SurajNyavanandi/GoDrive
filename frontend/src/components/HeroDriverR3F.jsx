@@ -1,4 +1,4 @@
-import React, { useRef, Suspense } from 'react';
+import { useRef, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { ContactShadows, Float } from '@react-three/drei';
 import * as THREE from 'three';
@@ -13,10 +13,9 @@ function ChauffeurModel() {
   const torsoRef = useRef();
   const rightForearmRef = useRef();
   const targetRotation = useRef({ x: 0, y: 0 });
-  const startTimeRef = useRef(performance.now());
 
   useFrame((state) => {
-    const time = (performance.now() - startTimeRef.current) * 0.001;
+    const time = state.clock.elapsedTime;
     const { x, y } = state.pointer; // Normalized pointer: -1 to 1
 
     // Smooth head tracking target
