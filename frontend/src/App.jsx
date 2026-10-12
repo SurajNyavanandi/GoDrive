@@ -6,7 +6,6 @@ import DriverPortal from './components/DriverPortal';
 import BookingModal from './components/BookingModal';
 import MyBookingsSheet from './components/MyBookingsSheet';
 import { initialDrivers } from './data/mockDrivers';
-import { triggerDirectRazorpay } from './utils/razorpay';
 import { ShieldCheck, ArrowUpRight, Zap } from 'lucide-react';
 
 const DEFAULT_BOOKINGS = [
@@ -46,11 +45,6 @@ export default function App() {
     return localStorage.getItem('godrive_role') || 'customer';
   });
 
-  // Pro Access Paywall State (Persisted)
-  const [isProUnlocked, setIsProUnlocked] = useState(() => {
-    return localStorage.getItem('godrive_pro_unlocked') === 'true';
-  });
-
   // Custom Registered Drivers (Persisted)
   const [customDrivers, setCustomDrivers] = useState(() => {
     try {
@@ -79,10 +73,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('godrive_role', activeRole);
   }, [activeRole]);
-
-  useEffect(() => {
-    localStorage.setItem('godrive_pro_unlocked', String(isProUnlocked));
-  }, [isProUnlocked]);
 
   useEffect(() => {
     localStorage.setItem('godrive_custom_drivers', JSON.stringify(customDrivers));
@@ -135,19 +125,6 @@ export default function App() {
     setCustomDrivers((prev) => [newDriver, ...prev]);
   };
 
-  const handlePaymentSuccess = () => {
-    setIsProUnlocked(true);
-  };
-
-  const handleTriggerPayment = () => {
-    triggerDirectRazorpay({ onPaymentSuccess: handlePaymentSuccess });
-  };
-
-  const handleResetPro = () => {
-    setIsProUnlocked(false);
-    toast.info('Drivers locked again for Hyderabad demo testing.');
-  };
-
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#0A0A0A] flex flex-col selection:bg-[#FF5500] selection:text-black">
       {/* Toast Notifications */}
@@ -162,10 +139,8 @@ export default function App() {
       <Header
         activeRole={activeRole}
         onRoleChange={handleRoleChange}
-        isProUnlocked={isProUnlocked}
         bookingsCount={bookings.length}
         onOpenBookings={() => setIsBookingsSheetOpen(true)}
-        onOpenRazorpay={handleTriggerPayment}
       />
 
       {/* Main Content Area */}
@@ -173,10 +148,8 @@ export default function App() {
         {activeRole === 'customer' ? (
           <CustomerView
             drivers={allDrivers}
-            isProUnlocked={isProUnlocked}
             onOpenBooking={handleOpenBooking}
-            onOpenRazorpay={handleTriggerPayment}
-            onResetPro={handleResetPro}
+            onSwitchToDriver={() => handleRoleChange('driver')}
           />
         ) : (
           <DriverPortal
@@ -185,6 +158,7 @@ export default function App() {
             onDeclineBooking={handleDeclineBooking}
             onRegisterDriver={handleRegisterDriver}
             totalDriversCount={allDrivers.length}
+            customDrivers={customDrivers}
           />
         )}
       </main>
@@ -202,10 +176,10 @@ export default function App() {
             <div className="lg:col-span-5 space-y-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 bg-[#FF5500] text-black font-black text-sm flex items-center justify-center">
-                  GD
+                  MD
                 </div>
                 <span className="font-black text-lg uppercase tracking-wider text-white">
-                  GODRIVE <span className="text-[#FF5500]">HYDERABAD</span>
+                  MAA <span className="text-[#FF5500]">DRIVER</span>
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-neutral-400 max-w-md leading-relaxed font-normal">
@@ -259,7 +233,7 @@ export default function App() {
                 [ FOR DRIVERS ]
               </h4>
               <p className="text-xs text-neutral-400 leading-relaxed">
-                Are you a car driver in Hyderabad? Join GoDrive and get direct rides from car owners.
+                Join Maa Driver for ₹49. First 3 months free homepage listing, then ₹99/month. Direct calls and 0% commission.
               </p>
               <button
                 type="button"
@@ -269,7 +243,7 @@ export default function App() {
                 }}
                 className="w-full py-2.5 px-3 bg-[#FF5500] hover:bg-[#E04B00] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition-colors"
               >
-                <span>Join as Driver</span>
+                <span>Join for ₹49</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -277,7 +251,7 @@ export default function App() {
 
           {/* Bottom Divider & Copyright */}
           <div className="pt-8 border-t border-neutral-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-neutral-500">
-            <p>© {new Date().getFullYear()} GODRIVE HYDERABAD. ALL RIGHTS RESERVED.</p>
+            <p>© {new Date().getFullYear()} MAA DRIVER HYDERABAD. ALL RIGHTS RESERVED.</p>
             <div className="flex items-center gap-4">
               <span>TELANGANA TRANSPORT ACT COMPLIANT</span>
               <span>·</span>
