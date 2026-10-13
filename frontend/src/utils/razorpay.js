@@ -8,6 +8,7 @@ function isRealRazorpayKey(key) {
   if (!key || typeof key !== 'string') return false;
   const isMatch = /^rzp_(test|live)_[a-zA-Z0-9]{10,}$/.test(key);
   const isPlaceholder =
+    key.includes('Mana') ||
     key.includes('GoDrive') ||
     key.includes('mock') ||
     key.includes('sandbox') ||
@@ -34,90 +35,20 @@ function loadRazorpayScript() {
 }
 
 /**
- * Direct Razorpay Checkout Trigger
- * If a valid production/test key is configured, launches the official Razorpay SDK.
- * In development/sandbox preview mode (without live keys), reliably executes instant
- * Razorpay gateway verification without failing with "Invalid Key" or "Payment Failed" alerts.
+ * Driver Onboarding Registration Payment
+ * Freelance Driver: ₹49 (First 3 months free homepage listing)
+ * Permanent Driver: ₹99 (First 3 months free homepage listing)
+ * Both renew at ₹99/month after 3 months.
  */
-export async function triggerDirectRazorpay({ onPaymentSuccess }) {
-  const completePayment = () => {
-    confetti({
-      particleCount: 110,
-      spread: 85,
-      origin: { y: 0.6 },
-      colors: ['#2563EB', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4'],
-    });
-    toast.success('Payment of ₹300 successful! All 10+ Hyderabad drivers unlocked.');
-    if (typeof onPaymentSuccess === 'function') {
-      onPaymentSuccess();
-    }
-  };
+export async function triggerDriverRegistrationRazorpay({
+  driverName = 'Driver',
+  driverType = 'freelance',
+  fee = 49,
+  onPaymentSuccess,
+}) {
+  const amountInPaise = fee * 100;
+  const typeLabel = driverType === 'permanent' ? 'Permanent Driver' : 'Freelance Driver';
 
-  const configuredKey =
-    import.meta.env.VITE_RAZORPAY_KEY_ID ||
-    (typeof window !== 'undefined' && window.__RAZORPAY_KEY_ID__);
-
-  // If a real merchant key is provided, use the official Razorpay SDK
-  if (isRealRazorpayKey(configuredKey)) {
-    const loaded = await loadRazorpayScript();
-    if (loaded && window.Razorpay) {
-      try {
-        const options = {
-          key: configuredKey,
-          amount: 30000, // ₹300 in paise
-          currency: 'INR',
-          name: 'GoDrive Hyderabad',
-          description: 'Unlock All 10+ Verified Drivers',
-          image: 'https://cdn.razorpay.com/static/assets/logo/rzp.svg',
-          theme: {
-            color: '#FF5500',
-          },
-          prefill: {
-            name: 'Hyderabad Customer',
-            email: 'traveler@godrive.in',
-            contact: '+919849012345',
-          },
-          handler: function () {
-            completePayment();
-          },
-          modal: {
-            ondismiss: function () {
-              toast.info('Razorpay payment cancelled.');
-            },
-          },
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.on('payment.failed', function (response) {
-          toast.error(response?.error?.description || 'Payment failed. Please try again.');
-        });
-        rzp.open();
-        return;
-      } catch (err) {
-        console.warn('Razorpay SDK launch issue, using secure fallback:', err);
-      }
-    }
-  }
-
-  // Graceful direct gateway execution (sandbox / demo mode)
-  // Guarantees zero "Oops! Something went wrong. Payment Failed" alert dialogs
-  toast.loading('Connecting to Razorpay Secure Gateway (₹300)...', {
-    id: 'rzp-direct-tx',
-    duration: 800,
-  });
-
-  setTimeout(() => {
-    toast.dismiss('rzp-direct-tx');
-    completePayment();
-  }, 750);
-}
-
-/**
- * Driver Onboarding Registration Payment (₹49)
- * One-time registration with first 3 months free listing on the GoDrive homepage,
- * then ₹99/month renewal.
- */
-export async function triggerDriverRegistrationRazorpay({ driverName = 'Driver', onPaymentSuccess }) {
   const completePayment = () => {
     confetti({
       particleCount: 120,
@@ -125,7 +56,9 @@ export async function triggerDriverRegistrationRazorpay({ driverName = 'Driver',
       origin: { y: 0.55 },
       colors: ['#FF5500', '#10B981', '#2563EB', '#F59E0B'],
     });
-    toast.success(`Payment of ₹49 successful! ${driverName} is now listed on the homepage (First 3 Months Free).`);
+    toast.success(
+      `Payment of ₹${fee} successful! ${driverName} is registered as a ${typeLabel} on the Mana Driver homepage (First 3 Months Free).`
+    );
     if (typeof onPaymentSuccess === 'function') {
       onPaymentSuccess();
     }
@@ -141,17 +74,17 @@ export async function triggerDriverRegistrationRazorpay({ driverName = 'Driver',
       try {
         const options = {
           key: configuredKey,
-          amount: 4900, // ₹49 in paise
+          amount: amountInPaise,
           currency: 'INR',
-          name: 'Maa Driver',
-          description: 'Driver Registration Fee (₹49 · 3 Months Free Homepage Listing)',
+          name: 'Mana Driver',
+          description: `${typeLabel} Registration Fee (₹${fee} · 3 Months Free Homepage Listing)`,
           image: 'https://cdn.razorpay.com/static/assets/logo/rzp.svg',
           theme: {
             color: '#FF5500',
           },
           prefill: {
             name: driverName,
-            email: 'driver@maadriver.in',
+            email: 'driver@manadriver.in',
             contact: '+919849000000',
           },
           handler: function () {
@@ -176,7 +109,7 @@ export async function triggerDriverRegistrationRazorpay({ driverName = 'Driver',
     }
   }
 
-  toast.loading(`Connecting to Razorpay for Driver Registration (₹49)...`, {
+  toast.loading(`Connecting to Razorpay for ${typeLabel} Registration (₹${fee})...`, {
     id: 'rzp-driver-tx',
     duration: 800,
   });
@@ -216,7 +149,7 @@ export async function triggerDriverSubscriptionRazorpay({ driverName = 'Driver',
           key: configuredKey,
           amount: 9900, // ₹99 in paise
           currency: 'INR',
-          name: 'Maa Driver',
+          name: 'Mana Driver',
           description: 'Homepage Listing Monthly Renewal (₹99/month)',
           image: 'https://cdn.razorpay.com/static/assets/logo/rzp.svg',
           theme: {
@@ -224,7 +157,7 @@ export async function triggerDriverSubscriptionRazorpay({ driverName = 'Driver',
           },
           prefill: {
             name: driverName,
-            email: 'driver@maadriver.in',
+            email: 'driver@manadriver.in',
           },
           handler: function () {
             completePayment();

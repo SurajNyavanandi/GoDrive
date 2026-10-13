@@ -72,7 +72,7 @@ export default function Header({
               </div>
               <div className="flex flex-col">
                 <span className="font-black text-white text-sm sm:text-base tracking-wider uppercase leading-none">
-                  MAA <span className="text-[#FF5500]">DRIVER</span>
+                  MANA <span className="text-[#FF5500]">DRIVER</span>
                 </span>
                 <span className="text-[9px] uppercase tracking-widest text-neutral-400 font-medium mt-1">
                   Drivers for Your Car

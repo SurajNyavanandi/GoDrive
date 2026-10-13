@@ -82,8 +82,33 @@ export default function App() {
     localStorage.setItem('godrive_bookings', JSON.stringify(bookings));
   }, [bookings]);
 
-  // Combined drivers
-  const allDrivers = [...initialDrivers, ...customDrivers];
+  // Live driver availability status overrides (persisted)
+  const [driverStatuses, setDriverStatuses] = useState(() => {
+    try {
+      const saved = localStorage.getItem('manadriver_statuses');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('manadriver_statuses', JSON.stringify(driverStatuses));
+  }, [driverStatuses]);
+
+  const handleToggleDriverStatus = (driverId, newStatus) => {
+    setDriverStatuses((prev) => ({
+      ...prev,
+      [driverId]: newStatus,
+    }));
+    toast.success(`Driver status updated to: ${newStatus}`);
+  };
+
+  // Combined drivers with live status applied
+  const allDrivers = [...initialDrivers, ...customDrivers].map((driver) => ({
+    ...driver,
+    status: driverStatuses[driver.id] || driver.status || 'Available',
+  }));
 
   // Handlers
   const handleRoleChange = (role) => {
@@ -159,6 +184,8 @@ export default function App() {
             onRegisterDriver={handleRegisterDriver}
             totalDriversCount={allDrivers.length}
             customDrivers={customDrivers}
+            allDrivers={allDrivers}
+            onToggleDriverStatus={handleToggleDriverStatus}
           />
         )}
       </main>
@@ -179,12 +206,12 @@ export default function App() {
                   MD
                 </div>
                 <span className="font-black text-lg uppercase tracking-wider text-white">
-                  MAA <span className="text-[#FF5500]">DRIVER</span>
+                  MANA <span className="text-[#FF5500]">DRIVER</span>
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-neutral-400 max-w-md leading-relaxed font-normal">
                 Trained, verified drivers for your personal car in Hyderabad.
-                Driver arrives in 30 minutes for office rides, RGIA airport trips, and safe family travel across Telangana.
+                Hire hourly freelance drivers or hire full-time permanent drivers for monthly family and corporate use.
               </p>
               <div className="flex items-center gap-3 pt-2">
                 <div className="px-3 py-1.5 bg-neutral-900 border border-neutral-800 text-[11px] font-mono uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
@@ -204,12 +231,12 @@ export default function App() {
                 [ PICKUP AREAS ]
               </h4>
               <ul className="space-y-2 text-xs text-neutral-400 font-medium">
-                <li>Hitec City (20 mins)</li>
-                <li>Gachibowli Financial District (25 mins)</li>
-                <li>Banjara Hills (30 mins)</li>
-                <li>Jubilee Hills (25 mins)</li>
-                <li>RGIA Airport Shamshabad (35 mins)</li>
-                <li>Madhapur & Kondapur (20 mins)</li>
+                <li>Hitec City & Cyberabad</li>
+                <li>Gachibowli Financial District</li>
+                <li>Banjara Hills & Jubilee Hills</li>
+                <li>Kondapur & Madhapur</li>
+                <li>RGIA Airport Shamshabad</li>
+                <li>Secunderabad & Begumpet</li>
               </ul>
             </div>
 
@@ -219,11 +246,11 @@ export default function App() {
                 [ QUICK LINKS ]
               </h4>
               <ul className="space-y-2 text-xs text-neutral-400 font-medium">
-                <li><a href="#services" className="hover:text-white transition-colors">City Driving</a></li>
-                <li><a href="#services" className="hover:text-white transition-colors">Airport Pickup</a></li>
-                <li><a href="#services" className="hover:text-white transition-colors">Outstation Trips</a></li>
-                <li><a href="#pricing" className="hover:text-white transition-colors">Simple Pricing</a></li>
-                <li><a href="#drivers" className="hover:text-white transition-colors">Find Drivers</a></li>
+                <li><a href="#drivers" className="hover:text-white transition-colors">Freelance Drivers</a></li>
+                <li><a href="#drivers" className="hover:text-white transition-colors">Permanent Drivers</a></li>
+                <li><a href="#services" className="hover:text-white transition-colors">Airport & City Rides</a></li>
+                <li><a href="#pricing" className="hover:text-white transition-colors">Pricing Rates</a></li>
+                <li><a href="#localities" className="hover:text-white transition-colors">Coverage Areas</a></li>
               </ul>
             </div>
 
@@ -233,7 +260,7 @@ export default function App() {
                 [ FOR DRIVERS ]
               </h4>
               <p className="text-xs text-neutral-400 leading-relaxed">
-                Join Maa Driver for ₹49. First 3 months free homepage listing, then ₹99/month. Direct calls and 0% commission.
+                Join Mana Driver: ₹49 (Freelance) or ₹99 (Permanent). First 3 months free homepage listing, then ₹99/month. 0% trip commission.
               </p>
               <button
                 type="button"
@@ -243,7 +270,7 @@ export default function App() {
                 }}
                 className="w-full py-2.5 px-3 bg-[#FF5500] hover:bg-[#E04B00] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition-colors"
               >
-                <span>Join for ₹49</span>
+                <span>Join from ₹49</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -251,7 +278,7 @@ export default function App() {
 
           {/* Bottom Divider & Copyright */}
           <div className="pt-8 border-t border-neutral-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-neutral-500">
-            <p>© {new Date().getFullYear()} MAA DRIVER HYDERABAD. ALL RIGHTS RESERVED.</p>
+            <p>© {new Date().getFullYear()} MANA DRIVER HYDERABAD. ALL RIGHTS RESERVED.</p>
             <div className="flex items-center gap-4">
               <span>TELANGANA TRANSPORT ACT COMPLIANT</span>
               <span>·</span>

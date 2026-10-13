@@ -8,30 +8,36 @@ import {
   Phone,
   Check,
   MessageCircle,
-  Award,
   UserCheck,
   PhoneCall,
   MessageSquare,
   ShieldCheck,
   ChevronRight,
+  Languages,
+  Clock,
+  Briefcase,
+  Info,
 } from 'lucide-react';
-import DriverAvatar3D from './DriverAvatar3D';
-import { CATEGORIES, HYDERABAD_LOCALITIES } from '../data/mockDrivers';
+import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
 
 export default function CustomerView({
   drivers,
   onOpenBooking,
   onSwitchToDriver,
 }) {
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  // Driver Type filter: 'all' | 'freelance' | 'permanent'
+  const [selectedDriverType, setSelectedDriverType] = useState('all');
   const [selectedLocality, setSelectedLocality] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [onlyAvailable, setOnlyAvailable] = useState(false);
 
-  // All verified drivers in Hyderabad (Zero locking / 100% free direct customer access)
+  // Filtered drivers based on driverType, locality, availability, and search query
   const filteredDrivers = useMemo(() => {
     return drivers
-      .filter((d) => (selectedCategory === 'All' ? true : d.category === selectedCategory))
+      .filter((d) => {
+        if (selectedDriverType === 'all') return true;
+        return (d.driverType || 'freelance') === selectedDriverType;
+      })
       .filter((d) =>
         selectedLocality === 'All'
           ? true
@@ -43,20 +49,20 @@ export default function CustomerView({
         const q = searchQuery.toLowerCase();
         return (
           d.name.toLowerCase().includes(q) ||
-          d.vehicle.toLowerCase().includes(q) ||
-          d.location.toLowerCase().includes(q)
+          (d.vehicle && d.vehicle.toLowerCase().includes(q)) ||
+          d.location.toLowerCase().includes(q) ||
+          (d.languages && d.languages.toLowerCase().includes(q))
         );
       });
-  }, [drivers, selectedCategory, selectedLocality, onlyAvailable, searchQuery]);
+  }, [drivers, selectedDriverType, selectedLocality, onlyAvailable, searchQuery]);
 
   const allFilteredDriversCount = filteredDrivers.length;
+  const availableCount = drivers.filter((d) => d.status === 'Available').length;
 
   return (
     <div className="space-y-16 sm:space-y-24 pb-16">
       {/* =========================================================================
-          1. HERO SECTION (REFERENCE IMAGE 3)
-          Full-width cinematic car photo on open road, dark gradient, massive bold
-          bottom-left headline, pinned bottom-right solid orange accent block.
+          1. HERO SECTION
          ========================================================================= */}
       <section className="relative w-full overflow-hidden bg-neutral-950 border border-neutral-850 text-white min-h-[580px] sm:min-h-[640px] lg:min-h-[680px] flex flex-col justify-end">
         {/* Background Photo with Cinematic Dark Gradient */}
@@ -66,7 +72,6 @@ export default function CustomerView({
             alt="Luxury automobile on open road"
             className="w-full h-full object-cover object-center opacity-45 brightness-90 filter"
           />
-          {/* Multi-layer atmospheric vignette */}
           <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/70 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0A]/90 via-transparent to-[#0A0A0A]/40" />
         </div>
@@ -77,20 +82,20 @@ export default function CustomerView({
             <span className="w-2 h-2 bg-[#FF5500] animate-pulse" />
             <span>Hyderabad, Telangana · Verified Drivers for Your Car</span>
           </div>
-          <span className="hidden sm:inline text-neutral-500">No Surge Prices · Police Verified</span>
+          <span className="hidden sm:inline text-neutral-500">Freelance Hourly & Permanent Monthly · Police Verified</span>
         </div>
 
         {/* Hero Content (Clean, Focused & Minimalist) */}
         <div className="relative z-10 px-6 sm:px-10 lg:px-12 pb-10 sm:pb-14 pt-16 max-w-3xl space-y-4">
           <div className="text-[11px] sm:text-xs font-mono uppercase tracking-[0.25em] text-[#FF5500] font-black">
-            [ HIRE DRIVERS FOR YOUR CAR ]
+            [ MANA DRIVER · HYDERABAD ]
           </div>
           <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-[76px] font-black tracking-tight uppercase leading-[0.92] text-white">
             NEED A DRIVER <br />
             <span className="text-[#FF5500]">FOR YOUR CAR?</span>
           </h1>
           <p className="text-sm sm:text-base text-neutral-300 max-w-xl font-normal leading-relaxed pt-2">
-            Trained, verified drivers ready in 30 minutes in Hyderabad.
+            Hire trusted Hyderabad drivers for your personal car. Choose hourly freelance drivers in 30 minutes, or hire full-time monthly permanent drivers for family & corporate needs.
           </p>
 
           {/* Quick Jump Buttons */}
@@ -107,14 +112,14 @@ export default function CustomerView({
               href="#pricing"
               className="inline-flex items-center gap-2 px-5 py-3 bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-700 text-white font-bold text-xs uppercase tracking-wider transition-colors"
             >
-              <span>View Pricing</span>
+              <span>View Pricing Rates</span>
             </a>
           </div>
         </div>
       </section>
 
       {/* =========================================================================
-          2. REDESIGNED HOW IT WORKS (3-STEP INTERACTIVE VISUAL CARD GRID)
+          2. 3-STEP HOW IT WORKS SECTION
          ========================================================================= */}
       <section id="how-it-works" className="pt-6 scroll-mt-24">
         {/* Section Header */}
@@ -128,16 +133,15 @@ export default function CustomerView({
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-neutral-600 max-w-md">
-            Hire a trusted, police-verified driver for your personal car in Hyderabad with zero middleman hassle.
+            Hire a trusted, police-verified driver for your personal car in Hyderabad with zero middleman hassle and 100% free direct calls.
           </p>
         </div>
 
         {/* 3-Step Interactive Visual Card Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 relative">
           {/* Step 1 Card — Browse & Pick */}
-          <div className="bg-white border-2 border-neutral-200 hover:border-black p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 group relative shadow-sm hover:shadow-md">
+          <div className="bg-white border-2 border-neutral-200 hover:border-black p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 group relative shadow-xs hover:shadow-md">
             <div>
-              {/* Top Row: Step Badge + Icon */}
               <div className="flex items-center justify-between mb-6">
                 <span className="font-mono text-xs font-black px-2.5 py-1 bg-black text-[#FF5500] uppercase tracking-wider">
                   STEP 01
@@ -147,33 +151,30 @@ export default function CustomerView({
                 </div>
               </div>
 
-              {/* Title & Subtitle */}
               <div className="text-[10px] font-mono uppercase tracking-widest text-[#FF5500] font-bold mb-1">
-                BROWSE & PICK
+                BROWSE & FILTER
               </div>
               <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-neutral-950 mb-3 group-hover:text-[#FF5500] transition-colors">
-                Pick a Driver Nearby
+                Pick Freelance or Permanent
               </h3>
               <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
-                Browse verified Hyderabad drivers in Hitec City, Gachibowli, Jubilee Hills, and nearby areas. Check their ratings, driving experience, and languages.
+                Filter by Freelance (Hourly / On-Demand) or Permanent (Monthly / Full-Time). Check real driver photos, years of experience, languages, and ratings.
               </p>
             </div>
 
-            {/* Bottom Tags */}
             <div className="pt-6 mt-6 border-t border-neutral-100 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-100 text-neutral-800 text-[11px] font-bold uppercase tracking-wider">
                 <Check className="w-3 h-3 text-[#FF5500]" /> Police Verified
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-100 text-neutral-800 text-[11px] font-bold uppercase tracking-wider">
-                <MapPin className="w-3 h-3 text-[#FF5500]" /> Local Hyderabad Experts
+                <MapPin className="w-3 h-3 text-[#FF5500]" /> Hyderabad Experts
               </span>
             </div>
           </div>
 
           {/* Step 2 Card — Connect Instantly */}
-          <div className="bg-white border-2 border-neutral-200 hover:border-black p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 group relative shadow-sm hover:shadow-md">
+          <div className="bg-white border-2 border-neutral-200 hover:border-black p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 group relative shadow-xs hover:shadow-md">
             <div>
-              {/* Top Row: Step Badge + Icon */}
               <div className="flex items-center justify-between mb-6">
                 <span className="font-mono text-xs font-black px-2.5 py-1 bg-black text-[#FF5500] uppercase tracking-wider">
                   STEP 02
@@ -183,33 +184,30 @@ export default function CustomerView({
                 </div>
               </div>
 
-              {/* Title & Subtitle */}
               <div className="text-[10px] font-mono uppercase tracking-widest text-[#FF5500] font-bold mb-1">
-                CONNECT INSTANTLY
+                DIRECT CONTACT
               </div>
               <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-neutral-950 mb-3 group-hover:text-[#FF5500] transition-colors">
                 Call or WhatsApp Directly
               </h3>
               <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
-                Zero middleman fees and no app commission. Contact any driver directly with one tap to discuss your pickup time and destination.
+                Check their live availability status. If Online, tap to call or WhatsApp immediately with zero app commission or unlock fees.
               </p>
             </div>
 
-            {/* Bottom Tags */}
             <div className="pt-6 mt-6 border-t border-neutral-100 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-100 text-neutral-800 text-[11px] font-bold uppercase tracking-wider">
-                <Check className="w-3 h-3 text-[#FF5500]" /> 100% Free Contact
+                <Check className="w-3 h-3 text-[#FF5500]" /> 100% Free Access
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-100 text-neutral-800 text-[11px] font-bold uppercase tracking-wider">
-                <MessageSquare className="w-3 h-3 text-[#FF5500]" /> Instant Direct Response
+                <MessageSquare className="w-3 h-3 text-[#FF5500]" /> Live Duty Status
               </span>
             </div>
           </div>
 
           {/* Step 3 Card — Relax in Your Car */}
-          <div className="bg-white border-2 border-neutral-200 hover:border-black p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 group relative shadow-sm hover:shadow-md">
+          <div className="bg-white border-2 border-neutral-200 hover:border-black p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 group relative shadow-xs hover:shadow-md">
             <div>
-              {/* Top Row: Step Badge + Icon */}
               <div className="flex items-center justify-between mb-6">
                 <span className="font-mono text-xs font-black px-2.5 py-1 bg-black text-[#FF5500] uppercase tracking-wider">
                   STEP 03
@@ -219,19 +217,17 @@ export default function CustomerView({
                 </div>
               </div>
 
-              {/* Title & Subtitle */}
               <div className="text-[10px] font-mono uppercase tracking-widest text-[#FF5500] font-bold mb-1">
-                RELAX IN YOUR CAR
+                DOORSTEP SERVICE
               </div>
               <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-neutral-950 mb-3 group-hover:text-[#FF5500] transition-colors">
                 Driver Arrives in 30 Mins
               </h3>
               <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
-                Your driver arrives right at your doorstep. Relax in the comfort of your own car, avoid traffic fatigue, and pay the driver directly when the trip ends.
+                Your driver arrives right at your doorstep. Relax in the comfort of your own car, avoid Hyderabad traffic fatigue, and pay the driver directly.
               </p>
             </div>
 
-            {/* Bottom Tags */}
             <div className="pt-6 mt-6 border-t border-neutral-100 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-100 text-neutral-800 text-[11px] font-bold uppercase tracking-wider">
                 <Car className="w-3 h-3 text-[#FF5500]" /> Doorstep Pickup
@@ -248,41 +244,37 @@ export default function CustomerView({
           <div className="flex items-center gap-3">
             <span className="w-2.5 h-2.5 bg-[#FF5500] animate-pulse" />
             <p className="text-xs sm:text-sm font-bold text-neutral-900">
-              Need a driver now? Trained drivers on standby across Hyderabad.
+              {availableCount} verified drivers currently online across Hyderabad. Ready for immediate dispatch.
             </p>
           </div>
           <a
             href="#drivers"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#FF5500] hover:bg-[#E04B00] text-black font-black text-xs uppercase tracking-wider transition-colors shrink-0"
           >
-            <span>Find a Driver Now</span>
+            <span>Browse Drivers Now</span>
             <ChevronRight className="w-4 h-4" />
           </a>
         </div>
       </section>
 
       {/* =========================================================================
-          3. 3 SIMPLE SERVICE CARDS
-          Card 1: "City Driving" — Office rides, shopping, and traffic relief (From ₹160/hr).
-          Card 2: "Airport Pickup & Drop" — On-time rides to RGIA Shamshabad (Fixed ₹550).
-          Card 3: "Outstation Trips" — Safe family trips outside Hyderabad (From ₹1,400/day).
+          3. SIMPLE SERVICES OVERVIEW
          ========================================================================= */}
       <section id="services" className="pt-4 scroll-mt-24">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
             <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-[#FF5500] font-black mb-1">
-              [ WHAT WE DO ]
+              [ WHAT WE OFFER ]
             </div>
             <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-neutral-950">
-              Simple Driving Services
+              Personal Car Driving Services
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-neutral-600 max-w-md">
-            Clear prices with zero extra charges. Safe & careful drivers for your personal car.
+            Clear market rates with zero surprise charges. Experienced, licensed drivers for your personal car (any make, manual or automatic).
           </p>
         </div>
 
-        {/* 3-Card Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Card 1: City Driving */}
           <div className="bg-white border border-neutral-200 flex flex-col group hover:border-neutral-900 transition-colors">
@@ -293,60 +285,60 @@ export default function CustomerView({
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute top-3 left-3 bg-black text-[#FF5500] text-[10px] font-black uppercase tracking-wider px-2 py-0.5">
-                CITY RIDES
+                HOURLY / ON-DEMAND
               </div>
             </div>
             <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
               <div>
                 <h3 className="text-lg font-black uppercase tracking-tight text-neutral-950 group-hover:text-[#FF5500] transition-colors">
-                  CITY DRIVING
+                  CITY & HOURLY DRIVING
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-600 mt-2 leading-relaxed">
-                  Office rides, shopping, and traffic relief. Relax in the backseat of your car while a trained driver navigates Hyderabad traffic.
+                  Office commutes, shopping runs, doctor visits, and weekend traffic relief. Driver arrives in 30 minutes.
                 </p>
               </div>
               <div className="pt-4 mt-4 border-t border-neutral-100 flex items-center justify-between text-xs">
-                <span className="font-bold text-neutral-900">From ₹160 / hr</span>
+                <span className="font-bold text-neutral-900">From ₹140 – ₹160 / hr</span>
                 <a href="#drivers" className="font-bold uppercase tracking-wider text-[#FF5500] flex items-center gap-1 hover:underline">
-                  <span>Find a Driver</span>
+                  <span>View Drivers</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </a>
               </div>
             </div>
           </div>
 
-          {/* Card 2: Airport Pickup & Drop */}
+          {/* Card 2: Permanent Monthly Drivers */}
           <div className="bg-white border border-neutral-200 flex flex-col group hover:border-neutral-900 transition-colors">
             <div className="w-full aspect-[4/3] bg-neutral-900 overflow-hidden relative">
               <img
-                src="https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&w=1200&q=80"
-                alt="Airport Pickup & Drop"
+                src="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80"
+                alt="Permanent Monthly Driver"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute top-3 left-3 bg-[#FF5500] text-black text-[10px] font-black uppercase tracking-wider px-2 py-0.5">
-                RGIA 24/7 AIRPORT
+                PERMANENT / MONTHLY
               </div>
             </div>
             <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
               <div>
                 <h3 className="text-lg font-black uppercase tracking-tight text-neutral-950 group-hover:text-[#FF5500] transition-colors">
-                  AIRPORT PICKUP & DROP
+                  MONTHLY FAMILY CHAUFFEURS
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-600 mt-2 leading-relaxed">
-                  On-time rides to RGIA Shamshabad airport. 24/7 service, flight timing tracking, and smooth highway drive with luggage help.
+                  Dedicated full-time private drivers for car owners, families, school runs, and senior corporate executives.
                 </p>
               </div>
               <div className="pt-4 mt-4 border-t border-neutral-100 flex items-center justify-between text-xs">
-                <span className="font-bold text-neutral-900">Fixed ₹550 / trip</span>
+                <span className="font-bold text-neutral-900">₹18,000 – ₹24,000 / mo</span>
                 <a href="#drivers" className="font-bold uppercase tracking-wider text-[#FF5500] flex items-center gap-1 hover:underline">
-                  <span>Find a Driver</span>
+                  <span>View Drivers</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </a>
               </div>
             </div>
           </div>
 
-          {/* Card 3: Outstation Trips */}
+          {/* Card 3: Airport & Outstation Trips */}
           <div className="bg-white border border-neutral-200 flex flex-col group hover:border-neutral-900 transition-colors">
             <div className="w-full aspect-[4/3] bg-neutral-900 overflow-hidden relative">
               <img
@@ -355,22 +347,22 @@ export default function CustomerView({
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute top-3 left-3 bg-black text-[#FF5500] text-[10px] font-black uppercase tracking-wider px-2 py-0.5">
-                HIGHWAY TRIPS
+                AIRPORT & HIGHWAY
               </div>
             </div>
             <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
               <div>
                 <h3 className="text-lg font-black uppercase tracking-tight text-neutral-950 group-hover:text-[#FF5500] transition-colors">
-                  OUTSTATION TRIPS
+                  AIRPORT & OUTSTATION TRIPS
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-600 mt-2 leading-relaxed">
-                  Safe family trips outside Hyderabad to Vijayawada, Warangal, Srisailam, or Tirupati with an expert highway driver.
+                  Fixed RGIA Shamshabad airport transfers and long-distance highway travel across Telangana & Andhra Pradesh.
                 </p>
               </div>
               <div className="pt-4 mt-4 border-t border-neutral-100 flex items-center justify-between text-xs">
-                <span className="font-bold text-neutral-900">From ₹1,400 / day</span>
+                <span className="font-bold text-neutral-900">₹1,400 – ₹1,800 / day</span>
                 <a href="#drivers" className="font-bold uppercase tracking-wider text-[#FF5500] flex items-center gap-1 hover:underline">
-                  <span>Find a Driver</span>
+                  <span>View Drivers</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </a>
               </div>
@@ -380,32 +372,83 @@ export default function CustomerView({
       </section>
 
       {/* =========================================================================
-          4. DRIVER ROSTER & DIRECT RAZORPAY PAYMENT
+          4. DRIVER ROSTER WITH FREELANCE VS PERMANENT FILTERS & MINIMALIST CARDS
          ========================================================================= */}
       <section id="drivers" className="pt-4 scroll-mt-24 space-y-6">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-neutral-200">
           <div>
             <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-[#FF5500] font-black mb-1">
-              [ AVAILABLE DRIVERS ]
+              [ DIRECT DRIVER ROSTER ]
             </div>
             <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-neutral-950">
-              Available Drivers in Hyderabad
+              Verified Drivers in Hyderabad
             </h2>
             <p className="text-xs sm:text-sm text-neutral-600 mt-1">
-              Direct phone numbers, WhatsApp, and booking for all verified Hyderabad drivers.
+              Browse authentic Indian drivers with live status. Call or WhatsApp directly for free.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="text-xs font-mono uppercase tracking-wider text-neutral-500 font-bold">
-              {allFilteredDriversCount} DRIVERS AVAILABLE
+              {allFilteredDriversCount} DRIVERS LISTED
             </span>
           </div>
         </div>
 
-        {/* Filter Controls: Search, Category Tabs, Locality Pills */}
+        {/* 1. PRIMARY DRIVER TYPE FILTER TABS (FREELANCE VS PERMANENT) */}
+        <div className="bg-neutral-950 text-white p-2 sm:p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 shadow-sm">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedDriverType('all')}
+              className={`px-3.5 sm:px-4 py-2 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+                selectedDriverType === 'all'
+                  ? 'bg-[#FF5500] text-black'
+                  : 'text-neutral-300 hover:text-white hover:bg-neutral-900'
+              }`}
+            >
+              <span>All Drivers</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedDriverType('freelance')}
+              className={`px-3.5 sm:px-4 py-2 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+                selectedDriverType === 'freelance'
+                  ? 'bg-[#FF5500] text-black'
+                  : 'text-neutral-300 hover:text-white hover:bg-neutral-900'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Freelance Drivers (Hourly / On-Demand)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedDriverType('permanent')}
+              className={`px-3.5 sm:px-4 py-2 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+                selectedDriverType === 'permanent'
+                  ? 'bg-[#FF5500] text-black'
+                  : 'text-neutral-300 hover:text-white hover:bg-neutral-900'
+              }`}
+            >
+              <Briefcase className="w-3.5 h-3.5" />
+              <span>Permanent Drivers (Monthly / Full-Time)</span>
+            </button>
+          </div>
+
+          {/* Quick Info text for currently active type */}
+          <div className="text-[11px] font-mono text-neutral-400 hidden lg:block pr-3">
+            {selectedDriverType === 'freelance'
+              ? 'Pay hourly (₹140 - ₹300/hr) · Fast 30-min pickup'
+              : selectedDriverType === 'permanent'
+              ? 'Monthly salary (₹18k - ₹26k/mo) · Dedicated full-time'
+              : 'Showing all hourly & monthly drivers'}
+          </div>
+        </div>
+
+        {/* 2. SECONDARY CONTROLS: SEARCH + UBER-STYLE AVAILABLE ONLY TOGGLE */}
         <div className="bg-white border border-neutral-200 p-4 sm:p-5 space-y-4">
-          {/* Top Line: Search Bar + Available Toggle */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
@@ -413,48 +456,32 @@ export default function CustomerView({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search driver by name, car type, or area (e.g. Hitec City)..."
+                placeholder="Search driver by name, car (Dzire, Fortuner), language, or area..."
                 className="w-full bg-neutral-50 border border-neutral-300 pl-10 pr-4 py-2.5 text-xs sm:text-sm text-neutral-950 placeholder-neutral-400 focus:outline-none focus:border-[#FF5500] focus:ring-1 focus:ring-[#FF5500]"
               />
             </div>
 
+            {/* Uber-style Available Only Toggle */}
             <button
               type="button"
               onClick={() => setOnlyAvailable(!onlyAvailable)}
-              className={`flex items-center justify-center gap-2 px-4 py-2.5 border text-xs font-bold uppercase tracking-wider transition-colors shrink-0 ${
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 border text-xs font-bold uppercase tracking-wider transition-all shrink-0 ${
                 onlyAvailable
-                  ? 'bg-neutral-950 text-white border-neutral-950'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                   : 'bg-neutral-50 text-neutral-700 border-neutral-300 hover:bg-neutral-100'
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${onlyAvailable ? 'bg-emerald-400' : 'bg-neutral-400'}`} />
-              <span>Available Now Only</span>
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  onlyAvailable ? 'bg-white animate-pulse' : 'bg-neutral-400'
+                }`}
+              />
+              <span>Show Available Drivers Only</span>
             </button>
           </div>
 
-          {/* Category Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 mr-2 font-bold">
-              CAR TYPE:
-            </span>
-            {Array.from(new Set(CATEGORIES.includes('All') ? CATEGORIES : ['All', ...CATEGORIES])).map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-all ${
-                  selectedCategory === cat
-                    ? 'bg-neutral-950 text-white'
-                    : 'bg-neutral-100 text-neutral-600 hover:text-neutral-950 hover:bg-neutral-200'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
           {/* Locality Quick Buttons */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-neutral-100">
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
             <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 mr-2 font-bold">
               AREA:
             </span>
@@ -486,270 +513,431 @@ export default function CustomerView({
           </div>
         </div>
 
-        {/* Driver Grid: All Verified Hyderabad Drivers */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredDrivers.map((driver) => (
-            <div
-              key={driver.id}
-              className="bg-white border border-neutral-200 flex flex-col justify-between hover:border-neutral-950 transition-colors shadow-2xs group"
-            >
-              {/* Clean Status / Listing Badge */}
-              <div className="bg-[#0A0A0A] text-white px-3.5 py-1.5 flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <span>{driver.listingStatus || 'Verified Chauffeur'}</span>
-                </span>
-                <span className="text-[#FF5500] font-mono text-[9px]">
-                  {driver.listingPlan || 'Active on Homepage'}
-                </span>
-              </div>
+        {/* 3. ULTRA-MINIMALIST DRIVER CARDS GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+          {filteredDrivers.map((driver) => {
+            const isAvailable = driver.status === 'Available';
+            const isPermanent = (driver.driverType || 'freelance') === 'permanent';
 
-              {/* Card Header & Avatar */}
-              <div className="p-5 sm:p-6 space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <DriverAvatar3D
-                      type={driver.avatarType || 'suit'}
-                      name={driver.name}
-                      isPro={driver.isPro}
-                      size="md"
+            return (
+              <div
+                key={driver.id}
+                className={`bg-white border transition-all duration-200 flex flex-col justify-between relative group ${
+                  isAvailable
+                    ? 'border-neutral-200 hover:border-black shadow-xs hover:shadow-md'
+                    : 'border-neutral-200/80 bg-neutral-50/60 opacity-90'
+                }`}
+              >
+                {/* Top Status Bar with Uber-style Live Dot */}
+                <div
+                  className={`px-4 py-2 border-b flex items-center justify-between text-[11px] font-mono uppercase tracking-wider ${
+                    isAvailable
+                      ? 'bg-neutral-950 text-white border-neutral-950'
+                      : 'bg-neutral-200 text-neutral-600 border-neutral-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        isAvailable
+                          ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50 animate-pulse'
+                          : 'bg-neutral-400'
+                      }`}
                     />
-                    <div>
+                    <span className="font-bold">
+                      {isAvailable ? 'AVAILABLE FOR RIDES' : 'CURRENTLY OFFLINE'}
+                    </span>
+                  </div>
+
+                  <span
+                    className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                      isPermanent
+                        ? 'bg-purple-900 text-purple-200'
+                        : 'bg-[#FF5500] text-black'
+                    }`}
+                  >
+                    {isPermanent ? 'Permanent' : 'Freelance'}
+                  </span>
+                </div>
+
+                {/* Main Card Content: Square Portrait Photo + Clean Details */}
+                <div className="p-5 space-y-4">
+                  <div className="flex items-start gap-4">
+                    {/* Real Driver Photo (Square aspect ratio with fallback) */}
+                    <div className="relative shrink-0 w-20 h-20 sm:w-22 sm:h-22 bg-neutral-900 overflow-hidden border border-neutral-200">
+                      <img
+                        src={
+                          driver.photo ||
+                          'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80'
+                        }
+                        alt={driver.name}
+                        className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${
+                          !isAvailable ? 'grayscale-[40%]' : ''
+                        }`}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src =
+                            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80';
+                        }}
+                      />
+                      {/* Status indicator pin */}
+                      <span
+                        className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
+                          isAvailable ? 'bg-emerald-500' : 'bg-neutral-400'
+                        }`}
+                        title={isAvailable ? 'Online' : 'Offline'}
+                      />
+                    </div>
+
+                    {/* Driver Identity & Vehicle */}
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <h4 className="font-black text-neutral-950 text-base uppercase tracking-tight">
+                        <h4 className="font-black text-neutral-950 text-base sm:text-lg uppercase tracking-tight truncate">
                           {driver.name}
                         </h4>
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Verified" />
+                        <span
+                          className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0"
+                          title="Police & License Checked"
+                        >
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </span>
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-neutral-600 font-medium mt-0.5">
-                        <Car className="w-3.5 h-3.5 text-neutral-400" />
-                        <span>{driver.vehicle}</span>
+
+                      <div className="text-xs text-neutral-600 font-medium flex items-center gap-1.5 mt-0.5 truncate">
+                        <Car className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                        <span className="truncate">{driver.vehicle}</span>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-xs text-neutral-500 mt-2">
+                        <span className="flex items-center gap-1 font-bold text-neutral-900">
+                          <Star className="w-3.5 h-3.5 fill-[#FF5500] text-[#FF5500]" />
+                          {driver.rating}
+                        </span>
+                        <span>·</span>
+                        <span>{driver.experience} Yrs Exp</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Hourly Rate Badge */}
-                  <div className="text-right shrink-0">
-                    <div className="text-base font-black text-neutral-950">
-                      ₹{driver.hourlyRate}
+                  {/* Clean Info Grid: Languages & Location */}
+                  <div className="pt-3 border-t border-neutral-100 space-y-1.5 text-xs text-neutral-600">
+                    <div className="flex items-center gap-2">
+                      <Languages className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                      <span className="truncate font-medium">
+                        {driver.languages || 'Telugu, Hindi, English'}
+                      </span>
                     </div>
-                    <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
-                      PER HOUR
+
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-[#FF5500] shrink-0" />
+                      <span className="truncate">{driver.location}</span>
                     </div>
                   </div>
+
+                  {/* Transparent Pricing Callout */}
+                  <div className="p-3 bg-neutral-50 border border-neutral-200 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 font-bold">
+                        {isPermanent ? 'MONTHLY SALARY' : 'HOURLY RATE'}
+                      </div>
+                      <div className="text-lg font-black text-neutral-950 font-mono">
+                        {isPermanent
+                          ? `₹${(driver.monthlySalary || 20000).toLocaleString('en-IN')}`
+                          : `₹${driver.hourlyRate}`}
+                        <span className="text-xs text-neutral-500 font-sans font-medium ml-1">
+                          {isPermanent ? '/ month' : '/ hr'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] font-mono uppercase text-neutral-500">
+                        {isPermanent ? '26 Days · 8-10 Hrs' : 'Min 3 Hours'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Off-Duty Notice when Driver is Offline */}
+                  {!isAvailable && (
+                    <div className="p-2.5 bg-neutral-100 border border-neutral-200 text-neutral-600 text-xs flex items-center gap-2">
+                      <Info className="w-4 h-4 text-neutral-500 shrink-0" />
+                      <span className="text-[11px] leading-tight">
+                        Driver is off-duty / resting. Calls paused to respect their personal time.
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                {/* Driver Bio / Details */}
-                <p className="text-xs text-neutral-600 line-clamp-2 leading-relaxed">
-                  {driver.bio || 'Experienced private driver for Hyderabad city and Outer Ring Road commutes.'}
-                </p>
+                {/* Minimalist Action Buttons */}
+                <div className="p-4 pt-0 mt-auto flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onOpenBooking(driver)}
+                    className="flex-1 py-2.5 px-3 bg-neutral-950 hover:bg-[#FF5500] hover:text-black text-white font-black text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <span>{isPermanent ? 'Inquire / Hire' : 'Book Ride'}</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
 
-                {/* Metadata Row: Rating, Trips, Experience, Location */}
-                <div className="pt-3 border-t border-neutral-100 grid grid-cols-2 gap-2 text-[11px] text-neutral-600 font-medium">
-                  <div className="flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 fill-[#FF5500] text-[#FF5500]" />
-                    <span className="font-bold text-neutral-950">{driver.rating}</span>
-                    <span className="text-neutral-400">({driver.trips} trips)</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-neutral-700">
-                    <Award className="w-3.5 h-3.5 text-neutral-400" />
-                    <span>{driver.experience} yrs exp</span>
-                  </div>
-                  <div className="col-span-2 flex items-center gap-1 text-neutral-500 truncate">
-                    <MapPin className="w-3.5 h-3.5 text-[#FF5500] shrink-0" />
-                    <span className="truncate">{driver.location}</span>
-                  </div>
+                  {/* Call Button (Disabled if driver is offline) */}
+                  {isAvailable ? (
+                    <a
+                      href={`tel:${driver.phone}`}
+                      className="px-3 py-2.5 border border-neutral-300 hover:border-black text-neutral-900 transition-colors flex items-center gap-1 text-xs font-bold"
+                      title={`Call ${driver.name}`}
+                    >
+                      <Phone className="w-3.5 h-3.5 text-[#FF5500]" />
+                      <span className="hidden sm:inline text-[11px]">Call</span>
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="px-3 py-2.5 border border-neutral-200 text-neutral-400 bg-neutral-100 cursor-not-allowed flex items-center gap-1 text-xs font-bold"
+                      title="Driver is currently offline"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-neutral-400" />
+                      <span className="hidden sm:inline text-[11px]">Offline</span>
+                    </button>
+                  )}
+
+                  {/* WhatsApp Button (Disabled if driver is offline) */}
+                  {isAvailable ? (
+                    <a
+                      href={`https://wa.me/${driver.phone.replace(/[^0-9]/g, '')}?text=Hi%20${encodeURIComponent(driver.name)},%20I%20would%20like%20to%20hire%20you%20as%20a%20driver%20in%20Hyderabad%20via%20Mana%20Driver.`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2.5 border border-neutral-300 hover:border-emerald-600 text-neutral-900 hover:text-emerald-600 transition-colors flex items-center gap-1 text-xs font-bold"
+                      title={`WhatsApp ${driver.name}`}
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="hidden sm:inline text-[11px]">WhatsApp</span>
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="px-3 py-2.5 border border-neutral-200 text-neutral-400 bg-neutral-100 cursor-not-allowed flex items-center gap-1 text-xs font-bold"
+                      title="Driver is currently offline"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 text-neutral-400" />
+                      <span className="hidden sm:inline text-[11px]">Paused</span>
+                    </button>
+                  )}
                 </div>
               </div>
-
-              {/* Card Footer Actions: Book, Call, WhatsApp (Direct Access) */}
-              <div className="p-4 sm:p-5 pt-0 mt-auto flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => onOpenBooking(driver)}
-                  className="flex-1 py-2.5 px-3 bg-neutral-950 hover:bg-[#FF5500] hover:text-black text-white font-black text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <span>Book Driver</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-
-                <a
-                  href={`tel:${driver.phone}`}
-                  className="px-2.5 py-2.5 border border-neutral-300 hover:border-neutral-950 text-neutral-700 hover:text-neutral-950 transition-colors flex items-center gap-1 text-xs font-bold"
-                  aria-label={`Call ${driver.name}`}
-                  title="Call Now"
-                >
-                  <Phone className="w-3.5 h-3.5 text-[#FF5500]" />
-                  <span className="hidden sm:inline text-[11px]">Call Now</span>
-                </a>
-                <a
-                  href={`https://wa.me/${driver.phone.replace(/[^0-9]/g, '')}?text=Hi%20${encodeURIComponent(driver.name)},%20I%20would%20like%20to%20book%20a%20driver%20in%20Hyderabad%20via%20Maa%20Driver.`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2.5 py-2.5 border border-neutral-300 hover:border-emerald-600 text-neutral-700 hover:text-emerald-600 transition-colors flex items-center gap-1 text-xs font-bold"
-                  aria-label={`WhatsApp ${driver.name}`}
-                  title="WhatsApp"
-                >
-                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="hidden sm:inline text-[11px]">WhatsApp</span>
-                </a>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {allFilteredDriversCount === 0 && (
           <div className="text-center py-12 bg-white border border-neutral-200 p-8 space-y-3">
             <p className="text-sm font-bold uppercase tracking-wider text-neutral-900">
-              No drivers match your current search
+              No drivers match your current filter
             </p>
             <p className="text-xs text-neutral-500">
-              Try resetting your search query or selecting "All Hyderabad"
+              Try searching a different area or turn off "Show Available Drivers Only"
             </p>
             <button
               type="button"
               onClick={() => {
-                setSelectedCategory('All');
+                setSelectedDriverType('all');
                 setSelectedLocality('All');
                 setSearchQuery('');
                 setOnlyAvailable(false);
               }}
               className="mt-2 px-4 py-2 bg-neutral-950 text-white font-bold text-xs uppercase tracking-wider"
             >
-              Reset Filters
+              Reset All Filters
             </button>
           </div>
         )}
       </section>
 
       {/* =========================================================================
-          5. PRICING SECTION (#pricing)
+          5. TRANSPARENT PRICING SECTION (#pricing)
          ========================================================================= */}
-      <section id="pricing" className="pt-4 scroll-mt-24 space-y-6">
+      <section id="pricing" className="pt-4 scroll-mt-24 space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-neutral-200">
           <div>
             <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-[#FF5500] font-black mb-1">
-              [ CLEAR PRICES ]
+              [ REALISTIC HYDERABAD MARKET RATES ]
             </div>
             <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-neutral-950">
-              Simple Hourly Rates
+              Transparent Driver Rates
             </h2>
             <p className="text-xs sm:text-sm text-neutral-600 mt-1">
-              No extra surge prices during rain or rush hour. Pay the driver directly.
+              No surge prices or middleman commission. Pay the driver directly in cash or UPI.
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white border border-neutral-200 p-6 flex flex-col justify-between">
-            <div>
-              <div className="text-xs font-mono uppercase tracking-wider text-neutral-400 font-bold mb-1">
-                TIER 1
-              </div>
-              <h3 className="text-lg font-black uppercase tracking-tight text-neutral-950">
-                Small Car / Hatchback
-              </h3>
-              <p className="text-xs text-neutral-600 mt-2">
-                Swift, Baleno, i20, Tiago for daily local office errands.
-              </p>
-            </div>
-            <div className="pt-6 mt-6 border-t border-neutral-100">
-              <div className="text-2xl font-black text-neutral-950">₹140 - ₹160</div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
-                PER HOUR · 3 HR MIN
-              </div>
-            </div>
+        {/* 1. FREELANCE HOURLY DRIVING RATES */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 bg-[#FF5500]" />
+            <h3 className="text-lg font-black uppercase tracking-tight text-neutral-950">
+              1. Freelance Driving Rates (Hourly / On-Demand)
+            </h3>
           </div>
 
-          <div className="bg-white border border-neutral-200 p-6 flex flex-col justify-between">
-            <div>
-              <div className="text-xs font-mono uppercase tracking-wider text-neutral-400 font-bold mb-1">
-                TIER 2
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="bg-white border border-neutral-200 p-6 flex flex-col justify-between">
+              <div>
+                <div className="text-xs font-mono uppercase tracking-wider text-neutral-400 font-bold mb-1">
+                  FLAT HOURLY RATE
+                </div>
+                <h4 className="text-base font-black uppercase tracking-tight text-neutral-950">
+                  Hourly City Driving
+                </h4>
+                <p className="text-xs text-neutral-600 mt-2 leading-relaxed">
+                  Flat hourly rate for any personal car (Manual or Automatic). Office rides, shopping runs, doctor visits, and traffic relief.
+                </p>
               </div>
-              <h3 className="text-lg font-black uppercase tracking-tight text-neutral-950">
-                Sedan Car
-              </h3>
-              <p className="text-xs text-neutral-600 mt-2">
-                City, Dzire, Verna, Ciaz for business meetings & airport runs.
-              </p>
-            </div>
-            <div className="pt-6 mt-6 border-t border-neutral-100">
-              <div className="text-2xl font-black text-neutral-950">₹180 - ₹220</div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
-                PER HOUR · 3 HR MIN
+              <div className="pt-6 mt-6 border-t border-neutral-100">
+                <div className="text-2xl font-black text-neutral-950 font-mono">₹160 – ₹180</div>
+                <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
+                  PER HOUR · 3 HR MINIMUM
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="bg-white border border-neutral-200 p-6 flex flex-col justify-between">
-            <div>
-              <div className="text-xs font-mono uppercase tracking-wider text-neutral-400 font-bold mb-1">
-                TIER 3
+            <div className="bg-white border border-neutral-200 p-6 flex flex-col justify-between">
+              <div>
+                <div className="text-xs font-mono uppercase tracking-wider text-neutral-400 font-bold mb-1">
+                  AIRPORT TRANSFER
+                </div>
+                <h4 className="text-base font-black uppercase tracking-tight text-neutral-950">
+                  RGIA Airport Pickup / Drop
+                </h4>
+                <p className="text-xs text-neutral-600 mt-2 leading-relaxed">
+                  On-time doorstep airport transfers to Rajiv Gandhi International Airport Shamshabad. Flight tracking and luggage help.
+                </p>
               </div>
-              <h3 className="text-lg font-black uppercase tracking-tight text-neutral-950">
-                SUV & 7-Seater
-              </h3>
-              <p className="text-xs text-neutral-600 mt-2">
-                Innova Crysta, Fortuner, Creta, XUV700 for family trips.
-              </p>
-            </div>
-            <div className="pt-6 mt-6 border-t border-neutral-100">
-              <div className="text-2xl font-black text-neutral-950">₹250 - ₹300</div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
-                PER HOUR · 4 HR MIN
+              <div className="pt-6 mt-6 border-t border-neutral-100">
+                <div className="text-2xl font-black text-neutral-950 font-mono">Fixed ₹550</div>
+                <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
+                  PER AIRPORT TRIP · 24/7 SERVICE
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="bg-[#FF5500] text-black border-2 border-black p-6 flex flex-col justify-between">
-            <div>
-              <div className="text-xs font-mono uppercase tracking-wider text-black/70 font-black mb-1">
-                FOR DRIVERS
+            <div className="bg-white border border-neutral-200 p-6 flex flex-col justify-between">
+              <div>
+                <div className="text-xs font-mono uppercase tracking-wider text-neutral-400 font-bold mb-1">
+                  OUTSTATION HIRE
+                </div>
+                <h4 className="text-base font-black uppercase tracking-tight text-neutral-950">
+                  Outstation & Highway Trip
+                </h4>
+                <p className="text-xs text-neutral-600 mt-2 leading-relaxed">
+                  Full-day long-distance highway travel across Telangana & AP (Vijayawada, Warangal, Srisailam, Tirupati) with safe night drivers.
+                </p>
               </div>
-              <h3 className="text-lg font-black uppercase tracking-tight text-black">
-                List on Homepage
-              </h3>
-              <p className="text-xs text-black/85 mt-2 font-medium">
-                One-time ₹49 registration. First 3 months free, then ₹99/month to stay listed for customer bookings.
-              </p>
-            </div>
-            <div className="pt-6 mt-6 border-t border-black/20">
-              <div className="text-2xl font-black text-black">₹49</div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-black/70 font-black">
-                ONE-TIME · 3 MOS FREE · THEN ₹99/MO
+              <div className="pt-6 mt-6 border-t border-neutral-100">
+                <div className="text-2xl font-black text-neutral-950 font-mono">₹1,400 – ₹1,800</div>
+                <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
+                  PER DAY + DRIVER FOOD/STAY
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={onSwitchToDriver}
-                className="mt-3 w-full py-2 bg-black hover:bg-neutral-900 text-white font-black text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5"
-              >
-                <span>Register Driver (₹49)</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
             </div>
           </div>
         </div>
 
-        {/* Dedicated Driver Listing Model Banner */}
-        <div className="mt-4 bg-[#0A0A0A] border-l-4 border-[#FF5500] p-5 sm:p-6 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#FF5500] font-black">
-              <span>FOR PRIVATE DRIVERS</span>
+        {/* 2. PERMANENT MONTHLY DRIVER SALARIES */}
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 bg-neutral-950" />
+            <h3 className="text-lg font-black uppercase tracking-tight text-neutral-950">
+              2. Permanent Drivers (Monthly / Full-Time Salaries)
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white border border-neutral-200 p-6 flex flex-col justify-between">
+              <div>
+                <div className="inline-block px-2.5 py-0.5 bg-neutral-100 text-neutral-800 text-[10px] font-black uppercase tracking-wider mb-2">
+                  STANDARD MONTHLY CHAUFFEUR
+                </div>
+                <h4 className="text-lg font-black uppercase tracking-tight text-neutral-950">
+                  Personal & Family Driver
+                </h4>
+                <p className="text-xs sm:text-sm text-neutral-600 mt-2 leading-relaxed">
+                  Dedicated driver for your household. 8 to 9 hours daily, 26 days per month. Daily office drop & pickup, school transport, and family errands.
+                </p>
+              </div>
+              <div className="pt-6 mt-6 border-t border-neutral-100 flex items-end justify-between">
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black text-neutral-950 font-mono">
+                    ₹18,000 – ₹22,000
+                  </div>
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
+                    PER MONTH · DIRECT PAYMENT
+                  </div>
+                </div>
+                <a
+                  href="#drivers"
+                  onClick={() => setSelectedDriverType('permanent')}
+                  className="text-xs font-black uppercase tracking-wider text-[#FF5500] hover:underline"
+                >
+                  View Permanent Drivers →
+                </a>
+              </div>
             </div>
-            <h4 className="text-base sm:text-lg font-black uppercase tracking-tight text-white mt-0.5">
-              List on Maa Driver for ₹49 · First 3 Months Free · Then ₹99/Month
+
+            <div className="bg-white border border-neutral-200 p-6 flex flex-col justify-between">
+              <div>
+                <div className="inline-block px-2.5 py-0.5 bg-purple-100 text-purple-900 text-[10px] font-black uppercase tracking-wider mb-2">
+                  EXECUTIVE & CORPORATE CHAUFFEUR
+                </div>
+                <h4 className="text-lg font-black uppercase tracking-tight text-neutral-950">
+                  Full-Time Executive Chauffeur
+                </h4>
+                <p className="text-xs sm:text-sm text-neutral-600 mt-2 leading-relaxed">
+                  Uniformed, English/Telugu speaking private chauffeur for business founders, executives, and senior leaders. 10 to 12 hours daily with flexible corporate standby.
+                </p>
+              </div>
+              <div className="pt-6 mt-6 border-t border-neutral-100 flex items-end justify-between">
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black text-neutral-950 font-mono">
+                    ₹22,000 – ₹26,000
+                  </div>
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
+                    PER MONTH · DIRECT PAYMENT
+                  </div>
+                </div>
+                <a
+                  href="#drivers"
+                  onClick={() => setSelectedDriverType('permanent')}
+                  className="text-xs font-black uppercase tracking-wider text-[#FF5500] hover:underline"
+                >
+                  View Permanent Drivers →
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. DEDICATED DRIVER ONBOARDING MODEL BANNER */}
+        <div className="mt-6 bg-[#0A0A0A] border-l-4 border-[#FF5500] p-6 sm:p-7 text-white flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#FF5500] font-black">
+              <span>FOR DRIVERS SEEKING BOOKINGS</span>
+            </div>
+            <h4 className="text-lg sm:text-xl font-black uppercase tracking-tight text-white leading-tight">
+              Join Mana Driver: ₹49 (Freelance) · ₹99 (Permanent) · 3 Months Free
             </h4>
-            <p className="text-xs text-neutral-300 mt-1 max-w-2xl leading-relaxed">
-              One-time registration of ₹49. Your name and contact appear on this homepage for direct customer bookings. Free for the first 3 months, then ₹99/month renewal to stay listed. 0% trip commission.
+            <p className="text-xs text-neutral-300 max-w-2xl leading-relaxed">
+              Register as a Freelance Driver for ₹49 or Permanent Driver for ₹99. Your profile and mobile number are displayed on the homepage immediately for direct bookings. 3 full months 100% free, then ₹99/month to stay active. 0% trip commission.
             </p>
           </div>
           {onSwitchToDriver && (
             <button
               type="button"
               onClick={onSwitchToDriver}
-              className="shrink-0 px-5 py-3 bg-[#FF5500] hover:bg-[#E04B00] text-black font-black text-xs uppercase tracking-wider transition-colors inline-flex items-center gap-2"
+              className="shrink-0 px-6 py-3.5 bg-[#FF5500] hover:bg-[#E04B00] text-black font-black text-xs uppercase tracking-wider transition-colors inline-flex items-center gap-2 shadow-xs"
             >
-              <span>Driver Registration (₹49)</span>
+              <span>Driver Registration (From ₹49)</span>
               <ArrowRight className="w-4 h-4 text-black" />
             </button>
           )}
