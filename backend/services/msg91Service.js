@@ -8,38 +8,30 @@ const sandboxOtpStore = new Map();
 
 /**
  * Send an OTP using MSG91 SendOTP API v5
- * @param {Object} options
- * @param {string} options.mobile - Mobile number with country code (e.g. 919876543210)
- * @param {string} [options.templateId] - MSG91 DLT template ID
- * @param {string} [options.otp] - Optional custom OTP value
- * @param {number} [options.otpExpiry] - Expiry in minutes (default 5)
  */
 const sendOtp = async ({
   mobile,
   templateId = defaultTemplateId,
   otp,
-  otpExpiry = 5,
+  otpExpiry = 10,
 }) => {
   const cleanMobile = String(mobile).replace(/[^0-9]/g, '');
 
   if (!authKey || authKey.startsWith('xxx') || authKey === 'your_msg91_auth_key') {
-    const generatedOtp = otp || String(Math.floor(100000 + Math.random() * 900000));
+    const generatedOtp = otp || '1234';
     sandboxOtpStore.set(cleanMobile, {
       otp: String(generatedOtp),
       expiresAt: Date.now() + otpExpiry * 60 * 1000,
     });
 
-    console.log('\n[MSG91 Service - Sandbox Simulation]');
-    console.log(`Mobile: +${cleanMobile}`);
-    console.log(`Simulated OTP: ${generatedOtp}`);
-    console.log(`Expires in: ${otpExpiry} minutes\n`);
+    console.log(`\n[MSG91 Sandbox OTP] Mobile: +${cleanMobile} | Simulated OTP: ${generatedOtp}\n`);
 
     return {
       success: true,
       simulated: true,
-      message: 'OTP sent in sandbox mode. Check server logs for OTP code.',
+      message: `OTP sent successfully. (Demo OTP: ${generatedOtp})`,
       mobile: cleanMobile,
-      sandboxOtp: generatedOtp,
+      sandboxOtp: String(generatedOtp),
       type: 'success',
     };
   }
@@ -55,9 +47,7 @@ const sendOtp = async ({
 
     const response = await axios.post('https://control.msg91.com/api/v5/otp', null, {
       params,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
     });
 
     return {
@@ -75,39 +65,29 @@ const sendOtp = async ({
 };
 
 /**
- * Retry / Resend OTP via Voice or SMS
- * @param {Object} options
- * @param {string} options.mobile - Mobile number with country code
- * @param {string} [options.retryType] - 'text' or 'voice' (default 'text')
+ * Retry / Resend OTP
  */
 const retryOtp = async ({ mobile, retryType = 'text' }) => {
   const cleanMobile = String(mobile).replace(/[^0-9]/g, '');
 
   if (!authKey || authKey.startsWith('xxx')) {
-    const existing = sandboxOtpStore.get(cleanMobile);
-    const newOtp = existing?.otp || String(Math.floor(100000 + Math.random() * 900000));
+    const newOtp = '1234';
     sandboxOtpStore.set(cleanMobile, {
       otp: newOtp,
-      expiresAt: Date.now() + 5 * 60 * 1000,
+      expiresAt: Date.now() + 10 * 60 * 1000,
     });
-
-    console.log(`\n[MSG91 Sandbox Retry] (${retryType}) to +${cleanMobile}: OTP = ${newOtp}\n`);
 
     return {
       success: true,
       simulated: true,
-      message: `OTP retry simulated via ${retryType}`,
+      message: `OTP resent successfully. (Demo OTP: ${newOtp})`,
       sandboxOtp: newOtp,
     };
   }
 
   try {
     const response = await axios.get('https://control.msg91.com/api/v5/otp/retry', {
-      params: {
-        authkey: authKey,
-        mobile: cleanMobile,
-        retrytype: retryType,
-      },
+      params: { authkey: authKey, mobile: cleanMobile, retrytype: retryType },
     });
 
     return {
@@ -118,16 +98,12 @@ const retryOtp = async ({ mobile, retryType = 'text' }) => {
     };
   } catch (error) {
     const errorMsg = error.response?.data?.message || error.message;
-    console.error('[MSG91 Retry Error]:', errorMsg);
     throw new Error(`MSG91 Retry Error: ${errorMsg}`);
   }
 };
 
 /**
  * Verify OTP entered by user
- * @param {Object} options
- * @param {string} options.mobile - Mobile number with country code
- * @param {string} options.otp - The 4-6 digit OTP code
  */
 const verifyOtp = async ({ mobile, otp }) => {
   const cleanMobile = String(mobile).replace(/[^0-9]/g, '');
@@ -135,16 +111,14 @@ const verifyOtp = async ({ mobile, otp }) => {
 
   if (!authKey || authKey.startsWith('xxx') || authKey === 'your_msg91_auth_key') {
     const record = sandboxOtpStore.get(cleanMobile);
-    
-    // Accept standard default test code 123456 or in-memory generated OTP
-    const isValid = (record && record.otp === cleanOtp && record.expiresAt > Date.now()) || cleanOtp === '123456';
+    const isValid = (record && record.otp === cleanOtp) || cleanOtp === '1234' || cleanOtp === '123456';
 
     if (isValid) {
       sandboxOtpStore.delete(cleanMobile);
       return {
         success: true,
         simulated: true,
-        message: 'OTP verified successfully (sandbox mode)',
+        message: 'OTP verified successfully',
         type: 'success',
       };
     }
@@ -152,18 +126,14 @@ const verifyOtp = async ({ mobile, otp }) => {
     return {
       success: false,
       simulated: true,
-      message: 'Invalid or expired OTP code (sandbox)',
+      message: 'Invalid or expired OTP code (Use 1234 for demo)',
       type: 'error',
     };
   }
 
   try {
     const response = await axios.get('https://control.msg91.com/api/v5/otp/verify', {
-      params: {
-        authkey: authKey,
-        mobile: cleanMobile,
-        otp: cleanOtp,
-      },
+      params: { authkey: authKey, mobile: cleanMobile, otp: cleanOtp },
     });
 
     const isSuccess = response.data?.type === 'success' || response.data?.message?.toLowerCase().includes('success');
@@ -176,7 +146,6 @@ const verifyOtp = async ({ mobile, otp }) => {
     };
   } catch (error) {
     const errorMsg = error.response?.data?.message || error.message;
-    console.error('[MSG91 Verify OTP Error]:', errorMsg);
     return {
       success: false,
       message: errorMsg,

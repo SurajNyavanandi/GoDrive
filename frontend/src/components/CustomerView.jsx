@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   MapPin,
@@ -10,23 +10,53 @@ import {
   Plus,
   X,
 } from 'lucide-react';
+import CustomerOtpVerificationModal from './CustomerOtpVerificationModal';
+import { fetchPublicDrivers } from '../utils/api';
 
 export default function CustomerView({
-  drivers,
+  drivers: initialDriversProp,
   onOpenBooking,
   onSwitchToDriver,
 }) {
+  // Live Drivers state from backend API
+  const [drivers, setDrivers] = useState(initialDriversProp || []);
+
   // Driver Type filter: 'all' | 'freelance' | 'permanent'
   const [selectedDriverType, setSelectedDriverType] = useState('all');
-  const [selectedLocality, setSelectedLocality] = useState('All');
+  const [selectedLocality] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [onlyAvailable, setOnlyAvailable] = useState(false);
+
+  // Verified Customer state (phone stored upon OTP verification)
+  const [verifiedCustomerPhone, setVerifiedCustomerPhone] = useState('');
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+  const [pendingActionDriver, setPendingActionDriver] = useState(null); // driver to contact/book after OTP
+  const [pendingActionType, setPendingActionType] = useState('contact'); // 'contact' | 'book'
 
   // FAQ Accordion State
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
 
-  // Direct Contact Driver Modal (for circular ↗ button)
+  // Direct Contact Driver Modal (for circular ↗ button after OTP verification)
   const [contactDriverModal, setContactDriverModal] = useState(null);
+
+  // Fetch live approved drivers from backend database on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadBackendDrivers() {
+      try {
+        const liveData = await fetchPublicDrivers();
+        if (isMounted && liveData && liveData.length > 0) {
+          setDrivers(liveData);
+        }
+      } catch (err) {
+        console.error('Error fetching live drivers:', err);
+      }
+    }
+    loadBackendDrivers();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Filtered drivers based on driverType, locality, availability, and search query
   const filteredDrivers = useMemo(() => {
@@ -52,7 +82,31 @@ export default function CustomerView({
       });
   }, [drivers, selectedDriverType, selectedLocality, onlyAvailable, searchQuery]);
 
-  const availableCount = drivers.filter((d) => d.status === 'Available').length;
+  // Handle "View Contact" or "Book Driver" button click with mandatory customer OTP check
+  const handleInitiateDriverAction = (driver, actionType) => {
+    if (!verifiedCustomerPhone) {
+      setPendingActionDriver(driver);
+      setPendingActionType(actionType);
+      setOtpModalOpen(true);
+    } else {
+      executeDriverAction(driver, actionType);
+    }
+  };
+
+  const handleOtpVerified = (phone) => {
+    setVerifiedCustomerPhone(phone);
+    if (pendingActionDriver) {
+      executeDriverAction(pendingActionDriver, pendingActionType);
+    }
+  };
+
+  const executeDriverAction = (driver, actionType) => {
+    if (actionType === 'book') {
+      onOpenBooking(driver);
+    } else {
+      setContactDriverModal(driver);
+    }
+  };
 
   const faqs = [
     {
@@ -76,9 +130,9 @@ export default function CustomerView({
         'Yes. Choose a permanent driver for 8 to 9 hours daily. Typical monthly salary is ₹18,000 to ₹22,000.',
     },
     {
-      question: 'Are all drivers police verified?',
+      question: 'Are all drivers verified with Aadhaar and License?',
       answer:
-        'Yes. Every driver has an Aadhaar ID check, valid driving license check, and police background check.',
+        'Yes. Every driver undergoes mandatory Aadhaar ID verification and driving license background checks before going live on Mana Drivers.',
     },
   ];
 
@@ -146,28 +200,21 @@ export default function CustomerView({
 
   return (
     <div className="space-y-16 sm:space-y-24 pb-12">
-      {/* =========================================================================
-          1. HERO SECTION (NOVA REFERENCE PAGE 1)
-          Clean, open, breathable hero with left-aligned bold typography
-         ========================================================================= */}
+      {/* HERO SECTION */}
       <section className="pt-6 sm:pt-14 pb-8 sm:pb-16 max-w-4xl">
-        {/* Eyebrow */}
         <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500 mb-6 sm:mb-8">
           PERSONAL CAR DRIVERS · HYDERABAD
         </p>
 
-        {/* Large Display Headline */}
         <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-neutral-950 leading-[1.08] mb-6 sm:mb-8 font-sans">
           Drivers for your <br className="hidden sm:inline" />
           personal car
         </h1>
 
-        {/* Subtitle */}
         <p className="text-base sm:text-xl text-neutral-600 font-normal leading-relaxed max-w-2xl mb-8 sm:mb-10">
           Hire trusted drivers by the hour or by the month in Hyderabad. Doorstep pickup in 30 minutes.
         </p>
 
-        {/* Action Buttons: Solid Black Pill + Bordered Pill */}
         <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-14 sm:mb-20">
           <a
             href="#drivers"
@@ -184,7 +231,6 @@ export default function CustomerView({
           </button>
         </div>
 
-        {/* Social Proof Strip */}
         <div className="pt-8 border-t border-neutral-200/80">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 text-xs text-neutral-500">
             <span className="font-semibold text-neutral-400 uppercase tracking-wider shrink-0">
@@ -202,16 +248,12 @@ export default function CustomerView({
         </div>
       </section>
 
-      {/* =========================================================================
-          2. DARK STATS SECTION (NOVA REFERENCE PAGE 2)
-          A dark charcoal/black rounded-3xl container with 4-column metric grid
-         ========================================================================= */}
+      {/* DARK STATS SECTION */}
       <section className="bg-[#121212] text-white rounded-3xl p-8 sm:p-12 lg:p-16 shadow-2xl overflow-hidden">
-        {/* 4-Metric Grid with Hairline Dividers */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-0 md:divide-x divide-neutral-800 pb-10 sm:pb-14 border-b border-neutral-800">
           <div className="md:px-8 first:pl-0">
             <div className="text-3xl sm:text-5xl font-bold tracking-tight text-white mb-2 font-sans">
-              15,000+
+              100+
             </div>
             <div className="text-xs sm:text-sm text-neutral-400 font-normal">
               Trips done
@@ -230,7 +272,7 @@ export default function CustomerView({
               100%
             </div>
             <div className="text-xs sm:text-sm text-neutral-400 font-normal">
-              Police checked
+              License Verified
             </div>
           </div>
           <div className="md:px-8 last:pr-0">
@@ -243,7 +285,6 @@ export default function CustomerView({
           </div>
         </div>
 
-        {/* Narrative Block in Simple English */}
         <div className="pt-10 sm:pt-14 max-w-3xl space-y-4">
           <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white leading-tight font-sans">
             Easy rides in your own car
@@ -263,636 +304,395 @@ export default function CustomerView({
         </div>
       </section>
 
-      {/* =========================================================================
-          3. VISUAL SHOWCASE & SERVICES (NOVA REFERENCE PAGE 3 & 4)
-         ========================================================================= */}
-      <section id="services" className="space-y-12">
-        {/* Visual Showcase Card */}
-        <div className="relative rounded-3xl overflow-hidden min-h-[300px] sm:min-h-[400px] bg-neutral-900 flex flex-col justify-end p-6 sm:p-10 text-white shadow-xl group">
-          <img
-            src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=2000&q=85"
-            alt="Personal car driver in Hyderabad"
-            className="absolute inset-0 w-full h-full object-cover object-center opacity-60 group-hover:scale-102 transition-transform duration-700"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-
-          <div className="relative z-10 flex items-end justify-between gap-4">
-            <div>
-              <span className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-300 block mb-2">
-                PERSONAL CAR DRIVERS
-              </span>
-              <h3 className="text-2xl sm:text-4xl font-bold tracking-tight text-white font-sans">
-                A verified driver for your personal car
-              </h3>
-            </div>
-            <a
-              href="#drivers"
-              className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-neutral-900 flex items-center justify-center transition-all shrink-0"
-              aria-label="Find a driver"
-            >
-              <ArrowUpRight className="w-5 h-5" />
-            </a>
-          </div>
-        </div>
-
-        {/* Section Header: Our Services */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-4">
-          <div>
-            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans mb-3">
-              Our services
-            </h2>
-            <p className="text-sm sm:text-base text-neutral-600 max-w-xl">
-              Hourly rides or full-time monthly drivers. Flat rates for all cars.
-            </p>
-          </div>
-          <a
-            href="#pricing"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-900 hover:text-neutral-600 transition-colors shrink-0"
-          >
-            <span>See all pricing</span>
-            <ArrowRight className="w-4 h-4" />
-          </a>
-        </div>
-
-        {/* Numbered Service Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {services.map((service) => (
-            <div
-              key={service.number}
-              className="bg-white rounded-2xl border border-neutral-200/80 p-6 sm:p-8 flex flex-col justify-between hover:shadow-md transition-all group"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-mono font-semibold text-neutral-400">
-                    {service.number}.
-                  </span>
-                  <div className="w-9 h-9 rounded-full bg-neutral-100 group-hover:bg-[#111111] group-hover:text-white flex items-center justify-center transition-colors">
-                    <ArrowUpRight className="w-4 h-4" />
-                  </div>
-                </div>
-                <h3 className="text-lg sm:text-xl font-bold text-neutral-950 mb-2 font-sans">
-                  {service.title}
-                </h3>
-                <p className="text-sm text-neutral-600 leading-relaxed font-normal mb-6">
-                  {service.description}
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-neutral-100 flex items-center justify-between text-xs">
-                <span className="font-bold text-neutral-950 text-sm">{service.rate}</span>
-                <span className="text-neutral-500">{service.min}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* =========================================================================
-          4. PEOPLE WHO CREATE VALUE (OUR DRIVERS)
-         ========================================================================= */}
-      <section className="bg-white rounded-3xl border border-neutral-200/80 p-8 sm:p-12 lg:p-14 overflow-hidden">
+      {/* OUR DRIVERS FEATURE SECTION */}
+      <section className="bg-white rounded-3xl p-6 sm:p-10 lg:p-12 border border-neutral-200/90 shadow-xs overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          {/* Left: Driver Photo */}
-          <div className="lg:col-span-5 relative rounded-2xl overflow-hidden aspect-[4/5] bg-neutral-100">
-            <img
-              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80"
-              alt="Verified driver in Hyderabad"
-              className="w-full h-full object-cover object-top"
-            />
-            <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md rounded-xl p-3 border border-neutral-200/80 flex items-center gap-3">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <div>
-                <p className="text-xs font-bold text-neutral-900">Verified Driver</p>
-                <p className="text-[11px] text-neutral-500">Manual &amp; Automatic Expert</p>
+          {/* Left Column: Single Image Showcase */}
+          <div className="lg:col-span-6 relative">
+            <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-neutral-100 border border-neutral-200/80 shadow-md">
+              <img
+                src="https://res.cloudinary.com/dfr0zghtc/image/upload/v1791976161/rider2_hdanc9.png"
+                alt="Verified Driver in Hyderabad"
+                className="w-full h-[360px] sm:h-[440px] object-contain object-center p-2 sm:p-4"
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 via-black/30 to-transparent p-4 sm:p-6 text-white space-y-1">
+                <span className="inline-block px-3 py-1 rounded-full bg-amber-500/90 text-black text-[10px] sm:text-xs font-bold uppercase tracking-wider">
+                  Verified Chauffeur
+                </span>
+                <p className="text-base sm:text-xl font-bold font-sans">Verified Hyderabad Chauffeur</p>
+                <p className="text-xs sm:text-sm text-neutral-200 font-medium">Manual & Automatic Expert · Hourly & Monthly</p>
               </div>
             </div>
           </div>
 
-          {/* Right: Story & Drivers */}
-          <div className="lg:col-span-7 space-y-6">
-            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500">
-              OUR DRIVERS
-            </p>
-            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans leading-tight">
-              Trusted drivers for your car
-            </h2>
-            <p className="text-sm sm:text-base text-neutral-600 leading-relaxed font-normal">
-              Friendly, polite, and verified drivers who take good care of your car. Every driver is checked for safety and drives any car brand.
-            </p>
+          {/* Right Column: Details & Checklist */}
+          <div className="lg:col-span-6 space-y-6">
+            <div className="space-y-3">
+              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500">
+                OUR DRIVERS
+              </p>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-950 font-sans leading-tight">
+                Trusted drivers for your car
+              </h2>
+              <p className="text-sm text-neutral-600 leading-relaxed font-normal">
+                Friendly, polite, and verified drivers who take good care of your car. Every driver is checked for safety and drives any car brand.
+              </p>
+            </div>
 
-            {/* Overlapping Avatars */}
-            <div className="flex items-center gap-3 py-2">
-              <div className="flex -space-x-2">
+            {/* Drivers Avatars Badge */}
+            <div className="flex flex-wrap items-center gap-3 p-3.5 bg-neutral-50 rounded-2xl border border-neutral-200/80">
+              <div className="flex -space-x-2.5 overflow-hidden shrink-0">
                 <img
-                  className="w-9 h-9 rounded-full object-cover border-2 border-white ring-1 ring-neutral-200"
-                  src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80"
+                  src="https://res.cloudinary.com/dfr0zghtc/image/upload/v1791975206/rider_tirlg3.jpg"
                   alt="Driver Ramesh"
+                  className="inline-block h-9 w-9 rounded-full ring-2 ring-white object-cover"
                 />
                 <img
-                  className="w-9 h-9 rounded-full object-cover border-2 border-white ring-1 ring-neutral-200"
-                  src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80"
-                  alt="Driver Amit"
+                  src="https://res.cloudinary.com/dfr0zghtc/image/upload/v1791976161/rider2_hdanc9.png"
+                  alt="Driver Shanker"
+                  className="inline-block h-9 w-9 rounded-full ring-2 ring-white object-cover"
                 />
                 <img
-                  className="w-9 h-9 rounded-full object-cover border-2 border-white ring-1 ring-neutral-200"
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=120&q=80"
                   alt="Driver Sunitha"
+                  className="inline-block h-9 w-9 rounded-full ring-2 ring-white object-cover"
                 />
               </div>
-              <span className="text-sm font-bold text-neutral-900">
-                10+ verified drivers on call
-              </span>
+              <div className="text-xs font-medium text-neutral-700">
+                <span className="font-bold text-neutral-950">Driver Ramesh</span>, <span className="font-bold text-neutral-950">Driver Shanker</span>, <span className="font-bold text-neutral-950">Driver Sunitha</span>
+              </div>
             </div>
 
-            {/* Simple Check List */}
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center gap-3 text-sm text-neutral-800 font-medium">
-                <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0">
-                  <ArrowRight className="w-3.5 h-3.5 text-neutral-900" />
-                </div>
-                <span>Police checked &amp; valid driving license</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-neutral-800 font-medium">
-                <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0">
-                  <ArrowRight className="w-3.5 h-3.5 text-neutral-900" />
-                </div>
+            {/* Feature Highlights */}
+            <ul className="space-y-3 text-xs sm:text-sm text-neutral-800 font-medium">
+              <li className="flex items-center gap-3">
+                <span className="p-1 rounded-full bg-emerald-100 text-emerald-800 shrink-0">
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                </span>
+                <span>10+ verified drivers on call</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="p-1 rounded-full bg-emerald-100 text-emerald-800 shrink-0">
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                </span>
+                <span>Police checked & valid driving license</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="p-1 rounded-full bg-emerald-100 text-emerald-800 shrink-0">
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                </span>
                 <span>Drives both manual and automatic cars</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-neutral-800 font-medium">
-                <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0">
-                  <ArrowRight className="w-3.5 h-3.5 text-neutral-900" />
-                </div>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="p-1 rounded-full bg-emerald-100 text-emerald-800 shrink-0">
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                </span>
                 <span>Quick 30-minute pickup at your doorstep</span>
-              </div>
-            </div>
+              </li>
+            </ul>
 
-            <div className="pt-4">
+            {/* Meet the drivers action */}
+            <div className="pt-2">
               <a
                 href="#drivers"
-                className="inline-flex items-center justify-center px-7 py-3.5 bg-[#111111] hover:bg-neutral-800 text-white rounded-full text-sm font-medium transition-all shadow-xs"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs sm:text-sm font-semibold transition-all shadow-xs"
               >
-                Meet the drivers
+                <span>Meet the drivers</span>
+                <ArrowRight className="w-4 h-4" />
               </a>
             </div>
           </div>
         </div>
       </section>
 
-      {/* =========================================================================
-          5. MINIMALIST DRIVER ROSTER & FILTER SYSTEM (#drivers)
-         ========================================================================= */}
-      <section id="drivers" className="space-y-8 scroll-mt-24">
-        {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500 mb-2">
-              HYDERABAD DRIVERS
-            </p>
-            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
-              Choose your verified driver
-            </h2>
-            <p className="text-sm sm:text-base text-neutral-600 mt-2">
-              Call or message drivers directly. Pay them direct with zero commission.
-            </p>
-          </div>
-
-          {/* Quick Counter */}
-          <div className="text-xs font-medium text-neutral-500">
-            Showing <span className="font-bold text-neutral-900">{filteredDrivers.length}</span> of {drivers.length} drivers ·{' '}
-            <span className="text-emerald-700 font-bold">{availableCount} Available Now</span>
-          </div>
+      {/* DRIVER ROSTER & FILTERS SECTION */}
+      <section id="drivers" className="space-y-8 sm:space-y-12">
+        <div className="space-y-4 max-w-2xl">
+          <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500">
+            HYDERABAD CHAUFFEURS
+          </p>
+          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
+            Verified Drivers
+          </h2>
+          <p className="text-sm text-neutral-600">
+            All drivers drive both manual and automatic cars. Verified with Aadhaar and Driving License.
+          </p>
         </div>
 
-        {/* Minimalist Segmented Filter Bar */}
-        <div className="bg-white rounded-2xl border border-neutral-200/80 p-4 sm:p-5 space-y-4 shadow-xs">
-          {/* Row 1: Category Filter Pills + Available Now Switch */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            {/* Pill Tabs: All Drivers | Freelance | Permanent */}
-            <div className="flex items-center gap-1.5 p-1 bg-neutral-100 rounded-full shrink-0">
-              <button
-                type="button"
-                onClick={() => setSelectedDriverType('all')}
-                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  selectedDriverType === 'all'
-                    ? 'bg-white text-neutral-950 shadow-xs'
-                    : 'text-neutral-600 hover:text-neutral-950'
-                }`}
-              >
-                All Drivers ({drivers.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedDriverType('freelance')}
-                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  selectedDriverType === 'freelance'
-                    ? 'bg-white text-neutral-950 shadow-xs'
-                    : 'text-neutral-600 hover:text-neutral-950'
-                }`}
-              >
-                Freelance (Hourly)
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedDriverType('permanent')}
-                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  selectedDriverType === 'permanent'
-                    ? 'bg-white text-neutral-950 shadow-xs'
-                    : 'text-neutral-600 hover:text-neutral-950'
-                }`}
-              >
-                Permanent (Monthly)
-              </button>
+        {/* Filter Controls */}
+        <div className="space-y-4 bg-white p-4 sm:p-6 rounded-3xl border border-neutral-200/80 shadow-xs">
+          {/* Top Row: Driver Type Pills */}
+          <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-neutral-100">
+            <button
+              type="button"
+              onClick={() => setSelectedDriverType('all')}
+              className={`px-5 py-2.5 rounded-full text-xs font-semibold transition-all ${
+                selectedDriverType === 'all'
+                  ? 'bg-neutral-950 text-white shadow-xs'
+                  : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
+              }`}
+            >
+              All Drivers ({drivers.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedDriverType('freelance')}
+              className={`px-5 py-2.5 rounded-full text-xs font-semibold transition-all ${
+                selectedDriverType === 'freelance'
+                  ? 'bg-neutral-950 text-white shadow-xs'
+                  : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
+              }`}
+            >
+              Freelance (Hourly)
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedDriverType('permanent')}
+              className={`px-5 py-2.5 rounded-full text-xs font-semibold transition-all ${
+                selectedDriverType === 'permanent'
+                  ? 'bg-neutral-950 text-white shadow-xs'
+                  : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
+              }`}
+            >
+              Permanent (Monthly)
+            </button>
+          </div>
+
+          {/* Bottom Row: Search & Availability Switch */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-2">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="w-4 h-4 absolute left-3.5 top-3 text-neutral-400" />
+              <input
+                type="text"
+                placeholder="Search name, area, language..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-neutral-50 border border-neutral-200 rounded-full text-xs font-medium text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-950"
+              />
             </div>
 
-            {/* Available Only Toggle Switch */}
-            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-neutral-700 select-none">
-              <span className="relative inline-flex items-center">
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-xs font-medium text-neutral-700 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={onlyAvailable}
                   onChange={(e) => setOnlyAvailable(e.target.checked)}
-                  className="sr-only peer"
+                  className="w-4 h-4 rounded-md border-neutral-300 text-neutral-900 focus:ring-neutral-900"
                 />
-                <div className="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-neutral-900" />
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Show Available Now Only</span>
-              </span>
-            </label>
-          </div>
-
-          {/* Row 2: Search Input & Locality Pills */}
-          <div className="pt-3 border-t border-neutral-100 flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-            {/* Search */}
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by driver name, area, or languages..."
-                className="w-full pl-10 pr-4 py-2 bg-neutral-50 border border-neutral-200 rounded-full text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-900 focus:bg-white transition-colors"
-              />
-            </div>
-
-            {/* Locality Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-              <button
-                type="button"
-                onClick={() => setSelectedLocality('All')}
-                className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap font-medium transition-colors ${
-                  selectedLocality === 'All'
-                    ? 'bg-neutral-900 text-white'
-                    : 'bg-neutral-100 text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                All Localities
-              </button>
-              {['Hitec City', 'Gachibowli', 'Jubilee Hills', 'Banjara Hills', 'Kondapur'].map((loc) => (
-                <button
-                  key={loc}
-                  type="button"
-                  onClick={() => setSelectedLocality(loc)}
-                  className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap font-medium transition-colors ${
-                    selectedLocality === loc
-                      ? 'bg-neutral-900 text-white'
-                      : 'bg-neutral-100 text-neutral-600 hover:text-neutral-900'
-                  }`}
-                >
-                  {loc}
-                </button>
-              ))}
+                <span>Available Now Only</span>
+              </label>
             </div>
           </div>
         </div>
 
-        {/* Minimalist Driver Cards Grid */}
-        {filteredDrivers.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-neutral-200 p-12 text-center space-y-3">
-            <p className="text-base font-bold text-neutral-900">No matching drivers found</p>
-            <p className="text-xs text-neutral-500 max-w-md mx-auto">
-              Try choosing another area or turn off "Show Available Now Only".
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedDriverType('all');
-                setSelectedLocality('All');
-                setSearchQuery('');
-                setOnlyAvailable(false);
-              }}
-              className="mt-2 px-5 py-2 bg-neutral-900 text-white text-xs font-medium rounded-full"
-            >
-              Reset Filters
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDrivers.map((driver) => {
-              const isAvailable = driver.status === 'Available';
-              const isPermanent = driver.driverType === 'permanent';
+        {/* Driver Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {filteredDrivers.map((driver) => {
+            const isPermanent = driver.driverType === 'permanent';
 
-              return (
-                <div
-                  key={driver.id}
-                  className={`bg-white rounded-2xl border transition-all flex flex-col justify-between overflow-hidden group ${
-                    isAvailable
-                      ? 'border-neutral-200/90 hover:border-neutral-400 hover:shadow-md'
-                      : 'border-neutral-200 opacity-75 bg-neutral-50/50'
-                  }`}
-                >
-                  <div className="p-5 sm:p-6 space-y-4">
-                    {/* Top Row: Square Portrait + Status + Experience */}
-                    <div className="flex items-start gap-4">
-                      {/* Driver Square Photo with Live Dot */}
-                      <div className="relative shrink-0">
+            return (
+              <div
+                key={driver.id}
+                className="bg-white rounded-3xl p-6 sm:p-7 border border-neutral-200/90 hover:border-neutral-400 transition-all shadow-xs flex flex-col justify-between space-y-6"
+              >
+                {/* Top Section: Photo + Driver Name + Availability */}
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      {/* Driver Portrait */}
+                      <div className="relative">
                         <img
                           src={driver.photo}
                           alt={driver.name}
-                          className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover object-top border border-neutral-200"
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover bg-neutral-100 border border-neutral-200/80"
                         />
                         <span
-                          className={`absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                            isAvailable ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-400'
+                          className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                            driver.status === 'Available' ? 'bg-emerald-500' : 'bg-neutral-400'
                           }`}
-                          title={isAvailable ? 'Available Now' : 'Currently Offline'}
+                          title={driver.status}
                         />
                       </div>
 
-                      {/* Driver Basic Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 text-xs text-neutral-500 mb-0.5">
-                          <span className="font-semibold text-neutral-900">
+                      {/* Driver Info */}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg sm:text-xl font-bold tracking-tight text-neutral-950 font-sans">
+                            {driver.name}
+                          </h3>
+                          <span className="p-0.5 bg-emerald-100 text-emerald-800 rounded-full" title="Verified Driver">
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-neutral-500 font-medium mt-0.5 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-neutral-400" />
+                          <span>{driver.location}</span>
+                        </p>
+
+                        <div className="flex items-center gap-2 text-xs font-semibold text-neutral-700 mt-2">
+                          <span className="px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-800 text-[11px]">
                             {driver.experience} Yrs Exp
                           </span>
                           <span>·</span>
-                          <span className="truncate">
-                            {isPermanent ? 'Permanent' : 'Freelance'}
-                          </span>
+                          <span className="text-neutral-500 text-[11px]">{driver.languages}</span>
                         </div>
-
-                        <h3 className="text-base sm:text-lg font-bold text-neutral-950 truncate font-sans">
-                          {driver.name}
-                        </h3>
-
-                        {/* Status Label */}
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <span
-                            className={`text-[11px] font-medium ${
-                              isAvailable ? 'text-emerald-700' : 'text-neutral-500'
-                            }`}
-                          >
-                            {isAvailable ? 'Available Now' : 'Currently Off-Duty'}
-                          </span>
-                        </div>
-
-                        {/* Spoken Languages */}
-                        <p className="text-xs text-neutral-500 truncate mt-1">
-                          {driver.languages || 'Telugu, Hindi, English'}
-                        </p>
                       </div>
                     </div>
 
-                    {/* Service Area */}
-                    <div className="pt-2 flex items-center gap-1.5 text-xs text-neutral-600">
-                      <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
-                      <span className="truncate">{driver.location}</span>
-                    </div>
+                    {/* Driver Type Tag */}
+                    <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-neutral-100 text-neutral-800 shrink-0">
+                      {isPermanent ? 'Monthly Driver' : 'Hourly Driver'}
+                    </span>
+                  </div>
 
-                    {/* Transparent Pricing: Flat Rate with Zero Car Categories */}
-                    <div className="pt-3 border-t border-neutral-100 flex items-baseline justify-between">
-                      <div>
-                        <span className="text-xl font-bold text-neutral-950 font-sans">
-                          {isPermanent
-                            ? `₹${(driver.monthlySalary || 20000).toLocaleString('en-IN')}`
-                            : `₹${driver.hourlyRate || 180}`}
-                        </span>
-                        <span className="text-xs text-neutral-500 ml-1">
-                          {isPermanent ? '/ month' : '/ hour'}
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-neutral-500">
-                        {isPermanent ? '8–9 hrs/day' : '3 hr minimum'}
-                      </span>
+                  {/* Bio */}
+                  <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed line-clamp-2">
+                    {driver.bio}
+                  </p>
+                </div>
+
+                {/* Bottom Section: Pricing + Action Buttons */}
+                <div className="pt-4 border-t border-neutral-100 flex items-center justify-between gap-4">
+                  {/* Pricing Display */}
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                      {isPermanent ? 'Monthly Package' : 'Hourly Rate'}
+                    </span>
+                    <div className="text-lg sm:text-xl font-bold tracking-tight text-neutral-950 font-sans">
+                      {isPermanent
+                        ? `₹${(driver.monthlySalary || 20000).toLocaleString('en-IN')} / mo`
+                        : `₹${driver.hourlyRate || 180} / hr`}
                     </div>
                   </div>
 
-                  {/* Bottom Action Row: Solid Black Pill + Circular Arrow Button (↗) */}
-                  <div className="p-4 sm:p-5 pt-0 flex items-center gap-2">
+                  {/* Actions: Book Driver Pill + Diagonal Arrow Button */}
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => onOpenBooking(driver)}
-                      disabled={!isAvailable}
-                      className={`flex-1 py-2.5 px-4 rounded-full text-xs font-medium text-center transition-all ${
-                        isAvailable
-                          ? 'bg-[#111111] hover:bg-neutral-800 text-white shadow-xs'
-                          : 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
-                      }`}
+                      onClick={() => handleInitiateDriverAction(driver, 'book')}
+                      className="px-5 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-xs"
                     >
-                      {isAvailable ? 'Book Driver' : 'Off-Duty'}
+                      Book Driver
                     </button>
 
-                    {/* Circular ↗ Arrow Button for Direct Contact */}
                     <button
                       type="button"
-                      onClick={() => setContactDriverModal(driver)}
-                      className="w-10 h-10 rounded-full bg-neutral-100 hover:bg-[#111111] hover:text-white text-neutral-900 flex items-center justify-center transition-colors shrink-0"
-                      title={`Call or WhatsApp ${driver.name}`}
-                      aria-label={`Contact ${driver.name}`}
+                      onClick={() => handleInitiateDriverAction(driver, 'contact')}
+                      className="w-10 h-10 rounded-full border border-neutral-300 hover:border-neutral-950 hover:bg-neutral-950 hover:text-white flex items-center justify-center transition-all shrink-0"
+                      title="Direct Contact (Phone & WhatsApp)"
                     >
                       <ArrowUpRight className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            );
+          })}
+        </div>
       </section>
 
-      {/* =========================================================================
-          6. PRICING SECTION
-         ========================================================================= */}
-      <section id="pricing" className="space-y-8 scroll-mt-24">
-        <div className="max-w-2xl">
-          <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500 mb-2">
-            TRANSPARENT RATES
+      {/* SERVICES SECTION */}
+      <section className="space-y-8 sm:space-y-12">
+        <div className="space-y-3 max-w-2xl">
+          <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500">
+            TRANSPARENT PRICING
           </p>
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
-            Simple, honest pricing
+            Simple Rates
           </h2>
-          <p className="text-sm sm:text-base text-neutral-600 mt-2">
-            One fair price for all cars. No higher charge for SUVs, automatics, or luxury cars.
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {services.map((s) => (
+            <div
+              key={s.number}
+              className="bg-white rounded-3xl p-6 border border-neutral-200/90 shadow-xs space-y-4 flex flex-col justify-between"
+            >
+              <div className="space-y-3">
+                <span className="text-xs font-bold font-mono text-neutral-400 block">
+                  {s.number}
+                </span>
+                <h3 className="text-lg font-bold text-neutral-950 font-sans">
+                  {s.title}
+                </h3>
+                <p className="text-xs text-neutral-600 leading-relaxed">
+                  {s.description}
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-neutral-100">
+                <div className="text-base font-bold text-neutral-950 font-sans">{s.rate}</div>
+                <div className="text-[11px] text-neutral-400 mt-0.5">{s.min}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* REVIEWS SECTION */}
+      <section className="bg-white rounded-3xl p-8 sm:p-12 border border-neutral-200 space-y-8">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500">
+            HYDERABAD CAR OWNERS
           </p>
+          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-neutral-950 font-sans">
+            Client Reviews
+          </h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1: Hourly Freelance */}
-          <div className="bg-white rounded-2xl border border-neutral-200/80 p-6 sm:p-8 space-y-6 flex flex-col justify-between hover:shadow-md transition-all">
-            <div className="space-y-4">
-              <span className="text-xs font-mono uppercase tracking-wider text-neutral-400">
-                Hourly · On-Demand
-              </span>
-              <h3 className="text-xl font-bold text-neutral-950 font-sans">
-                Hourly City Driver
-              </h3>
-              <div className="pt-2">
-                <span className="text-4xl font-bold text-neutral-950 font-sans">₹160 – ₹180</span>
-                <span className="text-xs text-neutral-500 block mt-1">/ hour · 3 hour minimum</span>
+          {reviews.map((r, i) => (
+            <div key={i} className="p-6 bg-neutral-50 rounded-2xl space-y-4 flex flex-col justify-between">
+              <p className="text-xs sm:text-sm text-neutral-700 leading-relaxed font-normal">
+                "{r.quote}"
+              </p>
+              <div className="flex items-center gap-3 pt-2">
+                <img src={r.avatar} alt={r.author} className="w-10 h-10 rounded-full object-cover" />
+                <div>
+                  <div className="text-xs font-bold text-neutral-950">{r.author}</div>
+                  <div className="text-[11px] text-neutral-500">{r.title}</div>
+                </div>
               </div>
-              <ul className="space-y-2.5 text-xs text-neutral-600 pt-2 font-normal">
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Doorstep pickup in 30 minutes</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Drives manual and automatic cars</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Zero surge charges during rush hours</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Pay driver directly via UPI</span>
-                </li>
-              </ul>
             </div>
-            <a
-              href="#drivers"
-              onClick={() => setSelectedDriverType('freelance')}
-              className="w-full py-3 bg-neutral-100 hover:bg-neutral-900 hover:text-white text-neutral-900 text-xs font-medium rounded-full text-center transition-all"
-            >
-              Find hourly driver
-            </a>
-          </div>
-
-          {/* Card 2: RGIA Airport Transfer */}
-          <div className="bg-white rounded-2xl border border-neutral-200/80 p-6 sm:p-8 space-y-6 flex flex-col justify-between hover:shadow-md transition-all">
-            <div className="space-y-4">
-              <span className="text-xs font-mono uppercase tracking-wider text-neutral-400">
-                Flat Rate · Airport
-              </span>
-              <h3 className="text-xl font-bold text-neutral-950 font-sans">
-                Airport Ride
-              </h3>
-              <div className="pt-2">
-                <span className="text-4xl font-bold text-neutral-950 font-sans">₹600 – ₹800</span>
-                <span className="text-xs text-neutral-500 block mt-1">Flat fare per one-way trip</span>
-              </div>
-              <ul className="space-y-2.5 text-xs text-neutral-600 pt-2 font-normal">
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>On-time pickup for RGIA flights</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Day or late-night trips</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Safe highway driving on ORR</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Helps with your luggage</span>
-                </li>
-              </ul>
-            </div>
-            <a
-              href="#drivers"
-              className="w-full py-3 bg-neutral-100 hover:bg-neutral-900 hover:text-white text-neutral-900 text-xs font-medium rounded-full text-center transition-all"
-            >
-              Book airport driver
-            </a>
-          </div>
-
-          {/* Card 3: Monthly Permanent Driver */}
-          <div className="bg-white rounded-2xl border-2 border-neutral-950 p-6 sm:p-8 space-y-6 flex flex-col justify-between shadow-md">
-            <div className="space-y-4">
-              <span className="text-xs font-mono uppercase tracking-wider text-[#FF5500] font-bold">
-                Most Popular · Dedicated
-              </span>
-              <h3 className="text-xl font-bold text-neutral-950 font-sans">
-                Monthly Driver
-              </h3>
-              <div className="pt-2">
-                <span className="text-4xl font-bold text-neutral-950 font-sans">₹18k – ₹22k</span>
-                <span className="text-xs text-neutral-500 block mt-1">/ month · 8–9 hrs daily</span>
-              </div>
-              <ul className="space-y-2.5 text-xs text-neutral-600 pt-2 font-normal">
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Dedicated driver for your family</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Full police &amp; license verified</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>3-day trial before you confirm</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Zero monthly platform fee</span>
-                </li>
-              </ul>
-            </div>
-            <a
-              href="#drivers"
-              onClick={() => setSelectedDriverType('permanent')}
-              className="w-full py-3 bg-[#111111] hover:bg-neutral-800 text-white text-xs font-medium rounded-full text-center transition-all"
-            >
-              Find monthly driver
-            </a>
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* =========================================================================
-          7. FREQUENTLY ASKED QUESTIONS (SHORT, SIMPLE WORDS)
-         ========================================================================= */}
-      <section id="faq" className="space-y-8 scroll-mt-24">
-        <div className="max-w-2xl">
-          <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500 mb-2">
-            COMMON QUESTIONS
+      {/* FAQ ACCORDION SECTION */}
+      <section className="space-y-8 max-w-3xl mx-auto">
+        <div className="text-center space-y-2">
+          <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500">
+            FREQUENTLY ASKED QUESTIONS
           </p>
-          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
-            Frequently asked questions
+          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-neutral-950 font-sans">
+            Questions & Answers
           </h2>
-          <p className="text-sm sm:text-base text-neutral-600 mt-2">
-            Quick answers about booking, verification, and payment.
-          </p>
         </div>
 
-        {/* Minimalist Accordion Cards */}
-        <div className="space-y-3 max-w-4xl">
-          {faqs.map((faq, idx) => {
-            const isOpen = openFaqIndex === idx;
+        <div className="space-y-3">
+          {faqs.map((faq, index) => {
+            const isOpen = openFaqIndex === index;
             return (
               <div
-                key={faq.question}
-                className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden transition-all"
+                key={index}
+                className="bg-white rounded-2xl border border-neutral-200 overflow-hidden transition-all"
               >
                 <button
                   type="button"
-                  onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
-                  className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 font-semibold text-neutral-950 text-sm sm:text-base hover:text-neutral-700 transition-colors"
+                  onClick={() => setOpenFaqIndex(isOpen ? -1 : index)}
+                  className="w-full p-5 text-left flex items-center justify-between gap-4 focus:outline-none"
                 >
-                  <span>{faq.question}</span>
-                  <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center shrink-0">
-                    {isOpen ? (
-                      <X className="w-4 h-4 text-neutral-900" />
-                    ) : (
-                      <Plus className="w-4 h-4 text-neutral-900" />
-                    )}
-                  </div>
+                  <span className="text-sm font-bold text-neutral-950 font-sans">
+                    {faq.question}
+                  </span>
+                  <span className="p-1 rounded-full bg-neutral-100 text-neutral-700 shrink-0">
+                    {isOpen ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                  </span>
                 </button>
+
                 {isOpen && (
-                  <div className="px-5 sm:px-6 pb-6 text-xs sm:text-sm text-neutral-600 leading-relaxed font-normal border-t border-neutral-100 pt-4">
+                  <div className="px-5 pb-5 pt-0 text-xs text-neutral-600 leading-relaxed border-t border-neutral-100 mt-1">
                     {faq.answer}
                   </div>
                 )}
@@ -902,159 +702,66 @@ export default function CustomerView({
         </div>
       </section>
 
-      {/* =========================================================================
-          8. REVIEWS
-         ========================================================================= */}
-      <section className="space-y-8">
-        <div className="max-w-2xl">
-          <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500 mb-2">
-            CUSTOMER REVIEWS
-          </p>
-          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
-            Reviews from car owners
-          </h2>
-          <p className="text-sm sm:text-base text-neutral-600 mt-2">
-            See how easy it is to hire verified drivers across Hyderabad.
-          </p>
-        </div>
+      {/* CUSTOMER OTP VERIFICATION MODAL */}
+      <CustomerOtpVerificationModal
+        isOpen={otpModalOpen}
+        onClose={() => setOtpModalOpen(false)}
+        onVerified={handleOtpVerified}
+        driverName={pendingActionDriver?.name || 'Driver'}
+      />
 
-        {/* Minimal Quote Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {reviews.map((rev) => (
-            <div
-              key={rev.author}
-              className="bg-white rounded-2xl border border-neutral-200/80 p-6 sm:p-8 flex flex-col justify-between space-y-6 hover:shadow-md transition-all"
-            >
-              <p className="text-sm text-neutral-700 leading-relaxed font-normal">
-                "{rev.quote}"
-              </p>
-
-              <div className="flex items-center gap-3 pt-4 border-t border-neutral-100">
-                <img
-                  src={rev.avatar}
-                  alt={rev.author}
-                  className="w-10 h-10 rounded-full object-cover border border-neutral-200"
-                />
-                <div>
-                  <h4 className="text-xs font-bold text-neutral-950 font-sans">
-                    {rev.author}
-                  </h4>
-                  <p className="text-[11px] text-neutral-500 font-medium">
-                    {rev.title}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* =========================================================================
-          9. DARK CTA CONTAINER
-         ========================================================================= */}
-      <section className="bg-[#111111] text-white rounded-3xl p-10 sm:p-16 lg:p-20 text-center shadow-2xl relative overflow-hidden">
-        <div className="max-w-3xl mx-auto space-y-6">
-          <p className="text-xs font-semibold tracking-[0.25em] uppercase text-neutral-400">
-            — RELAX IN YOUR OWN CAR —
-          </p>
-          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white font-sans leading-tight">
-            Ready to hire a driver?
-          </h2>
-          <p className="text-sm sm:text-base text-neutral-400 max-w-xl mx-auto font-normal leading-relaxed">
-            Book a trusted personal driver today in Hyderabad. Pay direct with zero extra fees.
-          </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-            <a
-              href="#drivers"
-              className="px-8 py-3.5 bg-white text-neutral-950 hover:bg-neutral-100 rounded-full text-sm font-medium transition-all shadow-md"
-            >
-              Find a Driver
-            </a>
+      {/* DIRECT CONTACT DRIVER MODAL (REVEALED AFTER OTP VERIFICATION) */}
+      {contactDriverModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-6 shadow-2xl border border-neutral-100 relative">
             <button
               type="button"
-              onClick={onSwitchToDriver}
-              className="px-8 py-3.5 bg-transparent hover:bg-white/10 border border-neutral-700 text-white rounded-full text-sm font-medium transition-all"
+              onClick={() => setContactDriverModal(null)}
+              className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-900 p-1 font-bold text-sm"
             >
-              Join as a Driver
+              ✕
             </button>
-          </div>
-        </div>
-      </section>
 
-      {/* =========================================================================
-          DIRECT CONTACT MODAL (for circular ↗ button on Driver Cards)
-         ========================================================================= */}
-      {contactDriverModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 space-y-5 shadow-2xl border border-neutral-200">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <img
-                  src={contactDriverModal.photo}
-                  alt={contactDriverModal.name}
-                  className="w-14 h-14 rounded-xl object-cover border border-neutral-200"
-                />
-                <div>
-                  <h3 className="font-bold text-base text-neutral-950 font-sans">
-                    {contactDriverModal.name}
-                  </h3>
-                  <p className="text-xs text-neutral-500">
-                    {contactDriverModal.location}
-                  </p>
-                  <p className="text-xs text-neutral-500 mt-0.5">
-                    {contactDriverModal.driverType === 'permanent'
-                      ? `₹${(contactDriverModal.monthlySalary || 20000).toLocaleString('en-IN')}/mo`
-                      : `₹${contactDriverModal.hourlyRate || 180}/hr`}
-                  </p>
-                </div>
+            <div className="text-center space-y-3">
+              <img
+                src={contactDriverModal.photo}
+                alt={contactDriverModal.name}
+                className="w-16 h-16 rounded-2xl object-cover mx-auto bg-neutral-100 border"
+              />
+              <div>
+                <h3 className="text-xl font-bold text-neutral-950 font-sans">
+                  {contactDriverModal.name}
+                </h3>
+                <p className="text-xs text-neutral-500">{contactDriverModal.location}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setContactDriverModal(null)}
-                className="p-1 rounded-full text-neutral-400 hover:text-neutral-900 transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="p-3 bg-neutral-50 rounded-2xl border border-neutral-200">
+                <span className="text-[10px] uppercase font-bold text-neutral-400 block">Verified Driver Phone</span>
+                <span className="text-base font-bold font-mono text-neutral-950">
+                  {contactDriverModal.phone || contactDriverModal.rawPhone}
+                </span>
+              </div>
             </div>
 
-            <div className="p-3 bg-neutral-50 rounded-xl text-xs text-neutral-600 leading-relaxed">
-              Connect directly with zero commission. Call or message {contactDriverModal.name} directly.
-            </div>
-
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               <a
-                href={`tel:${contactDriverModal.phone || '+919876543210'}`}
-                className="w-full py-3 bg-[#111111] hover:bg-neutral-800 text-white rounded-full text-xs font-medium flex items-center justify-center gap-2 transition-all shadow-xs"
+                href={`tel:${contactDriverModal.rawPhone || contactDriverModal.phone.replace(/[^0-9]/g, '')}`}
+                className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold flex items-center justify-center gap-2"
               >
                 <Phone className="w-4 h-4" />
-                <span>Call {contactDriverModal.name} ({contactDriverModal.phone || '+91 98765 43210'})</span>
+                <span>Call Driver Directly</span>
               </a>
 
               <a
-                href={`https://wa.me/919876543210?text=${encodeURIComponent(
-                  `Hi ${contactDriverModal.name}, I found your profile on Mana Drivers. Are you available for a driving trip in Hyderabad?`
-                )}`}
+                href={`https://wa.me/${contactDriverModal.rawPhone || contactDriverModal.phone.replace(/[^0-9]/g, '')}?text=Hi%20${encodeURIComponent(
+                  contactDriverModal.name
+                )},%20I%20found%20your%20profile%20on%20Mana%20Drivers%20Hyderabad.`}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-medium flex items-center justify-center gap-2 transition-all shadow-xs"
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold flex items-center justify-center gap-2"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>WhatsApp Message</span>
+                <span>Message on WhatsApp</span>
               </a>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const d = contactDriverModal;
-                  setContactDriverModal(null);
-                  onOpenBooking(d);
-                }}
-                className="w-full py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-full text-xs font-medium transition-colors"
-              >
-                Schedule &amp; Book via Form
-              </button>
             </div>
           </div>
         </div>

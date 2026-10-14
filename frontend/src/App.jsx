@@ -3,17 +3,19 @@ import { Toaster, toast } from 'sonner';
 import Header from './components/Header';
 import CustomerView from './components/CustomerView';
 import DriverPortal from './components/DriverPortal';
+import AdminPortal from './components/AdminPortal';
 import BookingModal from './components/BookingModal';
 import MyBookingsSheet from './components/MyBookingsSheet';
 import { initialDrivers } from './data/mockDrivers';
 import { Phone } from 'lucide-react';
+import { createBookingApi } from './utils/api';
 
 const DEFAULT_BOOKINGS = [
   {
     id: 'HYD-8902',
     driverId: 'drv-01',
     driverName: 'Ramesh Kumar',
-    vehicle: 'Maruti Suzuki Dzire',
+    vehicle: 'Manual & Automatic Cars',
     date: '2026-10-12',
     time: '10:00',
     hours: 3,
@@ -25,37 +27,27 @@ const DEFAULT_BOOKINGS = [
   },
   {
     id: 'HYD-7411',
-    driverId: 'drv-02',
-    driverName: 'Suresh Patil',
-    vehicle: 'Hyundai Creta',
+    driverId: 'drv-03',
+    driverName: 'Shanker',
+    vehicle: 'Manual & Automatic Cars',
     date: '2026-10-13',
     time: '15:30',
     hours: 4,
-    pickupAddress: 'Road No. 36, Jubilee Hills, Hyderabad',
-    totalCost: 1000,
-    passengerNotes: 'Family shopping and dinner at Banjara Hills.',
-    status: 'Accepted',
+    pickupAddress: 'Gachibowli, Financial District, Hyderabad',
+    totalCost: 800,
+    passengerNotes: 'Family shopping and dinner at Jubilee Hills.',
+    status: 'Confirmed',
     createdAt: new Date().toISOString(),
   },
 ];
 
 export default function App() {
-  // Active Role: 'customer' | 'driver'
+  // Active Role: 'customer' | 'driver' | 'admin'
   const [activeRole, setActiveRole] = useState(() => {
     return localStorage.getItem('godrive_role') || 'customer';
   });
 
-  // Custom Registered Drivers (Persisted)
-  const [customDrivers, setCustomDrivers] = useState(() => {
-    try {
-      const saved = localStorage.getItem('godrive_custom_drivers');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Bookings / Client Inquiries (Persisted)
+  // Bookings / Client Inquiries
   const [bookings, setBookings] = useState(() => {
     try {
       const saved = localStorage.getItem('godrive_bookings');
@@ -69,50 +61,19 @@ export default function App() {
   const [selectedDriverForBooking, setSelectedDriverForBooking] = useState(null);
   const [isBookingsSheetOpen, setIsBookingsSheetOpen] = useState(false);
 
-  // Sync to LocalStorage
+  // Sync role to localStorage
   useEffect(() => {
     localStorage.setItem('godrive_role', activeRole);
   }, [activeRole]);
 
   useEffect(() => {
-    localStorage.setItem('godrive_custom_drivers', JSON.stringify(customDrivers));
-  }, [customDrivers]);
-
-  useEffect(() => {
     localStorage.setItem('godrive_bookings', JSON.stringify(bookings));
   }, [bookings]);
-
-  // Live driver availability status overrides (persisted)
-  const [driverStatuses, setDriverStatuses] = useState(() => {
-    try {
-      const saved = localStorage.getItem('manadriver_statuses');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('manadriver_statuses', JSON.stringify(driverStatuses));
-  }, [driverStatuses]);
-
-  const handleToggleDriverStatus = (driverId, newStatus) => {
-    setDriverStatuses((prev) => ({
-      ...prev,
-      [driverId]: newStatus,
-    }));
-    toast.success(`Driver status updated to: ${newStatus}`);
-  };
-
-  // Combined drivers with live status applied
-  const allDrivers = [...initialDrivers, ...customDrivers].map((driver) => ({
-    ...driver,
-    status: driverStatuses[driver.id] || driver.status || 'Available',
-  }));
 
   // Handlers
   const handleRoleChange = (role) => {
     setActiveRole(role);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenBooking = (driver) => {
@@ -123,8 +84,13 @@ export default function App() {
     setSelectedDriverForBooking(null);
   };
 
-  const handleBookingConfirmed = (newBooking) => {
+  const handleBookingConfirmed = async (newBooking) => {
     setBookings((prev) => [newBooking, ...prev]);
+    try {
+      await createBookingApi(newBooking);
+    } catch (err) {
+      console.error('Failed to save booking to backend:', err);
+    }
   };
 
   const handleCancelBooking = (bookingId) => {
@@ -132,35 +98,12 @@ export default function App() {
     toast.info(`Booking ${bookingId} has been cancelled.`);
   };
 
-  const handleAcceptBooking = (bookingId) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.id === bookingId ? { ...b, status: 'Accepted' } : b))
-    );
-    toast.success(`Booking ${bookingId} accepted in Hyderabad!`);
-  };
-
-  const handleDeclineBooking = (bookingId) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.id === bookingId ? { ...b, status: 'Declined' } : b))
-    );
-    toast.info(`Booking ${bookingId} declined.`);
-  };
-
-  const handleRegisterDriver = (newDriver) => {
-    setCustomDrivers((prev) => [newDriver, ...prev]);
-  };
-
   const [floatingContactOpen, setFloatingContactOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] text-[#111111] flex flex-col selection:bg-neutral-900 selection:text-white font-sans">
       {/* Toast Notifications */}
-      <Toaster
-        position="top-right"
-        richColors
-        closeButton
-        theme="light"
-      />
+      <Toaster position="top-right" richColors closeButton theme="light" />
 
       {/* Header */}
       <Header
@@ -172,50 +115,57 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
-        {activeRole === 'customer' ? (
+        {activeRole === 'customer' && (
           <CustomerView
-            drivers={allDrivers}
+            drivers={initialDrivers}
             onOpenBooking={handleOpenBooking}
             onSwitchToDriver={() => handleRoleChange('driver')}
           />
-        ) : (
-          <DriverPortal
-            bookings={bookings}
-            onAcceptBooking={handleAcceptBooking}
-            onDeclineBooking={handleDeclineBooking}
-            onRegisterDriver={handleRegisterDriver}
-            totalDriversCount={allDrivers.length}
-            customDrivers={customDrivers}
-            allDrivers={allDrivers}
-            onToggleDriverStatus={handleToggleDriverStatus}
-          />
+        )}
+
+        {activeRole === 'driver' && (
+          <DriverPortal onBackToHome={() => handleRoleChange('customer')} />
+        )}
+
+        {activeRole === 'admin' && (
+          <AdminPortal onBackToHome={() => handleRoleChange('customer')} />
         )}
       </main>
 
-      {/* =========================================================================
-          NOVA EDITORIAL MINIMALIST FOOTER (REFERENCE IMAGE PAGE 7)
-         ========================================================================= */}
+      {/* FOOTER */}
       <footer className="mt-auto py-10 px-4 sm:px-6 lg:px-8 border-t border-neutral-200/80 bg-[#FAF9F6]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-neutral-500 font-medium">
-          <div className="flex items-center gap-6">
-            <a href="#" className="hover:text-neutral-900 transition-colors">Privacy policy</a>
-            <a href="#" className="hover:text-neutral-900 transition-colors">Terms of service</a>
-            <a href="#services" className="hover:text-neutral-900 transition-colors">Services</a>
-            <a href="#drivers" className="hover:text-neutral-900 transition-colors">Drivers</a>
-            <a href="#pricing" className="hover:text-neutral-900 transition-colors">Pricing</a>
+          <div className="flex flex-wrap items-center gap-6">
+            <a href="#" className="hover:text-neutral-900 transition-colors">
+              Privacy policy
+            </a>
+            <a href="#" className="hover:text-neutral-900 transition-colors">
+              Terms of service
+            </a>
+            <a href="#drivers" className="hover:text-neutral-900 transition-colors">
+              Drivers
+            </a>
+            <a href="#pricing" className="hover:text-neutral-900 transition-colors">
+              Pricing
+            </a>
+            <button
+              type="button"
+              onClick={() => handleRoleChange('admin')}
+              className="hover:text-neutral-900 text-neutral-900 font-bold underline underline-offset-4 cursor-pointer transition-colors"
+            >
+              Admin
+            </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-neutral-500">
             <span>© {new Date().getFullYear()} MANA DRIVERS HYDERABAD</span>
             <span>·</span>
-            <span>POLICE VERIFIED CHAUFFEURS</span>
+            <span>AADHAAR & LICENSE VERIFIED</span>
           </div>
         </div>
       </footer>
 
-      {/* =========================================================================
-          FLOATING CIRCULAR CONTACT BUTTON (PINNED BOTTOM-RIGHT - REFERENCE PAGES 1-7)
-         ========================================================================= */}
+      {/* FLOATING CIRCULAR CONTACT BUTTON */}
       <div className="fixed bottom-6 right-6 z-40">
         <button
           type="button"
@@ -228,9 +178,9 @@ export default function App() {
           <Phone className="w-5 h-5 text-neutral-800" />
         </button>
 
-        {/* Quick Contact Modal / Popover */}
+        {/* Quick Contact Modal */}
         {floatingContactOpen && (
-          <div className="absolute bottom-16 right-0 w-80 bg-white rounded-3xl p-5 border border-neutral-200 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200 text-neutral-900 space-y-4">
+          <div className="absolute bottom-16 right-0 w-80 bg-white rounded-3xl p-5 border border-neutral-200 shadow-2xl text-neutral-900 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <div>
                 <p className="font-bold text-sm">Mana Drivers Hyderabad</p>
@@ -284,7 +234,7 @@ export default function App() {
         onBookingConfirmed={handleBookingConfirmed}
       />
 
-      {/* Trips Bottom Sheet / Modal */}
+      {/* Trips Bottom Sheet */}
       <MyBookingsSheet
         isOpen={isBookingsSheetOpen}
         onClose={() => setIsBookingsSheetOpen(false)}

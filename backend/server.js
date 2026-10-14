@@ -18,6 +18,9 @@ const { errorHandler, notFoundHandler } = require('./utils/errorHandler');
 const app = express();
 const PORT = 3000;
 
+// Enable trust proxy for express-rate-limit when running behind reverse proxy
+app.set('trust proxy', 1);
+
 // Initialize Database Connection
 connectDB();
 

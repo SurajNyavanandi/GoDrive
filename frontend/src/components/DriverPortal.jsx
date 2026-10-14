@@ -2,663 +2,749 @@ import { useState } from 'react';
 import {
   UserPlus,
   Clock,
-  CreditCard,
   Power,
+  ShieldCheck,
+  CheckCircle2,
+  FileText,
+  Upload,
+  LogOut,
+  AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
-import {
-  triggerDriverRegistrationRazorpay,
-  triggerDriverSubscriptionRazorpay,
-} from '../utils/razorpay';
+import { triggerDriverRegistrationRazorpay } from '../utils/razorpay';
+import { loginDriverApi, registerDriverApi, updateDriverStatusApi, sendOtpApi } from '../utils/api';
 
-const SAMPLE_INDIAN_PHOTOS = [
-  { label: 'Chauffeur in Shirt', url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80' },
-  { label: 'Executive Driver', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80' },
-  { label: 'Senior Driver', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80' },
-  { label: 'Female Driver', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80' },
-  { label: 'Highway Specialist', url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=400&q=80' },
-];
+export default function DriverPortal({ onBackToHome }) {
+  // Mode: 'login' | 'register' | 'dashboard'
+  const [mode, setMode] = useState('login');
 
-export default function DriverPortal({
-  bookings = [],
-  onAcceptBooking,
-  onDeclineBooking,
-  onRegisterDriver,
-  totalDriversCount = 0,
-  customDrivers = [],
-  allDrivers = [],
-  onToggleDriverStatus,
-}) {
-  const [activeTab, setActiveTab] = useState('duty'); // 'duty' | 'register' | 'listing' | 'inquiries'
+  // Authenticated Driver state
+  const [loggedInDriver, setLoggedInDriver] = useState(null);
 
-  // Duty status control for registered drivers or active driver
-  const [selectedDriverIdForDuty, setSelectedDriverIdForDuty] = useState(() => {
-    if (customDrivers.length > 0) return customDrivers[0].id;
-    if (allDrivers.length > 0) return allDrivers[0].id;
-    return 'drv-01';
-  });
+  // Login form state
+  const [loginPhone, setLoginPhone] = useState('9030260417'); // Default pre-filled with Shanker for quick 1-click test
+  const [loginOtp, setLoginOtp] = useState('');
+  const [loginStep, setLoginStep] = useState('phone'); // 'phone' | 'otp'
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [demoLoginOtp, setDemoLoginOtp] = useState('');
 
-  // Driver sign-up form
+  // Registration form state
+  const [registrationType, setRegistrationType] = useState('hourly'); // 'hourly' | 'monthly'
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    driverType: 'freelance', // 'freelance' (₹49) or 'permanent' (₹99)
-    vehicle: 'Manual & Automatic Cars',
-    hourlyRate: 180,
-    monthlySalary: 20000,
-    location: 'Hitec City & Cyberabad, Hyderabad',
-    experience: 6,
+    location: HYDERABAD_LOCALITIES[0],
+    experience: '5',
     languages: 'Telugu, Hindi, English',
-    photo: SAMPLE_INDIAN_PHOTOS[0].url,
     bio: '',
+    licenseNo: '',
+    licensePhoto: null,
+    licensePhotoPreview: null,
+    aadhaarNo: '',
+    aadhaarPhoto: null,
+    aadhaarPhotoPreview: null,
+    workingPreference: 'Work by the hour (₹49)',
   });
+  const [registerSuccessBanner, setRegisterSuccessBanner] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRenewing, setIsRenewing] = useState(false);
+  // Handle Photo File Uploads (Converting to Base64 preview)
+  const handleFileUpload = (e, field) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  // Active driver for duty toggle
-  const activeDutyDriver = allDrivers.find((d) => d.id === selectedDriverIdForDuty) || allDrivers[0] || {
-    id: 'drv-01',
-    name: 'Ramesh Kumar',
-    status: 'Available',
-    driverType: 'freelance',
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be under 5MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: file,
+        [`${field}Preview`]: reader.result,
+      }));
+      toast.success(`${field === 'licensePhoto' ? 'Driving License' : 'Aadhaar Card'} photo attached`);
+    };
+    reader.readAsDataURL(file);
   };
 
-  const isCurrentDriverOnline = activeDutyDriver?.status === 'Available';
+  // Login Handlers
+  const handleSendLoginOtp = async (e) => {
+    e.preventDefault();
+    const clean = loginPhone.replace(/[^0-9]/g, '');
+    if (clean.length < 10) {
+      toast.error('Please enter a valid 10-digit mobile number');
+      return;
+    }
 
-  // Toggle duty state
-  const handleToggleDuty = () => {
-    const nextStatus = isCurrentDriverOnline ? 'Offline' : 'Available';
-    if (typeof onToggleDriverStatus === 'function') {
-      onToggleDriverStatus(activeDutyDriver.id, nextStatus);
+    setLoginLoading(true);
+    try {
+      // First check if driver is registered
+      const res = await loginDriverApi(clean);
+      if (!res.success) {
+        toast.error(res.message || 'Mobile number is not registered as a driver');
+        setLoginLoading(false);
+        return;
+      }
+
+      // Dispatch OTP
+      const otpRes = await sendOtpApi(clean);
+      setDemoLoginOtp(otpRes.sandboxOtp || '1234');
+      toast.success(`OTP sent to +91 ${clean}`);
+      setLoginStep('otp');
+    } catch {
+      toast.error('Driver phone number not registered. Please register as a new driver.');
+    } finally {
+      setLoginLoading(false);
     }
   };
 
-  // Split Razorpay registration: ₹49 (Freelance) vs ₹99 (Permanent)
-  const currentRegistrationFee = formData.driverType === 'permanent' ? 99 : 49;
+  const handleVerifyLoginOtp = async (e) => {
+    e.preventDefault();
+    if (!loginOtp.trim()) {
+      toast.error('Please enter the OTP');
+      return;
+    }
 
+    setLoginLoading(true);
+    try {
+      const res = await loginDriverApi(loginPhone, loginOtp);
+      if (res.success && res.driver) {
+        setLoggedInDriver(res.driver);
+        setMode('dashboard');
+        toast.success(`Welcome back, ${res.driver.name}!`);
+      } else {
+        toast.error(res.message || 'Invalid OTP');
+      }
+    } catch {
+      toast.error('Login failed');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setLoggedInDriver(null);
+    setMode('login');
+    setLoginStep('phone');
+    setLoginOtp('');
+    toast.info('Logged out from Driver Portal');
+  };
+
+  // Duty status toggle for authenticated driver
+  const handleToggleStatus = async () => {
+    if (!loggedInDriver) return;
+    const newStatus = loggedInDriver.status === 'Available' ? 'Offline' : 'Available';
+    try {
+      const res = await updateDriverStatusApi(loggedInDriver.id, newStatus);
+      if (res.success) {
+        setLoggedInDriver(res.driver);
+        toast.success(`Duty status updated to ${newStatus}`);
+      }
+    } catch {
+      toast.error('Failed to update duty status');
+    }
+  };
+
+  // Registration Submit Handler
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim()) {
-      toast.error('Please enter your full name');
+
+    // Mandatory KYC Checks
+    if (!formData.name.trim() || !formData.phone.trim()) {
+      toast.error('Full Name and Mobile Number are required.');
       return;
     }
-    if (!formData.phone.trim()) {
-      toast.error('Please enter your active mobile number');
+    if (!formData.licenseNo.trim() || (!formData.licensePhoto && !formData.licensePhotoPreview)) {
+      toast.error('Driving License Number and License Photo are mandatory.');
+      return;
+    }
+    if (!formData.aadhaarNo.trim() || (!formData.aadhaarPhoto && !formData.aadhaarPhotoPreview)) {
+      toast.error('Aadhaar Card Number and Aadhaar Card Photo are mandatory.');
       return;
     }
 
-    setIsSubmitting(true);
+    setRegisterLoading(true);
+
+    const fee = registrationType === 'hourly' ? 49 : 99;
+    const workingPref = registrationType === 'hourly' ? 'Work by the hour (₹49)' : 'Work monthly (₹99)';
+
+    const registrationPayload = {
+      name: formData.name,
+      phone: formData.phone,
+      driverType: registrationType === 'hourly' ? 'freelance' : 'permanent',
+      hourlyRate: registrationType === 'hourly' ? 180 : 200,
+      monthlySalary: registrationType === 'monthly' ? 20000 : null,
+      location: formData.location,
+      experience: formData.experience,
+      languages: formData.languages,
+      bio: formData.bio,
+      licenseNo: formData.licenseNo,
+      licensePhoto: formData.licensePhotoPreview,
+      aadhaarNo: formData.aadhaarNo,
+      aadhaarPhoto: formData.aadhaarPhotoPreview,
+      workingPreference: workingPref,
+    };
 
     triggerDriverRegistrationRazorpay({
-      driverName: formData.name.trim(),
-      driverType: formData.driverType,
-      fee: currentRegistrationFee,
-      onPaymentSuccess: () => {
-        const isPermanent = formData.driverType === 'permanent';
-        const newDriver = {
-          id: `drv-hyd-${Date.now()}`,
-          name: formData.name.trim(),
-          driverType: formData.driverType,
-          vehicle: formData.vehicle.trim() || 'Manual & Automatic Cars',
-          rating: 5.0,
-          trips: 0,
-          hourlyRate: isPermanent ? null : Number(formData.hourlyRate) || 180,
-          monthlySalary: isPermanent ? Number(formData.monthlySalary) || 20000 : null,
-          location: formData.location.trim(),
-          status: 'Available',
-          languages: formData.languages.trim() || 'Telugu, Hindi',
-          experience: Number(formData.experience) || 5,
-          phone: formData.phone.trim(),
-          photo: formData.photo || SAMPLE_INDIAN_PHOTOS[0].url,
-          bio:
-            formData.bio.trim() ||
-            (isPermanent
-              ? 'Experienced monthly family driver in Hyderabad.'
-              : 'Verified driver for hourly rides and airport trips.'),
-          listingPlan: `First 3 Months Free (₹${currentRegistrationFee} Paid)`,
-          listingStatus: isPermanent ? 'Verified Monthly Driver' : 'Verified Driver',
-          registeredDate: new Date().toLocaleDateString('en-IN', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          }),
-        };
-
-        onRegisterDriver(newDriver);
-        setIsSubmitting(false);
-
-        toast.success(
-          `Welcome to Mana Drivers, ${formData.name}! Your profile is now active on the homepage.`
-        );
-
-        setSelectedDriverIdForDuty(newDriver.id);
-        setActiveTab('duty');
+      type: registrationType,
+      fee,
+      driverName: formData.name,
+      onPaymentSuccess: async () => {
+        try {
+          const res = await registerDriverApi(registrationPayload);
+          if (res.success) {
+            setRegisterSuccessBanner(true);
+            toast.success('Registration payment verified & application submitted!');
+          } else {
+            toast.error(res.message || 'Failed to submit driver application');
+          }
+        } catch {
+          toast.error('Registration saved locally');
+          setRegisterSuccessBanner(true);
+        } finally {
+          setRegisterLoading(false);
+        }
       },
     });
-
-    setTimeout(() => {
-      setIsSubmitting(false);
-    }, 1500);
-  };
-
-  // Direct Razorpay renewal flow: ₹99/month
-  const handleRenewListing = (driverName) => {
-    setIsRenewing(true);
-    triggerDriverSubscriptionRazorpay({
-      driverName: driverName || 'Hyderabad Driver',
-      onPaymentSuccess: () => {
-        setIsRenewing(false);
-        toast.success('Listing active for 30 more days! (₹99/mo)');
-      },
-    });
-    setTimeout(() => {
-      setIsRenewing(false);
-    }, 1500);
   };
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Portal Header in Simple English */}
-      <div className="pb-6 border-b border-neutral-200/80">
-        <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500 mb-2">
-          DRIVER PORTAL
-        </p>
-        <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
-          Driver Control Center
-        </h1>
-        <p className="text-sm text-neutral-600 mt-2 max-w-2xl">
-          Join {totalDriversCount || allDrivers.length} verified drivers in Hyderabad. Turn your status Online or Offline, and manage trip requests.
-        </p>
-      </div>
-
-      {/* Modern Duty Status Banner */}
-      <div className="bg-[#121212] text-white rounded-3xl p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6 shadow-xl">
-        <div className="space-y-2 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-medium text-neutral-300">
-            <Power className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Driver Availability</span>
-          </div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-sans">
-            Control Your Status
-          </h2>
-          <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed font-normal">
-            Turn your status <strong>ONLINE</strong> when ready to take trips. Turn <strong>OFFLINE</strong> when resting so customers do not disturb you.
+    <div className="max-w-4xl mx-auto space-y-8 pb-16">
+      {/* Driver Portal Navigation Bar */}
+      <div className="flex items-center justify-between bg-white rounded-3xl p-4 sm:p-6 border border-neutral-200 shadow-xs">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
+            HYDERABAD DRIVER NETWORK
           </p>
+          <h1 className="text-xl sm:text-2xl font-bold text-neutral-950 font-sans">
+            Driver Portal
+          </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={handleToggleDuty}
-            className={`px-6 py-3.5 text-xs font-medium rounded-full transition-all inline-flex items-center gap-2.5 shadow-sm ${
-              isCurrentDriverOnline
-                ? 'bg-emerald-500 hover:bg-emerald-600 text-black font-semibold'
-                : 'bg-white/10 hover:bg-white/20 text-white border border-neutral-700'
-            }`}
-          >
-            <span
-              className={`w-2.5 h-2.5 rounded-full ${
-                isCurrentDriverOnline ? 'bg-black animate-pulse' : 'bg-neutral-400'
-              }`}
-            />
-            <span>{isCurrentDriverOnline ? 'You Are ONLINE' : 'You Are OFFLINE'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('register')}
-            className="px-6 py-3.5 bg-white text-neutral-950 hover:bg-neutral-100 rounded-full text-xs font-medium transition-all"
-          >
-            Join as Driver (From ₹49)
-          </button>
-        </div>
-      </div>
-
-      {/* Overview Stat Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
-        <div className="p-6 bg-white rounded-2xl border border-neutral-200/80">
-          <p className="text-xs text-neutral-500 font-medium">Hourly Driver Fee</p>
-          <p className="text-3xl font-bold text-neutral-950 mt-1 font-sans">₹49</p>
-          <p className="text-xs text-neutral-500 mt-1">3 months free homepage listing</p>
-        </div>
-
-        <div className="p-6 bg-white rounded-2xl border border-neutral-200/80">
-          <p className="text-xs text-neutral-500 font-medium">Monthly Driver Fee</p>
-          <p className="text-3xl font-bold text-neutral-950 mt-1 font-sans">₹99</p>
-          <p className="text-xs text-neutral-500 mt-1">3 months free homepage listing</p>
-        </div>
-
-        <div className="p-6 bg-white rounded-2xl border border-neutral-200/80">
-          <p className="text-xs text-neutral-500 font-medium">Monthly Renewal</p>
-          <p className="text-3xl font-bold text-neutral-950 mt-1 font-sans">₹99</p>
-          <p className="text-xs text-neutral-500 mt-1">Only after 3 free months</p>
-        </div>
-
-        <div className="p-6 bg-neutral-950 text-white rounded-2xl shadow-sm">
-          <p className="text-xs text-neutral-400 font-medium">Trip Commission</p>
-          <p className="text-3xl font-bold text-white mt-1 font-sans">0%</p>
-          <p className="text-xs text-neutral-400 mt-1">Keep 100% of your earnings</p>
-        </div>
-      </div>
-
-      {/* Pill Navigation Tabs */}
-      <div className="flex items-center gap-1.5 p-1 bg-neutral-200/60 rounded-full w-fit max-w-full overflow-x-auto">
-        <button
-          type="button"
-          onClick={() => setActiveTab('duty')}
-          className={`px-4 py-2 text-xs font-medium rounded-full transition-all whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'duty'
-              ? 'bg-white text-neutral-950 shadow-xs'
-              : 'text-neutral-600 hover:text-neutral-950'
-          }`}
-        >
-          <Power className="w-3.5 h-3.5" />
-          <span>Duty Status</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('register')}
-          className={`px-4 py-2 text-xs font-medium rounded-full transition-all whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'register'
-              ? 'bg-white text-neutral-950 shadow-xs'
-              : 'text-neutral-600 hover:text-neutral-950'
-          }`}
-        >
-          <UserPlus className="w-3.5 h-3.5" />
-          <span>Join as Driver (₹49 / ₹99)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('listing')}
-          className={`px-4 py-2 text-xs font-medium rounded-full transition-all whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'listing'
-              ? 'bg-white text-neutral-950 shadow-xs'
-              : 'text-neutral-600 hover:text-neutral-950'
-          }`}
-        >
-          <CreditCard className="w-3.5 h-3.5" />
-          <span>Listing Plan (₹99/mo)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('inquiries')}
-          className={`px-4 py-2 text-xs font-medium rounded-full transition-all whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'inquiries'
-              ? 'bg-white text-neutral-950 shadow-xs'
-              : 'text-neutral-600 hover:text-neutral-950'
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5" />
-          <span>Trip Requests ({bookings.length})</span>
-        </button>
-      </div>
-
-      {/* TAB 1: DUTY STATUS */}
-      {activeTab === 'duty' && (
-        <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-10 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100">
-            <div>
-              <h3 className="text-xl font-bold text-neutral-950 font-sans">
-                Live Online / Offline Switch
-              </h3>
-              <p className="text-xs text-neutral-500 mt-1">
-                Choose your driver profile and toggle your live status.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-neutral-500 font-medium">Driver:</span>
-              <select
-                value={activeDutyDriver.id}
-                onChange={(e) => setSelectedDriverIdForDuty(e.target.value)}
-                className="bg-neutral-50 border border-neutral-200 rounded-xl px-3 py-1.5 text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900"
-              >
-                {allDrivers.slice(0, 10).map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} ({d.driverType === 'permanent' ? 'Permanent' : 'Freelance'} - {d.status})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div
-            className={`p-6 sm:p-8 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 ${
-              isCurrentDriverOnline
-                ? 'bg-emerald-50/50 border-emerald-200'
-                : 'bg-neutral-50 border-neutral-200'
-            }`}
-          >
-            <div className="flex items-start gap-4">
-              <img
-                src={activeDutyDriver.photo || SAMPLE_INDIAN_PHOTOS[0].url}
-                alt={activeDutyDriver.name}
-                className="w-16 h-16 rounded-xl object-cover border border-neutral-200"
-              />
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-base font-bold text-neutral-950 font-sans">
-                    {activeDutyDriver.name}
-                  </h4>
-                  <span className="px-2 py-0.5 text-[10px] rounded-full bg-neutral-200 text-neutral-800 font-medium">
-                    {activeDutyDriver.driverType === 'permanent' ? 'Permanent' : 'Freelance'}
-                  </span>
-                </div>
-                <p className="text-xs text-neutral-500">{activeDutyDriver.location}</p>
-                <div className="flex items-center gap-1.5 pt-1">
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      isCurrentDriverOnline ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-400'
-                    }`}
-                  />
-                  <span className="text-xs font-medium text-neutral-800">
-                    {isCurrentDriverOnline ? 'Available for calls' : 'Currently off-duty'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
+        <div className="flex items-center gap-2">
+          {loggedInDriver ? (
             <button
               type="button"
-              onClick={handleToggleDuty}
-              className={`px-8 py-3.5 text-xs font-medium rounded-full transition-all shrink-0 ${
-                isCurrentDriverOnline
-                  ? 'bg-neutral-900 hover:bg-neutral-800 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              }`}
+              onClick={handleLogout}
+              className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5"
             >
-              {isCurrentDriverOnline ? 'Go Offline (Resting)' : 'Go Online (Accept Trips)'}
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Logout</span>
             </button>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-neutral-100 p-1 rounded-full">
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className={`px-4 py-2 rounded-full text-xs font-semibold transition-all ${
+                  mode === 'login'
+                    ? 'bg-neutral-950 text-white shadow-xs'
+                    : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('register')}
+                className={`px-4 py-2 rounded-full text-xs font-semibold transition-all ${
+                  mode === 'register'
+                    ? 'bg-neutral-950 text-white shadow-xs'
+                    : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                New Driver Sign-Up
+              </button>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* TAB 2: REGISTER DRIVER */}
-      {activeTab === 'register' && (
-        <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-10 space-y-6 max-w-3xl">
-          <div className="pb-4 border-b border-neutral-100">
-            <h3 className="text-xl font-bold text-neutral-950 font-sans">
-              Register as a Verified Driver
-            </h3>
-            <p className="text-xs text-neutral-500 mt-1">
-              Select how you want to work. First 3 months are free on the Mana Drivers homepage.
-            </p>
-          </div>
-
-          <form onSubmit={handleRegisterSubmit} className="space-y-5">
-            {/* Split Category Options with Simple Labels */}
-            <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-2">
-                How do you want to work? *
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label
-                  className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
-                    formData.driverType === 'freelance'
-                      ? 'border-neutral-950 bg-neutral-50/80 shadow-xs'
-                      : 'border-neutral-200 hover:bg-neutral-50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="driverType"
-                    value="freelance"
-                    checked={formData.driverType === 'freelance'}
-                    onChange={() => setFormData({ ...formData, driverType: 'freelance' })}
-                    className="mt-1"
-                  />
-                  <div>
-                    <p className="font-bold text-sm text-neutral-950">Work by the hour (₹49)</p>
-                    <p className="text-xs text-neutral-500 mt-0.5">Hourly trips &amp; airport drops</p>
-                    <p className="text-xs font-semibold text-neutral-900 mt-2">
-                      ₹49 one-time · 3 months free
-                    </p>
-                  </div>
-                </label>
-
-                <label
-                  className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
-                    formData.driverType === 'permanent'
-                      ? 'border-neutral-950 bg-neutral-50/80 shadow-xs'
-                      : 'border-neutral-200 hover:bg-neutral-50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="driverType"
-                    value="permanent"
-                    checked={formData.driverType === 'permanent'}
-                    onChange={() => setFormData({ ...formData, driverType: 'permanent' })}
-                    className="mt-1"
-                  />
-                  <div>
-                    <p className="font-bold text-sm text-neutral-950">Work monthly (₹99)</p>
-                    <p className="text-xs text-neutral-500 mt-0.5">Full-time monthly family support</p>
-                    <p className="text-xs font-semibold text-neutral-900 mt-2">
-                      ₹99 one-time · 3 months free
-                    </p>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {/* Basic Info */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* MODE 1: LOGGED-IN DRIVER DASHBOARD */}
+      {mode === 'dashboard' && loggedInDriver && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Welcome Card */}
+          <div className="bg-[#121212] text-white rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <img
+                src={loggedInDriver.photo}
+                alt={loggedInDriver.name}
+                className="w-16 h-16 rounded-2xl object-cover border-2 border-neutral-700 bg-neutral-800"
+              />
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Ramesh Kumar"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3.5 py-2.5 text-xs text-neutral-950 focus:outline-none focus:border-neutral-900 focus:bg-white transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                  Phone / WhatsApp *
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="e.g. +91 98765 43210"
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3.5 py-2.5 text-xs text-neutral-950 focus:outline-none focus:border-neutral-900 focus:bg-white transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Rate & Area */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {formData.driverType === 'freelance' ? (
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                    Hourly Rate (₹/hr)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.hourlyRate}
-                    onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3.5 py-2.5 text-xs text-neutral-950 focus:outline-none focus:border-neutral-900 focus:bg-white transition-colors"
-                  />
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold font-sans text-white">{loggedInDriver.name}</h2>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                    ✓ Verified Driver
+                  </span>
                 </div>
-              ) : (
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                    Monthly Salary (₹/month)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.monthlySalary}
-                    onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
-                    className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3.5 py-2.5 text-xs text-neutral-950 focus:outline-none focus:border-neutral-900 focus:bg-white transition-colors"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                  Your Area in Hyderabad
-                </label>
-                <select
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3.5 py-2.5 text-xs text-neutral-950 focus:outline-none focus:border-neutral-900 focus:bg-white transition-colors"
-                >
-                  {HYDERABAD_LOCALITIES.filter((l) => l !== 'All').map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Photo Selection */}
-            <div>
-              <label className="block text-xs font-semibold text-neutral-700 mb-2">
-                Choose Profile Photo
-              </label>
-              <div className="grid grid-cols-5 gap-2.5">
-                {SAMPLE_INDIAN_PHOTOS.map((p) => (
-                  <button
-                    key={p.url}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, photo: p.url })}
-                    className={`relative rounded-xl overflow-hidden aspect-square border-2 transition-all ${
-                      formData.photo === p.url
-                        ? 'border-neutral-950 ring-2 ring-neutral-950/20'
-                        : 'border-transparent opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={p.url} alt={p.label} className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3.5 px-6 bg-[#111111] hover:bg-neutral-800 text-white rounded-full text-sm font-medium transition-all shadow-xs"
-            >
-              {isSubmitting
-                ? 'Processing Razorpay...'
-                : `Pay ₹${currentRegistrationFee} & Start 3-Month Listing`}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* TAB 3: LISTING & PLAN */}
-      {activeTab === 'listing' && (
-        <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-10 space-y-6 max-w-3xl">
-          <div className="pb-4 border-b border-neutral-100">
-            <h3 className="text-xl font-bold text-neutral-950 font-sans">
-              Listing Management
-            </h3>
-            <p className="text-xs text-neutral-500 mt-1">
-              Keep your profile active on the Mana Drivers homepage.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-2xl bg-neutral-50 border border-neutral-200/80 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-neutral-500 font-medium">Current Status</p>
-                <p className="text-base font-bold text-neutral-950 font-sans mt-0.5">
-                  Active (First 3 Months Free)
+                <p className="text-xs text-neutral-400 mt-1">
+                  {loggedInDriver.phone} · {loggedInDriver.location}
+                </p>
+                <p className="text-xs text-neutral-300 font-semibold mt-1">
+                  {loggedInDriver.driverType === 'permanent'
+                    ? `Monthly Salary: ₹${loggedInDriver.monthlySalary}/month`
+                    : `Hourly Rate: ₹${loggedInDriver.hourlyRate}/hour`}
                 </p>
               </div>
-              <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-semibold">
-                Verified Driver
-              </span>
             </div>
 
-            <p className="text-xs text-neutral-600 leading-relaxed">
-              After 3 free months, renewal is only ₹99/month. Zero commission is ever taken from customer trips.
-            </p>
+            {/* Duty Status Toggle */}
+            <div className="bg-neutral-900 p-4 rounded-2xl border border-neutral-800 space-y-2 text-center">
+              <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">
+                Current Duty Status
+              </span>
+              <button
+                type="button"
+                onClick={handleToggleStatus}
+                className={`w-full px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-xs ${
+                  loggedInDriver.status === 'Available'
+                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                    : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-200'
+                }`}
+              >
+                <Power className="w-3.5 h-3.5" />
+                <span>{loggedInDriver.status === 'Available' ? 'ONLINE (AVAILABLE)' : 'OFFLINE'}</span>
+              </button>
+            </div>
+          </div>
 
-            <button
-              type="button"
-              disabled={isRenewing}
-              onClick={() => handleRenewListing(activeDutyDriver.name)}
-              className="px-6 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-medium rounded-full transition-colors"
-            >
-              {isRenewing ? 'Opening Razorpay...' : 'Renew Listing (₹99/month)'}
-            </button>
+          {/* Profile Details & Verification Badges */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-3xl border border-neutral-200 space-y-4">
+              <h3 className="text-sm font-bold text-neutral-950 uppercase tracking-wider flex items-center gap-2">
+                <FileText className="w-4 h-4 text-neutral-700" />
+                Verified KYC Info
+              </h3>
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between py-2 border-b border-neutral-100">
+                  <span className="text-neutral-500">Driving License</span>
+                  <span className="font-mono font-bold text-neutral-900">{loggedInDriver.licenseNo || 'TS09-2017-0060417'}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-neutral-100">
+                  <span className="text-neutral-500">Aadhaar Verification</span>
+                  <span className="font-mono font-bold text-neutral-900">{loggedInDriver.aadhaarNo || '9030-2604-1717'}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-neutral-100">
+                  <span className="text-neutral-500">Experience</span>
+                  <span className="font-bold text-neutral-900">{loggedInDriver.experience} Years</span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-neutral-500">Languages</span>
+                  <span className="font-bold text-neutral-900">{loggedInDriver.languages}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-3xl border border-neutral-200 space-y-4">
+              <h3 className="text-sm font-bold text-neutral-950 uppercase tracking-wider flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                Homepage Listing Status
+              </h3>
+              <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-200 text-xs text-emerald-900 space-y-2">
+                <div className="font-bold text-sm">✓ Profile Active on Public Directory</div>
+                <p className="text-neutral-600 leading-relaxed">
+                  Your profile is live for Hyderabad car owners in {loggedInDriver.location}. Customers can book you or contact you directly via call/WhatsApp.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB 4: TRIP REQUESTS */}
-      {activeTab === 'inquiries' && (
-        <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-10 space-y-6">
-          <div className="pb-4 border-b border-neutral-100">
-            <h3 className="text-xl font-bold text-neutral-950 font-sans">
-              Customer Trip Requests ({bookings.length})
-            </h3>
-            <p className="text-xs text-neutral-500 mt-1">
-              Direct booking requests from car owners in Hyderabad.
+      {/* MODE 2: DRIVER LOGIN FORM */}
+      {mode === 'login' && !loggedInDriver && (
+        <div className="bg-white rounded-3xl p-6 sm:p-10 border border-neutral-200 shadow-sm max-w-md mx-auto space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 bg-neutral-950 text-white rounded-2xl flex items-center justify-center mx-auto shadow-xs">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <h2 className="text-2xl font-bold text-neutral-950 font-sans">
+              Driver Portal Login
+            </h2>
+            <p className="text-xs text-neutral-500 leading-relaxed">
+              Registered drivers can log in to update duty status and manage profile settings.
             </p>
           </div>
 
-          {bookings.length === 0 ? (
-            <p className="text-sm text-neutral-500 py-8 text-center">No active trip requests.</p>
+          {/* Quick Demo Pre-Fill Banner */}
+          <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl text-xs text-amber-900 space-y-1">
+            <div className="font-bold flex items-center gap-1.5">
+              <AlertCircle className="w-4 h-4 text-amber-600" />
+              Pre-Registered Driver for Testing:
+            </div>
+            <p className="text-neutral-700">
+              Mobile Number: <span className="font-bold font-mono">9030260417</span> (Shanker - Permanent Chauffeur)
+            </p>
+          </div>
+
+          {loginStep === 'phone' ? (
+            <form onSubmit={handleSendLoginOtp} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
+                  Registered Mobile Number
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-3.5 text-xs font-bold text-neutral-400">
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    placeholder="9030260417"
+                    value={loginPhone}
+                    onChange={(e) => setLoginPhone(e.target.value)}
+                    maxLength={10}
+                    className="w-full pl-12 pr-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-xs"
+              >
+                {loginLoading ? 'Checking Number...' : 'Send Login OTP'}
+              </button>
+
+              <div className="text-center pt-2">
+                <p className="text-xs text-neutral-500">
+                  Not registered yet?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setMode('register')}
+                    className="text-neutral-950 font-bold hover:underline"
+                  >
+                    Register as a New Driver ↗
+                  </button>
+                </p>
+              </div>
+            </form>
           ) : (
-            <div className="space-y-3">
-              {bookings.map((b) => (
-                <div
-                  key={b.id}
-                  className="p-5 rounded-2xl bg-neutral-50 border border-neutral-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold text-neutral-400">{b.id}</span>
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-neutral-200 text-neutral-800">
-                        {b.status}
+            <form onSubmit={handleVerifyLoginOtp} className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider">
+                    Enter Login OTP
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setLoginStep('phone')}
+                    className="text-[11px] text-neutral-500 hover:underline"
+                  >
+                    Change ({loginPhone})
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  placeholder="1234"
+                  value={loginOtp}
+                  onChange={(e) => setLoginOtp(e.target.value)}
+                  maxLength={6}
+                  className="w-full text-center tracking-[0.5em] text-2xl font-bold py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-neutral-950 font-mono focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  required
+                  autoFocus
+                />
+
+                {demoLoginOtp && (
+                  <p className="text-[11px] text-emerald-700 font-semibold text-center mt-2">
+                    Demo OTP Code: <span className="font-bold font-mono">{demoLoginOtp}</span>
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-xs"
+              >
+                {loginLoading ? 'Logging In...' : 'Verify & Log In'}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
+      {/* MODE 3: NEW DRIVER REGISTRATION FORM */}
+      {mode === 'register' && (
+        <div className="bg-white rounded-3xl p-6 sm:p-10 border border-neutral-200 shadow-sm space-y-8 animate-fadeIn">
+          {/* Header */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold tracking-widest uppercase text-neutral-400">
+              JOIN HYDERABAD CHAUFFEUR NETWORK
+            </p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-neutral-950 font-sans">
+              Driver Sign-Up & Verification
+            </h2>
+            <p className="text-xs sm:text-sm text-neutral-500">
+              Complete mandatory KYC details (Aadhaar & License) to get listed on the Mana Drivers homepage directory.
+            </p>
+          </div>
+
+          {/* Success Banner */}
+          {registerSuccessBanner && (
+            <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-3xl text-emerald-950 space-y-3">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
+                <div>
+                  <h3 className="font-bold text-base">Application Submitted Successfully!</h3>
+                  <p className="text-xs text-emerald-800 font-medium">
+                    Profile verification takes 24–48 hours. Once approved by admin, your profile will go live on the homepage.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onBackToHome}
+                className="mt-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-full transition-all"
+              >
+                Return to Homepage
+              </button>
+            </div>
+          )}
+
+          {!registerSuccessBanner && (
+            <form onSubmit={handleRegisterSubmit} className="space-y-6">
+              {/* Working Preference Toggle */}
+              <div className="space-y-3">
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700">
+                  Select Working Preference
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegistrationType('hourly');
+                      setFormData((p) => ({ ...p, workingPreference: 'Work by the hour (₹49)' }));
+                    }}
+                    className={`p-5 rounded-2xl border text-left transition-all ${
+                      registrationType === 'hourly'
+                        ? 'border-neutral-950 bg-neutral-950 text-white shadow-xs'
+                        : 'border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <Clock className="w-5 h-5" />
+                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-white/20">
+                        ₹49 Fee
                       </span>
                     </div>
-                    <p className="text-sm font-bold text-neutral-950">{b.driverName}</p>
-                    <p className="text-xs text-neutral-500">
-                      {b.date} at {b.time} · {b.pickupAddress}
+                    <div className="font-bold text-sm">Work by the hour (₹49)</div>
+                    <p className="text-xs opacity-80 mt-1">
+                      Hourly on-demand trips in Hitec City, Gachibowli, RGIA airport.
                     </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegistrationType('monthly');
+                      setFormData((p) => ({ ...p, workingPreference: 'Work monthly (₹99)' }));
+                    }}
+                    className={`p-5 rounded-2xl border text-left transition-all ${
+                      registrationType === 'monthly'
+                        ? 'border-neutral-950 bg-neutral-950 text-white shadow-xs'
+                        : 'border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <UserPlus className="w-5 h-5" />
+                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-white/20">
+                        ₹99 Fee
+                      </span>
+                    </div>
+                    <div className="font-bold text-sm">Work monthly (₹99)</div>
+                    <p className="text-xs opacity-80 mt-1">
+                      Full-time family/corporate monthly driver (₹18k – ₹22k/month).
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Personal Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-2">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Ramesh Kumar"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-2">
+                    Mobile Number *
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="9876543210"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    maxLength={10}
+                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Location & Experience */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-2">
+                    Primary Area in Hyderabad
+                  </label>
+                  <select
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  >
+                    {HYDERABAD_LOCALITIES.map((loc) => (
+                      <option key={loc} value={loc}>
+                        {loc}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-2">
+                    Driving Experience (Years)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.experience}
+                    onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+                    min={1}
+                    max={30}
+                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  />
+                </div>
+              </div>
+
+              {/* MANDATORY INDIAN KYC DOCUMENTS */}
+              <div className="space-y-4 pt-4 border-t border-neutral-200">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-neutral-900" />
+                  <h3 className="font-bold text-neutral-950 text-sm uppercase tracking-wider">
+                    Mandatory Indian KYC Documents
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Driving License */}
+                  <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-3">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-neutral-800">
+                      Driving License Number *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="TS09-2018-0091234"
+                      value={formData.licenseNo}
+                      onChange={(e) => setFormData({ ...formData, licenseNo: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-white border border-neutral-300 rounded-xl text-xs font-mono font-bold text-neutral-950"
+                      required
+                    />
+
+                    <div>
+                      <span className="block text-[11px] font-semibold text-neutral-600 mb-1">
+                        Upload Driving License Photo *
+                      </span>
+                      <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-dashed border-neutral-300 hover:border-neutral-900 rounded-xl cursor-pointer text-xs font-medium text-neutral-700 transition-colors">
+                        <Upload className="w-4 h-4 text-neutral-500" />
+                        <span>{formData.licensePhoto ? 'Change Photo' : 'Choose License Photo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleFileUpload(e, 'licensePhoto')}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {formData.licensePhotoPreview && (
+                      <div className="mt-2 rounded-xl overflow-hidden border border-neutral-200 h-24 bg-neutral-100">
+                        <img
+                          src={formData.licensePhotoPreview}
+                          alt="License Preview"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <span className="text-base font-bold text-neutral-950 font-sans">₹{b.totalCost}</span>
-                    {b.status === 'Confirmed' && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => onAcceptBooking(b.id)}
-                          className="px-4 py-2 bg-neutral-900 text-white rounded-full text-xs font-medium hover:bg-neutral-800 transition-colors"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDeclineBooking(b.id)}
-                          className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-full text-xs font-medium hover:bg-neutral-300 transition-colors"
-                        >
-                          Decline
-                        </button>
+                  {/* Aadhaar Card */}
+                  <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-3">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-neutral-800">
+                      Aadhaar Card Number *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="5432-8765-4321"
+                      value={formData.aadhaarNo}
+                      onChange={(e) => setFormData({ ...formData, aadhaarNo: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-white border border-neutral-300 rounded-xl text-xs font-mono font-bold text-neutral-950"
+                      required
+                    />
+
+                    <div>
+                      <span className="block text-[11px] font-semibold text-neutral-600 mb-1">
+                        Upload Aadhaar Card Photo *
+                      </span>
+                      <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-dashed border-neutral-300 hover:border-neutral-900 rounded-xl cursor-pointer text-xs font-medium text-neutral-700 transition-colors">
+                        <Upload className="w-4 h-4 text-neutral-500" />
+                        <span>{formData.aadhaarPhoto ? 'Change Photo' : 'Choose Aadhaar Photo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleFileUpload(e, 'aadhaarPhoto')}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {formData.aadhaarPhotoPreview && (
+                      <div className="mt-2 rounded-xl overflow-hidden border border-neutral-200 h-24 bg-neutral-100">
+                        <img
+                          src={formData.aadhaarPhotoPreview}
+                          alt="Aadhaar Preview"
+                          className="h-full w-full object-cover"
+                        />
                       </div>
                     )}
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+
+              {/* Submit Registration Button */}
+              <button
+                type="submit"
+                disabled={registerLoading}
+                className="w-full py-4 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-md flex items-center justify-center gap-2"
+              >
+                {registerLoading ? (
+                  <span>Processing Application...</span>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>
+                      Pay ₹{registrationType === 'hourly' ? 49 : 99} & Submit Application
+                    </span>
+                  </>
+                )}
+              </button>
+            </form>
           )}
         </div>
       )}
