@@ -5,9 +5,6 @@ import {
   X,
   Compass,
   Briefcase,
-  ShieldCheck,
-  ChevronRight,
-  Car,
 } from 'lucide-react';
 
 export default function Header({
@@ -29,10 +26,10 @@ export default function Header({
 
   const navLinks = [
     { name: 'Services', href: '#services' },
-    { name: 'How It Works', href: '#how-it-works' },
     { name: 'Drivers', href: '#drivers' },
-    { name: 'Areas', href: '#localities' },
     { name: 'Pricing', href: '#pricing' },
+    { name: 'Coverage', href: '#localities' },
+    { name: 'FAQ', href: '#faq' },
   ];
 
   const handleNavClick = (e, href) => {
@@ -49,15 +46,15 @@ export default function Header({
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-all duration-200 ${
+      className={`sticky top-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'bg-[#0A0A0A]/95 backdrop-blur-md border-b border-neutral-800 shadow-md'
-          : 'bg-[#0A0A0A] border-b border-neutral-850'
+          ? 'bg-[#FAF9F6]/90 backdrop-blur-md border-b border-neutral-200/80 shadow-xs'
+          : 'bg-[#FAF9F6]/80 backdrop-blur-xs border-b border-transparent'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20 gap-4">
-          {/* Left: Bold Brand Mark (Reference Image 3) */}
+        <div className="flex items-center justify-between h-20 gap-4">
+          {/* Left: Minimalist Brand (NOVA Reference Style) */}
           <div className="flex items-center shrink-0">
             <a
               href="#"
@@ -65,177 +62,133 @@ export default function Header({
                 e.preventDefault();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="flex items-center gap-2.5 group"
+              className="flex items-center gap-2 group"
             >
-              <div className="w-8 h-8 sm:w-9 sm:h-9 bg-[#FF5500] text-black font-black text-sm flex items-center justify-center tracking-tighter shrink-0">
-                MD
-              </div>
-              <div className="flex flex-col">
-                <span className="font-black text-white text-sm sm:text-base tracking-wider uppercase leading-none">
-                  MANA <span className="text-[#FF5500]">DRIVER</span>
-                </span>
-                <span className="text-[9px] uppercase tracking-widest text-neutral-400 font-medium mt-1">
-                  Drivers for Your Car
-                </span>
-              </div>
+              <span className="font-bold text-lg sm:text-xl tracking-tight text-neutral-950 font-sans">
+                MANA DRIVER
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500] inline-block mb-1" />
             </a>
           </div>
 
-          {/* Center Links (Reference Image 3: Services, Drivers, Localities, Pricing) */}
-          <nav className="hidden lg:flex items-center gap-7">
+          {/* Center Links (Clean text links with subtle hover) */}
+          <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
               <a
                 key={link.name}
                 href={link.href}
                 onClick={(e) => handleNavClick(e, link.href)}
-                className="text-xs uppercase tracking-wider font-semibold text-neutral-300 hover:text-white transition-colors py-1 relative hover:after:w-full after:w-0 after:h-0.5 after:bg-[#FF5500] after:absolute after:bottom-0 after:left-0 after:transition-all"
+                className="text-sm font-medium text-neutral-600 hover:text-neutral-950 transition-colors"
               >
                 {link.name}
               </a>
             ))}
-
-            {/* Segmented Role Switcher: Hire Driver | Driver Portal */}
-            <div className="flex items-center bg-neutral-900 border border-neutral-800 p-0.5 rounded-none ml-2">
-              <button
-                type="button"
-                onClick={() => onRoleChange('customer')}
-                className={`flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
-                  activeRole === 'customer'
-                    ? 'bg-neutral-800 text-white shadow-xs'
-                    : 'text-neutral-400 hover:text-white'
-                }`}
-              >
-                <Compass className="w-3 h-3 text-[#FF5500]" />
-                <span>Hire Driver</span>
-              </button>
-              <button
-                type="button"
-                data-role="driver"
-                onClick={() => onRoleChange('driver')}
-                className={`flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-all ${
-                  activeRole === 'driver'
-                    ? 'bg-neutral-800 text-white shadow-xs'
-                    : 'text-neutral-400 hover:text-white'
-                }`}
-              >
-                <Briefcase className="w-3 h-3 text-[#FF5500]" />
-                <span>Driver Portal</span>
-                <span className="text-[9px] bg-[#FF5500]/20 text-[#FF5500] px-1.5 py-0.5 font-mono font-bold">₹49</span>
-              </button>
-            </div>
           </nav>
 
-          {/* Right Action Zone */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* High-Contrast Rectangular Solid Orange CTA */}
-            <a
-              href="#drivers"
-              className="inline-flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-[#FF5500] hover:bg-[#E04B00] text-black font-black text-xs uppercase tracking-wider transition-colors shadow-sm"
-            >
-              <Car className="w-3.5 h-3.5 text-black" />
-              <span>Hire a Driver</span>
-            </a>
+          {/* Right Action Zone (NOVA Reference Style) */}
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Region / Status pill */}
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-neutral-200/60 text-xs font-medium text-neutral-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>HYD · HITEC CITY</span>
+            </div>
 
-            {/* Trips Drawer Button */}
+            {/* Trips Button */}
             <button
               type="button"
               onClick={onOpenBookings}
-              className="relative px-2.5 sm:px-3 py-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-200 transition-colors flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
-              aria-label="View trips"
+              className="relative p-2.5 rounded-full bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-800 transition-colors"
+              title="View Scheduled Trips"
+              aria-label="View Scheduled Trips"
             >
-              <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-              <span className="hidden md:inline">Trips</span>
+              <Calendar className="w-4 h-4" />
               {bookingsCount > 0 && (
-                <span className="w-4 h-4 bg-[#FF5500] text-black text-[10px] font-black flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#111111] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                   {bookingsCount}
                 </span>
               )}
+            </button>
+
+            {/* Solid Black Pill CTA: Book Driver or Driver Portal */}
+            {activeRole === 'customer' ? (
+              <a
+                href="#drivers"
+                className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 bg-[#111111] hover:bg-neutral-800 text-white rounded-full text-sm font-medium transition-all shadow-xs"
+              >
+                <span>Book a driver</span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onRoleChange('customer')}
+                className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 bg-[#111111] hover:bg-neutral-800 text-white rounded-full text-sm font-medium transition-all shadow-xs"
+              >
+                <Compass className="w-4 h-4" />
+                <span>Customer View</span>
+              </button>
+            )}
+
+            {/* Role Switcher Pill */}
+            <button
+              type="button"
+              onClick={() => onRoleChange(activeRole === 'customer' ? 'driver' : 'customer')}
+              className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-neutral-100 border border-neutral-300 rounded-full text-xs font-medium text-neutral-900 transition-colors"
+            >
+              <Briefcase className="w-3.5 h-3.5 text-[#FF5500]" />
+              <span>{activeRole === 'customer' ? 'Driver Portal' : 'Find Drivers'}</span>
             </button>
 
             {/* Mobile Menu Hamburger */}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-neutral-300 hover:text-white bg-neutral-900 border border-neutral-800"
+              className="md:hidden p-2.5 rounded-full bg-white border border-neutral-200 text-neutral-900 hover:bg-neutral-100 transition-colors"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
+
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden py-4 border-t border-neutral-200 bg-[#FAF9F6] animate-in fade-in duration-150">
+            <div className="flex flex-col space-y-3 px-2">
+              {navLinks.map((link) => (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  onClick={(e) => handleNavClick(e, link.href)}
+                  className="text-base font-medium text-neutral-800 hover:text-neutral-950 py-2 px-3 rounded-lg hover:bg-neutral-100 transition-colors"
+                >
+                  {link.name}
+                </a>
+              ))}
+
+              <div className="pt-3 border-t border-neutral-200 flex flex-col gap-2">
+                <a
+                  href="#drivers"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-3 bg-[#111111] text-white rounded-full text-sm font-medium"
+                >
+                  Book a Driver
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRoleChange(activeRole === 'customer' ? 'driver' : 'customer');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full text-center py-2.5 bg-white border border-neutral-300 text-neutral-900 rounded-full text-sm font-medium flex items-center justify-center gap-2"
+                >
+                  <Briefcase className="w-4 h-4 text-[#FF5500]" />
+                  <span>{activeRole === 'customer' ? 'Switch to Driver Portal (from ₹49)' : 'Switch to Customer View'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Responsive Mobile Drawer Navigation */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden bg-[#0F0F0F] border-b border-neutral-800 px-4 pt-3 pb-6 animate-in slide-in-from-top duration-200">
-          <div className="space-y-1 mb-4">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                onClick={(e) => handleNavClick(e, link.href)}
-                className="flex items-center justify-between py-2.5 px-3 text-xs uppercase tracking-wider font-bold text-neutral-300 hover:text-white hover:bg-neutral-900 border-b border-neutral-900"
-              >
-                <span>{link.name}</span>
-                <ChevronRight className="w-3.5 h-3.5 text-neutral-500" />
-              </a>
-            ))}
-          </div>
-
-          {/* Mobile Role Switcher */}
-          <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-900 border border-neutral-800 mb-4">
-            <button
-              type="button"
-              onClick={() => {
-                onRoleChange('customer');
-                setMobileMenuOpen(false);
-              }}
-              className={`flex items-center justify-center gap-1.5 py-2 text-xs font-bold uppercase tracking-wider ${
-                activeRole === 'customer'
-                  ? 'bg-neutral-800 text-white'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <Compass className="w-3.5 h-3.5 text-[#FF5500]" />
-              <span>Hire Driver</span>
-            </button>
-            <button
-              type="button"
-              data-role="driver"
-              onClick={() => {
-                onRoleChange('driver');
-                setMobileMenuOpen(false);
-              }}
-              className={`flex items-center justify-center gap-1.5 py-2 text-xs font-bold uppercase tracking-wider ${
-                activeRole === 'driver'
-                  ? 'bg-neutral-800 text-white'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <Briefcase className="w-3.5 h-3.5 text-[#FF5500]" />
-              <span>Driver Portal (List for ₹49)</span>
-            </button>
-          </div>
-
-          {/* Mobile Quick Action */}
-          <a
-            href="#drivers"
-            onClick={() => setMobileMenuOpen(false)}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF5500] hover:bg-[#E04B00] text-black font-black text-xs uppercase tracking-wider"
-          >
-            <Car className="w-4 h-4 text-black" />
-            <span>Hire a Driver</span>
-          </a>
-
-          <div className="mt-4 pt-3 border-t border-neutral-850 flex items-center justify-between text-[11px] text-neutral-400">
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#FF5500]" />
-              <span>Telangana Police Verified</span>
-            </span>
-            <span className="text-neutral-500">Hitec City · RGIA · Banjara</span>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

@@ -6,7 +6,7 @@ import DriverPortal from './components/DriverPortal';
 import BookingModal from './components/BookingModal';
 import MyBookingsSheet from './components/MyBookingsSheet';
 import { initialDrivers } from './data/mockDrivers';
-import { ShieldCheck, ArrowUpRight, Zap } from 'lucide-react';
+import { Phone } from 'lucide-react';
 
 const DEFAULT_BOOKINGS = [
   {
@@ -150,8 +150,10 @@ export default function App() {
     setCustomDrivers((prev) => [newDriver, ...prev]);
   };
 
+  const [floatingContactOpen, setFloatingContactOpen] = useState(false);
+
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-[#0A0A0A] flex flex-col selection:bg-[#FF5500] selection:text-black">
+    <div className="min-h-screen bg-[#FAF9F6] text-[#111111] flex flex-col selection:bg-neutral-900 selection:text-white font-sans">
       {/* Toast Notifications */}
       <Toaster
         position="top-right"
@@ -169,7 +171,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
         {activeRole === 'customer' ? (
           <CustomerView
             drivers={allDrivers}
@@ -191,102 +193,88 @@ export default function App() {
       </main>
 
       {/* =========================================================================
-          7. MINIMALIST INDUSTRIAL FOOTER (REFERENCE IMAGE AESTHETIC)
-          Multi-column clean layout with brand statement, coverage zones,
-          trust badges, and driver onboarding link.
+          NOVA EDITORIAL MINIMALIST FOOTER (REFERENCE IMAGE PAGE 7)
          ========================================================================= */}
-      <footer className="bg-[#0A0A0A] border-t border-neutral-800 text-white mt-auto pt-14 pb-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto space-y-12">
-          {/* Top Multi-Column Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-12">
-            {/* Column 1: Brand Statement (4 cols) */}
-            <div className="lg:col-span-5 space-y-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 bg-[#FF5500] text-black font-black text-sm flex items-center justify-center">
-                  MD
-                </div>
-                <span className="font-black text-lg uppercase tracking-wider text-white">
-                  MANA <span className="text-[#FF5500]">DRIVER</span>
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-neutral-400 max-w-md leading-relaxed font-normal">
-                Trained, verified drivers for your personal car in Hyderabad.
-                Hire hourly freelance drivers or hire full-time permanent drivers for monthly family and corporate use.
-              </p>
-              <div className="flex items-center gap-3 pt-2">
-                <div className="px-3 py-1.5 bg-neutral-900 border border-neutral-800 text-[11px] font-mono uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#FF5500]" />
-                  <span>Police Verified</span>
-                </div>
-                <div className="px-3 py-1.5 bg-neutral-900 border border-neutral-800 text-[11px] font-mono uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-[#FF5500]" />
-                  <span>No Surge Fees</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Column 2: Hyderabad Coverage Zones (3 cols) */}
-            <div className="lg:col-span-3 space-y-3">
-              <h4 className="text-xs font-mono uppercase tracking-[0.2em] text-[#FF5500] font-black">
-                [ PICKUP AREAS ]
-              </h4>
-              <ul className="space-y-2 text-xs text-neutral-400 font-medium">
-                <li>Hitec City & Cyberabad</li>
-                <li>Gachibowli Financial District</li>
-                <li>Banjara Hills & Jubilee Hills</li>
-                <li>Kondapur & Madhapur</li>
-                <li>RGIA Airport Shamshabad</li>
-                <li>Secunderabad & Begumpet</li>
-              </ul>
-            </div>
-
-            {/* Column 3: Services (2 cols) */}
-            <div className="lg:col-span-2 space-y-3">
-              <h4 className="text-xs font-mono uppercase tracking-[0.2em] text-[#FF5500] font-black">
-                [ QUICK LINKS ]
-              </h4>
-              <ul className="space-y-2 text-xs text-neutral-400 font-medium">
-                <li><a href="#drivers" className="hover:text-white transition-colors">Freelance Drivers</a></li>
-                <li><a href="#drivers" className="hover:text-white transition-colors">Permanent Drivers</a></li>
-                <li><a href="#services" className="hover:text-white transition-colors">Airport & City Rides</a></li>
-                <li><a href="#pricing" className="hover:text-white transition-colors">Pricing Rates</a></li>
-                <li><a href="#localities" className="hover:text-white transition-colors">Coverage Areas</a></li>
-              </ul>
-            </div>
-
-            {/* Column 4: Quick Action & Driver Onboarding (2 cols) */}
-            <div className="lg:col-span-2 space-y-3">
-              <h4 className="text-xs font-mono uppercase tracking-[0.2em] text-[#FF5500] font-black">
-                [ FOR DRIVERS ]
-              </h4>
-              <p className="text-xs text-neutral-400 leading-relaxed">
-                Join Mana Driver: ₹49 (Freelance) or ₹99 (Permanent). First 3 months free homepage listing, then ₹99/month. 0% trip commission.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveRole('driver');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="w-full py-2.5 px-3 bg-[#FF5500] hover:bg-[#E04B00] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1 transition-colors"
-              >
-                <span>Join from ₹49</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+      <footer className="mt-auto py-10 px-4 sm:px-6 lg:px-8 border-t border-neutral-200/80 bg-[#FAF9F6]">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-neutral-500 font-medium">
+          <div className="flex items-center gap-6">
+            <a href="#" className="hover:text-neutral-900 transition-colors">Privacy policy</a>
+            <a href="#" className="hover:text-neutral-900 transition-colors">Terms of service</a>
+            <a href="#services" className="hover:text-neutral-900 transition-colors">Services</a>
+            <a href="#drivers" className="hover:text-neutral-900 transition-colors">Drivers</a>
+            <a href="#pricing" className="hover:text-neutral-900 transition-colors">Pricing</a>
           </div>
 
-          {/* Bottom Divider & Copyright */}
-          <div className="pt-8 border-t border-neutral-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-neutral-500">
-            <p>© {new Date().getFullYear()} MANA DRIVER HYDERABAD. ALL RIGHTS RESERVED.</p>
-            <div className="flex items-center gap-4">
-              <span>TELANGANA TRANSPORT ACT COMPLIANT</span>
-              <span>·</span>
-              <span>HYDERABAD, INDIA</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <span>© {new Date().getFullYear()} MANA DRIVER HYDERABAD</span>
+            <span>·</span>
+            <span>POLICE VERIFIED CHAUFFEURS</span>
           </div>
         </div>
       </footer>
+
+      {/* =========================================================================
+          FLOATING CIRCULAR CONTACT BUTTON (PINNED BOTTOM-RIGHT - REFERENCE PAGES 1-7)
+         ========================================================================= */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          type="button"
+          onClick={() => setFloatingContactOpen(!floatingContactOpen)}
+          className="w-13 h-13 rounded-full bg-white border border-neutral-200 shadow-xl hover:shadow-2xl flex items-center justify-center text-neutral-900 hover:scale-105 transition-all focus:outline-none"
+          title="Instant Driver Helpline"
+          aria-label="Instant Driver Helpline"
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-2 right-2 ring-2 ring-white animate-pulse" />
+          <Phone className="w-5 h-5 text-neutral-800" />
+        </button>
+
+        {/* Quick Contact Modal / Popover */}
+        {floatingContactOpen && (
+          <div className="absolute bottom-16 right-0 w-80 bg-white rounded-3xl p-5 border border-neutral-200 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200 text-neutral-900 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+              <div>
+                <p className="font-bold text-sm">Mana Driver Hyderabad</p>
+                <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Available 24/7 for Pickups
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFloatingContactOpen(false)}
+                className="text-neutral-400 hover:text-neutral-900 p-1 rounded-full"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <a
+                href="tel:+919876543210"
+                className="w-full py-2.5 px-4 bg-[#111111] hover:bg-neutral-800 text-white rounded-full text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>Call Helpline: +91 98765 43210</span>
+              </a>
+
+              <a
+                href={`https://wa.me/919876543210?text=${encodeURIComponent(
+                  'Hello Mana Driver, I need a verified private driver for my car in Hyderabad.'
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+              >
+                <span>WhatsApp Instant Dispatch</span>
+              </a>
+            </div>
+
+            <p className="text-[10px] text-neutral-400 text-center">
+              Cyber Towers · Gachibowli · Jubilee Hills · Banjara Hills
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Booking Modal */}
       <BookingModal
