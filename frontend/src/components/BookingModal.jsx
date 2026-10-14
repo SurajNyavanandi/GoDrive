@@ -62,10 +62,10 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
         <div className="flex items-center justify-between px-6 sm:px-8 py-5 border-b border-neutral-100">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400">
-              CHAUFFEUR BOOKING
+              BOOK A DRIVER
             </p>
             <h2 className="text-lg sm:text-xl font-bold tracking-tight text-neutral-950 font-sans">
-              Schedule Your Chauffeur
+              Schedule Your Driver
             </h2>
           </div>
           <button
@@ -208,7 +208,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
           {/* Price Calculation Box */}
           <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200/80 space-y-2">
             <div className="flex items-center justify-between text-xs text-neutral-600">
-              <span>{isPermanent ? 'Monthly Driver Package' : `Chauffeur rate (₹${driver.hourlyRate || 180} × ${hours} hrs)`}</span>
+              <span>{isPermanent ? 'Monthly Driver Package' : `Driver rate (₹${driver.hourlyRate || 180} × ${hours} hrs)`}</span>
               <span className="font-semibold text-neutral-900">₹{totalCost.toLocaleString('en-IN')}</span>
             </div>
             <div className="flex items-center justify-between text-xs text-neutral-600">

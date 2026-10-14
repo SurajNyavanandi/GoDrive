@@ -56,79 +56,79 @@ export default function CustomerView({
 
   const faqs = [
     {
-      question: 'How quickly does a driver arrive at my doorstep?',
+      question: 'How fast will the driver reach my home?',
       answer:
-        'In peak IT corridors (Hitec City, Gachibowli, Madhapur, Financial District) and central neighborhoods (Jubilee Hills, Banjara Hills), verified drivers arrive within 25 to 35 minutes of contact.',
+        'In areas like Hitec City, Gachibowli, and Jubilee Hills, your driver arrives within 30 minutes of booking.',
     },
     {
-      question: 'Do your drivers charge extra for SUVs or automatic cars?',
+      question: 'Do you charge extra for automatic cars or SUVs?',
       answer:
-        'No. Every Mana Driver chauffeur is trained and verified on both manual and automatic gearboxes across hatchbacks, sedans, luxury SUVs, and EVs. You pay the exact same flat hourly or monthly rate regardless of your vehicle model.',
+        'No. All our drivers drive both manual and automatic cars. The price stays the exact same for any car model.',
     },
     {
       question: 'How do I pay the driver?',
       answer:
-        'You pay your driver directly via UPI (Google Pay, PhonePe, Paytm) or cash at the end of the trip or monthly pay date. Mana Driver takes 0% commission from trip earnings, ensuring 100% fair earnings for the driver.',
+        'Pay the driver directly with UPI (PhonePe, Google Pay, Paytm) or cash after your trip. Mana Drivers takes ₹0 commission.',
     },
     {
-      question: 'Can I hire a permanent driver on a monthly salary?',
+      question: 'Can I get a full-time driver on a monthly salary?',
       answer:
-        'Yes! We have dedicated permanent chauffeurs looking for full-time family or corporate duties (typically 8–10 hours daily, Monday to Saturday). Monthly salaries range from ₹18,000 to ₹24,000 depending on hours and schedule.',
+        'Yes. Choose a permanent driver for 8 to 9 hours daily. Typical monthly salary is ₹18,000 to ₹22,000.',
     },
     {
-      question: 'Are all drivers background-checked and police-verified?',
+      question: 'Are all drivers police verified?',
       answer:
-        'Yes. All drivers registered on Mana Driver undergo government ID verification (Aadhaar), valid RTO commercial/LMV driving license checks, and criminal background verification.',
+        'Yes. Every driver has an Aadhaar ID check, valid driving license check, and police background check.',
     },
   ];
 
   const services = [
     {
       number: '01',
-      title: 'Hourly City Commute',
+      title: 'Hourly City Ride',
       rate: '₹160 – ₹180 / hr',
       min: '3 hr minimum',
       description:
-        'Navigate Hyderabad traffic stress-free. Perfect for IT campus commutes, shopping sprees, family dinners, and hospital appointments.',
+        'Easy rides for office commutes, shopping, doctor visits, and family dinners in your car.',
     },
     {
       number: '02',
-      title: 'RGIA Airport Transfer',
+      title: 'Airport Drop & Pickup',
       rate: '₹600 – ₹800 flat',
       min: 'One-way flat fare',
       description:
-        'Punctual airport drop-offs and late-night pickups at Shamshabad. Flight tracking and luggage loading included in your personal car.',
+        'On-time rides to and from RGIA Shamshabad in your car. Day or night trips.',
     },
     {
       number: '03',
-      title: 'Monthly Family Chauffeur',
+      title: 'Monthly Family Driver',
       rate: '₹18,000 – ₹22,000 / mo',
       min: '8–9 hrs daily · 6 days/wk',
       description:
-        'Dedicated personal chauffeur for daily corporate office runs, kids school pickup, and family weekend outings. Consistent, polite driver.',
+        'Dedicated driver for daily office, school drops, and family needs. Polite and punctual.',
     },
     {
       number: '04',
       title: 'Outstation Highway Trip',
       rate: '₹1,400 – ₹1,800 / day',
-      min: 'Daily allowance applies',
+      min: 'Day trip allowance',
       description:
-        'Safe highway navigation to Srisailam, Vijayawada, Warangal, Tirupati, or Bangalore. Well-rested drivers with extensive expressway experience.',
+        'Safe highway driving for weekend trips and temple visits to Srisailam or Vijayawada.',
     },
   ];
 
   const reviews = [
     {
       quote:
-        'The process was effortless, transparent, and completely direct. Ramesh arrived in 25 minutes at Cyber Towers and drove my Fortuner smoothly through peak traffic. No surge prices, no app hassles.',
+        'Ramesh reached Cyber Towers in 25 minutes. He drove my Fortuner very smoothly in heavy traffic. Great experience and zero extra fees.',
       author: 'Vikram Reddy',
-      title: 'Hitec City · Toyota Fortuner Owner',
+      title: 'Hitec City · Fortuner Owner',
       avatar:
         'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
     },
     {
       quote:
-        'We hired Suresh as our permanent family chauffeur for monthly office and school duties in Jubilee Hills. Very punctual, polite, and respectful with elderly family members.',
+        'We hired Suresh as our monthly family driver in Jubilee Hills. Always on time, polite, and very safe with elderly parents.',
       author: 'Dr. Ananya Rao',
       title: 'Jubilee Hills · Honda City Owner',
       avatar:
@@ -136,9 +136,9 @@ export default function CustomerView({
     },
     {
       quote:
-        'We can finally take our own luxury car to evening parties without worrying about parking or late-night driving fatigue. Drivers are thoroughly vetted and professional.',
+        'Now I take my own car to late-night dinners without worrying about traffic or parking. Very reliable service.',
       author: 'Karthik Varma',
-      title: 'Banjara Hills · BMW 3 Series Owner',
+      title: 'Banjara Hills · BMW Owner',
       avatar:
         'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
     },
@@ -153,18 +153,18 @@ export default function CustomerView({
       <section className="pt-6 sm:pt-14 pb-8 sm:pb-16 max-w-4xl">
         {/* Eyebrow */}
         <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500 mb-6 sm:mb-8">
-          ON-DEMAND &amp; MONTHLY CHAUFFEURS · HYDERABAD
+          PERSONAL CAR DRIVERS · HYDERABAD
         </p>
 
         {/* Large Display Headline */}
         <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-neutral-950 leading-[1.08] mb-6 sm:mb-8 font-sans">
-          Reliable drivers for <br className="hidden sm:inline" />
-          your personal car
+          Drivers for your <br className="hidden sm:inline" />
+          personal car
         </h1>
 
         {/* Subtitle */}
         <p className="text-base sm:text-xl text-neutral-600 font-normal leading-relaxed max-w-2xl mb-8 sm:mb-10">
-          Hire trusted, police-verified Hyderabad chauffeurs by the hour or for full-time monthly support. Fast 30-minute doorstep pickup across all neighborhoods.
+          Hire trusted drivers by the hour or by the month in Hyderabad. Doorstep pickup in 30 minutes.
         </p>
 
         {/* Action Buttons: Solid Black Pill + Bordered Pill */}
@@ -173,7 +173,7 @@ export default function CustomerView({
             href="#drivers"
             className="inline-flex items-center justify-center px-7 py-3.5 bg-[#111111] hover:bg-neutral-800 text-white rounded-full text-sm font-medium transition-all shadow-xs"
           >
-            Find a driver
+            Find a Driver
           </a>
           <button
             type="button"
@@ -184,11 +184,11 @@ export default function CustomerView({
           </button>
         </div>
 
-        {/* Social Proof Strip (NOVA Reference Page 1 bottom) */}
+        {/* Social Proof Strip */}
         <div className="pt-8 border-t border-neutral-200/80">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 text-xs text-neutral-500">
             <span className="font-semibold text-neutral-400 uppercase tracking-wider shrink-0">
-              Trusted by car owners in
+              Trusted in
             </span>
             <div className="flex flex-wrap items-center gap-y-2 gap-x-5 sm:gap-x-7 font-medium text-neutral-700 tracking-wider text-xs">
               <span>HITEC CITY</span>
@@ -214,7 +214,7 @@ export default function CustomerView({
               15,000+
             </div>
             <div className="text-xs sm:text-sm text-neutral-400 font-normal">
-              Trips completed
+              Trips done
             </div>
           </div>
           <div className="md:px-8">
@@ -222,7 +222,7 @@ export default function CustomerView({
               30 mins
             </div>
             <div className="text-xs sm:text-sm text-neutral-400 font-normal">
-              Average pickup time
+              Pickup time
             </div>
           </div>
           <div className="md:px-8">
@@ -230,7 +230,7 @@ export default function CustomerView({
               100%
             </div>
             <div className="text-xs sm:text-sm text-neutral-400 font-normal">
-              Police &amp; license verified
+              Police checked
             </div>
           </div>
           <div className="md:px-8 last:pr-0">
@@ -238,18 +238,18 @@ export default function CustomerView({
               ₹0
             </div>
             <div className="text-xs sm:text-sm text-neutral-400 font-normal">
-              Platform surge fees
+              Extra fees
             </div>
           </div>
         </div>
 
-        {/* Narrative Block (Inspired by Page 2 bottom) */}
+        {/* Narrative Block in Simple English */}
         <div className="pt-10 sm:pt-14 max-w-3xl space-y-4">
           <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white leading-tight font-sans">
-            Turning everyday commutes into effortless journeys
+            Easy rides in your own car
           </h2>
           <p className="text-sm sm:text-base text-neutral-400 leading-relaxed font-normal">
-            We combine local Hyderabad route mastery, thorough background verification, and transparent direct pricing to deliver stress-free travel in your personal vehicle. Pay your driver directly with zero middleman commissions.
+            Enjoy stress-free travel. Our verified drivers know Hyderabad roads well. Book in minutes and pay the driver directly with zero extra fees.
           </p>
           <div className="pt-2">
             <a
@@ -267,11 +267,11 @@ export default function CustomerView({
           3. VISUAL SHOWCASE & SERVICES (NOVA REFERENCE PAGE 3 & 4)
          ========================================================================= */}
       <section id="services" className="space-y-12">
-        {/* Visual Showcase Card (Page 3 Top) */}
-        <div className="relative rounded-3xl overflow-hidden min-h-[300px] sm:min-h-[420px] bg-neutral-900 flex flex-col justify-end p-6 sm:p-10 text-white shadow-xl group">
+        {/* Visual Showcase Card */}
+        <div className="relative rounded-3xl overflow-hidden min-h-[300px] sm:min-h-[400px] bg-neutral-900 flex flex-col justify-end p-6 sm:p-10 text-white shadow-xl group">
           <img
             src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=2000&q=85"
-            alt="Premium Chauffeur Service in Hyderabad"
+            alt="Personal car driver in Hyderabad"
             className="absolute inset-0 w-full h-full object-cover object-center opacity-60 group-hover:scale-102 transition-transform duration-700"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
@@ -279,16 +279,16 @@ export default function CustomerView({
           <div className="relative z-10 flex items-end justify-between gap-4">
             <div>
               <span className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-300 block mb-2">
-                PERSONAL VEHICLE CHAUFFEURING
+                PERSONAL CAR DRIVERS
               </span>
-              <h3 className="text-2xl sm:text-4xl font-bold tracking-tight text-white">
-                A premium chauffeur for your personal car
+              <h3 className="text-2xl sm:text-4xl font-bold tracking-tight text-white font-sans">
+                A verified driver for your personal car
               </h3>
             </div>
             <a
               href="#drivers"
               className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-neutral-900 flex items-center justify-center transition-all shrink-0"
-              aria-label="Explore drivers"
+              aria-label="Find a driver"
             >
               <ArrowUpRight className="w-5 h-5" />
             </a>
@@ -302,19 +302,19 @@ export default function CustomerView({
               Our services
             </h2>
             <p className="text-sm sm:text-base text-neutral-600 max-w-xl">
-              End-to-end support, from quick hourly city runs to full-time monthly personal drivers. Zero vehicle category markups.
+              Hourly rides or full-time monthly drivers. Flat rates for all cars.
             </p>
           </div>
           <a
             href="#pricing"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-900 hover:text-neutral-600 transition-colors shrink-0"
           >
-            <span>Explore all pricing</span>
+            <span>See all pricing</span>
             <ArrowRight className="w-4 h-4" />
           </a>
         </div>
 
-        {/* Numbered Service Cards Grid (Page 3 & 4) */}
+        {/* Numbered Service Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {services.map((service) => (
             <div
@@ -348,39 +348,39 @@ export default function CustomerView({
       </section>
 
       {/* =========================================================================
-          4. PEOPLE WHO CREATE VALUE (NOVA REFERENCE PAGE 4 & 5)
+          4. PEOPLE WHO CREATE VALUE (OUR DRIVERS)
          ========================================================================= */}
       <section className="bg-white rounded-3xl border border-neutral-200/80 p-8 sm:p-12 lg:p-14 overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          {/* Left: Professional Chauffeur Visual (Page 4) */}
+          {/* Left: Driver Photo */}
           <div className="lg:col-span-5 relative rounded-2xl overflow-hidden aspect-[4/5] bg-neutral-100">
             <img
               src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80"
-              alt="Professional Indian Chauffeur"
+              alt="Verified driver in Hyderabad"
               className="w-full h-full object-cover object-top"
             />
             <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md rounded-xl p-3 border border-neutral-200/80 flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <div>
-                <p className="text-xs font-bold text-neutral-900">Verified Chauffeur</p>
+                <p className="text-xs font-bold text-neutral-900">Verified Driver</p>
                 <p className="text-[11px] text-neutral-500">Manual &amp; Automatic Expert</p>
               </div>
             </div>
           </div>
 
-          {/* Right: Editorial Story & Verified Drivers Count (Page 5) */}
+          {/* Right: Story & Drivers */}
           <div className="lg:col-span-7 space-y-6">
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500">
-              CHAUFFEUR NETWORK
+              OUR DRIVERS
             </p>
             <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans leading-tight">
-              People who create value
+              Trusted drivers for your car
             </h2>
             <p className="text-sm sm:text-base text-neutral-600 leading-relaxed font-normal">
-              We are a network of verified professional drivers who take pride in passenger safety, route navigation, and gentle car care across Hyderabad. Every driver is personally verified and capable of handling all vehicle types.
+              Friendly, polite, and verified drivers who take good care of your car. Every driver is checked for safety and drives any car brand.
             </p>
 
-            {/* Overlapping Avatars + 10+ Specialists on the Team */}
+            {/* Overlapping Avatars */}
             <div className="flex items-center gap-3 py-2">
               <div className="flex -space-x-2">
                 <img
@@ -404,25 +404,25 @@ export default function CustomerView({
               </span>
             </div>
 
-            {/* Circle Arrow List (Page 5 Reference) */}
+            {/* Simple Check List */}
             <div className="space-y-3 pt-2">
               <div className="flex items-center gap-3 text-sm text-neutral-800 font-medium">
                 <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0">
                   <ArrowRight className="w-3.5 h-3.5 text-neutral-900" />
                 </div>
-                <span>Police verified &amp; RTO commercial/LMV license checked</span>
+                <span>Police checked &amp; valid driving license</span>
               </div>
               <div className="flex items-center gap-3 text-sm text-neutral-800 font-medium">
                 <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0">
                   <ArrowRight className="w-3.5 h-3.5 text-neutral-900" />
                 </div>
-                <span>Mastery in Manual &amp; Automatic gearboxes across all brands</span>
+                <span>Drives both manual and automatic cars</span>
               </div>
               <div className="flex items-center gap-3 text-sm text-neutral-800 font-medium">
                 <div className="w-6 h-6 rounded-full bg-neutral-100 flex items-center justify-center shrink-0">
                   <ArrowRight className="w-3.5 h-3.5 text-neutral-900" />
                 </div>
-                <span>Fast 30-minute doorstep arrival in Cyberabad &amp; Hyderabad</span>
+                <span>Quick 30-minute pickup at your doorstep</span>
               </div>
             </div>
 
@@ -446,13 +446,13 @@ export default function CustomerView({
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500 mb-2">
-              HYDERABAD CHAUFFEUR DIRECTORY
+              HYDERABAD DRIVERS
             </p>
             <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
               Choose your verified driver
             </h2>
             <p className="text-sm sm:text-base text-neutral-600 mt-2">
-              Direct contact with zero commission. Drivers drive any personal vehicle.
+              Call or message drivers directly. Pay them direct with zero commission.
             </p>
           </div>
 
@@ -531,7 +531,7 @@ export default function CustomerView({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by driver name, locality, or languages..."
+                placeholder="Search by driver name, area, or languages..."
                 className="w-full pl-10 pr-4 py-2 bg-neutral-50 border border-neutral-200 rounded-full text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-900 focus:bg-white transition-colors"
               />
             </div>
@@ -572,7 +572,7 @@ export default function CustomerView({
           <div className="bg-white rounded-2xl border border-neutral-200 p-12 text-center space-y-3">
             <p className="text-base font-bold text-neutral-900">No matching drivers found</p>
             <p className="text-xs text-neutral-500 max-w-md mx-auto">
-              Try adjusting your locality filter or toggle off "Show Available Now Only" to view all registered chauffeurs.
+              Try choosing another area or turn off "Show Available Now Only".
             </p>
             <button
               type="button"
@@ -712,7 +712,7 @@ export default function CustomerView({
       </section>
 
       {/* =========================================================================
-          6. PRICING & GUARANTEE SECTION (NOVA REFERENCE PAGE 4)
+          6. PRICING SECTION
          ========================================================================= */}
       <section id="pricing" className="space-y-8 scroll-mt-24">
         <div className="max-w-2xl">
@@ -723,7 +723,7 @@ export default function CustomerView({
             Simple, honest pricing
           </h2>
           <p className="text-sm sm:text-base text-neutral-600 mt-2">
-            We don't charge higher rates for luxury cars, sedans, or SUVs. A verified driver is an all-round professional driver for any car.
+            One fair price for all cars. No higher charge for SUVs, automatics, or luxury cars.
           </p>
         </div>
 
@@ -744,19 +744,19 @@ export default function CustomerView({
               <ul className="space-y-2.5 text-xs text-neutral-600 pt-2 font-normal">
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Doorstep arrival in 30 minutes</span>
+                  <span>Doorstep pickup in 30 minutes</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Manual and automatic cars</span>
+                  <span>Drives manual and automatic cars</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>0% surge pricing during peak hours</span>
+                  <span>Zero surge charges during rush hours</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Direct UPI payment to driver</span>
+                  <span>Pay driver directly via UPI</span>
                 </li>
               </ul>
             </div>
@@ -773,10 +773,10 @@ export default function CustomerView({
           <div className="bg-white rounded-2xl border border-neutral-200/80 p-6 sm:p-8 space-y-6 flex flex-col justify-between hover:shadow-md transition-all">
             <div className="space-y-4">
               <span className="text-xs font-mono uppercase tracking-wider text-neutral-400">
-                Flat Rate · Shamshabad
+                Flat Rate · Airport
               </span>
               <h3 className="text-xl font-bold text-neutral-950 font-sans">
-                Airport Transfer
+                Airport Ride
               </h3>
               <div className="pt-2">
                 <span className="text-4xl font-bold text-neutral-950 font-sans">₹600 – ₹800</span>
@@ -785,19 +785,19 @@ export default function CustomerView({
               <ul className="space-y-2.5 text-xs text-neutral-600 pt-2 font-normal">
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Punctual doorstep pickup to RGIA</span>
+                  <span>On-time pickup for RGIA flights</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Late night &amp; early morning drops</span>
+                  <span>Day or late-night trips</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Outer Ring Road (ORR) experts</span>
+                  <span>Safe highway driving on ORR</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Luggage assistance included</span>
+                  <span>Helps with your luggage</span>
                 </li>
               </ul>
             </div>
@@ -809,14 +809,14 @@ export default function CustomerView({
             </a>
           </div>
 
-          {/* Card 3: Monthly Permanent Chauffeur */}
+          {/* Card 3: Monthly Permanent Driver */}
           <div className="bg-white rounded-2xl border-2 border-neutral-950 p-6 sm:p-8 space-y-6 flex flex-col justify-between shadow-md">
             <div className="space-y-4">
               <span className="text-xs font-mono uppercase tracking-wider text-[#FF5500] font-bold">
                 Most Popular · Dedicated
               </span>
               <h3 className="text-xl font-bold text-neutral-950 font-sans">
-                Monthly Chauffeur
+                Monthly Driver
               </h3>
               <div className="pt-2">
                 <span className="text-4xl font-bold text-neutral-950 font-sans">₹18k – ₹22k</span>
@@ -825,19 +825,19 @@ export default function CustomerView({
               <ul className="space-y-2.5 text-xs text-neutral-600 pt-2 font-normal">
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Dedicated family or corporate chauffeur</span>
+                  <span>Dedicated driver for your family</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Complete police background verified</span>
+                  <span>Full police &amp; license verified</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>3-day trial before monthly commitment</span>
+                  <span>3-day trial before you confirm</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
-                  <span>Zero monthly platform cut</span>
+                  <span>Zero monthly platform fee</span>
                 </li>
               </ul>
             </div>
@@ -846,29 +846,29 @@ export default function CustomerView({
               onClick={() => setSelectedDriverType('permanent')}
               className="w-full py-3 bg-[#111111] hover:bg-neutral-800 text-white text-xs font-medium rounded-full text-center transition-all"
             >
-              Find monthly chauffeur
+              Find monthly driver
             </a>
           </div>
         </div>
       </section>
 
       {/* =========================================================================
-          7. FREQUENTLY ASKED QUESTIONS (NOVA REFERENCE PAGE 5)
+          7. FREQUENTLY ASKED QUESTIONS (SHORT, SIMPLE WORDS)
          ========================================================================= */}
       <section id="faq" className="space-y-8 scroll-mt-24">
         <div className="max-w-2xl">
           <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500 mb-2">
-            COMMON INQUIRIES
+            COMMON QUESTIONS
           </p>
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
             Frequently asked questions
           </h2>
           <p className="text-sm sm:text-base text-neutral-600 mt-2">
-            The key information about our process, verification, and payment before you start.
+            Quick answers about booking, verification, and payment.
           </p>
         </div>
 
-        {/* Minimalist Accordion Cards with "+" and "×" toggles */}
+        {/* Minimalist Accordion Cards */}
         <div className="space-y-3 max-w-4xl">
           {faqs.map((faq, idx) => {
             const isOpen = openFaqIndex === idx;
@@ -903,18 +903,18 @@ export default function CustomerView({
       </section>
 
       {/* =========================================================================
-          8. REVIEWS THAT SAY MORE (NOVA REFERENCE PAGE 6)
+          8. REVIEWS
          ========================================================================= */}
       <section className="space-y-8">
         <div className="max-w-2xl">
           <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500 mb-2">
-            CUSTOMER STORIES
+            CUSTOMER REVIEWS
           </p>
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
-            Reviews that say more
+            Reviews from car owners
           </h2>
           <p className="text-sm sm:text-base text-neutral-600 mt-2">
-            See how booking with us translated into stress-free travel for Hyderabad car owners.
+            See how easy it is to hire verified drivers across Hyderabad.
           </p>
         </div>
 
@@ -950,18 +950,18 @@ export default function CustomerView({
       </section>
 
       {/* =========================================================================
-          9. DARK EDITORIAL CTA CONTAINER (NOVA REFERENCE PAGE 7)
+          9. DARK CTA CONTAINER
          ========================================================================= */}
       <section className="bg-[#111111] text-white rounded-3xl p-10 sm:p-16 lg:p-20 text-center shadow-2xl relative overflow-hidden">
         <div className="max-w-3xl mx-auto space-y-6">
           <p className="text-xs font-semibold tracking-[0.25em] uppercase text-neutral-400">
-            — YOUR JOURNEY DESERVES COMFORT —
+            — RELAX IN YOUR OWN CAR —
           </p>
           <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white font-sans leading-tight">
-            Ready to drive in comfort?
+            Ready to hire a driver?
           </h2>
           <p className="text-sm sm:text-base text-neutral-400 max-w-xl mx-auto font-normal leading-relaxed">
-            Hire trusted, police-verified Hyderabad chauffeurs by the hour or for full-time monthly support. No middleman app fees.
+            Book a trusted personal driver today in Hyderabad. Pay direct with zero extra fees.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
@@ -969,14 +969,14 @@ export default function CustomerView({
               href="#drivers"
               className="px-8 py-3.5 bg-white text-neutral-950 hover:bg-neutral-100 rounded-full text-sm font-medium transition-all shadow-md"
             >
-              Hire a Driver Now
+              Find a Driver
             </a>
             <button
               type="button"
               onClick={onSwitchToDriver}
               className="px-8 py-3.5 bg-transparent hover:bg-white/10 border border-neutral-700 text-white rounded-full text-sm font-medium transition-all"
             >
-              Register as a Driver
+              Join as a Driver
             </button>
           </div>
         </div>
@@ -1020,7 +1020,7 @@ export default function CustomerView({
             </div>
 
             <div className="p-3 bg-neutral-50 rounded-xl text-xs text-neutral-600 leading-relaxed">
-              Connect directly with zero platform commission. Confirm your pickup address and start time directly with {contactDriverModal.name}.
+              Connect directly with zero commission. Call or message {contactDriverModal.name} directly.
             </div>
 
             <div className="space-y-2.5">
@@ -1034,7 +1034,7 @@ export default function CustomerView({
 
               <a
                 href={`https://wa.me/919876543210?text=${encodeURIComponent(
-                  `Hi ${contactDriverModal.name}, I found your profile on Mana Driver. Are you available for a driving assignment in Hyderabad?`
+                  `Hi ${contactDriverModal.name}, I found your profile on Mana Drivers. Are you available for a driving trip in Hyderabad?`
                 )}`}
                 target="_blank"
                 rel="noreferrer"

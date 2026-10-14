@@ -206,7 +206,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span>© {new Date().getFullYear()} MANA DRIVER HYDERABAD</span>
+            <span>© {new Date().getFullYear()} MANA DRIVERS HYDERABAD</span>
             <span>·</span>
             <span>POLICE VERIFIED CHAUFFEURS</span>
           </div>
@@ -233,7 +233,7 @@ export default function App() {
           <div className="absolute bottom-16 right-0 w-80 bg-white rounded-3xl p-5 border border-neutral-200 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200 text-neutral-900 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <div>
-                <p className="font-bold text-sm">Mana Driver Hyderabad</p>
+                <p className="font-bold text-sm">Mana Drivers Hyderabad</p>
                 <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Available 24/7 for Pickups
@@ -259,7 +259,7 @@ export default function App() {
 
               <a
                 href={`https://wa.me/919876543210?text=${encodeURIComponent(
-                  'Hello Mana Driver, I need a verified private driver for my car in Hyderabad.'
+                  'Hello Mana Drivers, I need a verified private driver for my car in Hyderabad.'
                 )}`}
                 target="_blank"
                 rel="noreferrer"

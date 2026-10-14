@@ -57,7 +57,7 @@ export async function triggerDriverRegistrationRazorpay({
       colors: ['#FF5500', '#10B981', '#2563EB', '#F59E0B'],
     });
     toast.success(
-      `Payment of ₹${fee} successful! ${driverName} is registered as a ${typeLabel} on the Mana Driver homepage (First 3 Months Free).`
+      `Payment of ₹${fee} successful! ${driverName} is registered as a ${typeLabel} on the Mana Drivers homepage (First 3 Months Free).`
     );
     if (typeof onPaymentSuccess === 'function') {
       onPaymentSuccess();
@@ -76,7 +76,7 @@ export async function triggerDriverRegistrationRazorpay({
           key: configuredKey,
           amount: amountInPaise,
           currency: 'INR',
-          name: 'Mana Driver',
+          name: 'Mana Drivers',
           description: `${typeLabel} Registration Fee (₹${fee} · 3 Months Free Homepage Listing)`,
           image: 'https://cdn.razorpay.com/static/assets/logo/rzp.svg',
           theme: {
@@ -84,7 +84,7 @@ export async function triggerDriverRegistrationRazorpay({
           },
           prefill: {
             name: driverName,
-            email: 'driver@manadriver.in',
+            email: 'driver@manadrivers.in',
             contact: '+919849000000',
           },
           handler: function () {
@@ -149,7 +149,7 @@ export async function triggerDriverSubscriptionRazorpay({ driverName = 'Driver',
           key: configuredKey,
           amount: 9900, // ₹99 in paise
           currency: 'INR',
-          name: 'Mana Driver',
+          name: 'Mana Drivers',
           description: 'Homepage Listing Monthly Renewal (₹99/month)',
           image: 'https://cdn.razorpay.com/static/assets/logo/rzp.svg',
           theme: {
@@ -157,7 +157,7 @@ export async function triggerDriverSubscriptionRazorpay({ driverName = 'Driver',
           },
           prefill: {
             name: driverName,
-            email: 'driver@manadriver.in',
+            email: 'driver@manadrivers.in',
           },
           handler: function () {
             completePayment();

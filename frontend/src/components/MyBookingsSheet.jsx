@@ -33,7 +33,7 @@ export default function MyBookingsSheet({ isOpen, onClose, bookings, onCancelBoo
             <div className="p-10 text-center bg-neutral-50 rounded-2xl border border-neutral-200/80">
               <p className="text-sm text-neutral-900 font-bold">No Bookings Yet</p>
               <p className="text-xs text-neutral-500 mt-1 max-w-xs mx-auto">
-                Select a verified chauffeur from the directory and click "Book Driver" to schedule a ride.
+                Select a verified driver from the list and tap "Book Driver" to schedule a trip.
               </p>
             </div>
           ) : (

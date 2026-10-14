@@ -44,7 +44,7 @@ export default function DriverPortal({
     name: '',
     phone: '',
     driverType: 'freelance', // 'freelance' (₹49) or 'permanent' (₹99)
-    vehicle: 'Manual & Automatic Cars (Sedan, SUV, Hatchback)',
+    vehicle: 'Manual & Automatic Cars',
     hourlyRate: 180,
     monthlySalary: 20000,
     location: 'Hitec City & Cyberabad, Hyderabad',
@@ -115,10 +115,10 @@ export default function DriverPortal({
           bio:
             formData.bio.trim() ||
             (isPermanent
-              ? 'Experienced permanent family & executive chauffeur seeking full-time monthly role in Hyderabad.'
-              : 'Verified freelance private driver available for hourly rides and airport transfers.'),
+              ? 'Experienced monthly family driver in Hyderabad.'
+              : 'Verified driver for hourly rides and airport trips.'),
           listingPlan: `First 3 Months Free (₹${currentRegistrationFee} Paid)`,
-          listingStatus: isPermanent ? 'Verified Monthly Chauffeur' : 'Verified Driver',
+          listingStatus: isPermanent ? 'Verified Monthly Driver' : 'Verified Driver',
           registeredDate: new Date().toLocaleDateString('en-IN', {
             month: 'short',
             day: 'numeric',
@@ -130,7 +130,7 @@ export default function DriverPortal({
         setIsSubmitting(false);
 
         toast.success(
-          `Welcome to Mana Driver, ${formData.name}! You are registered on the Hyderabad homepage.`
+          `Welcome to Mana Drivers, ${formData.name}! Your profile is now active on the homepage.`
         );
 
         setSelectedDriverIdForDuty(newDriver.id);
@@ -150,7 +150,7 @@ export default function DriverPortal({
       driverName: driverName || 'Hyderabad Driver',
       onPaymentSuccess: () => {
         setIsRenewing(false);
-        toast.success('Homepage listing active for another 30 days! (₹99/mo)');
+        toast.success('Listing active for 30 more days! (₹99/mo)');
       },
     });
     setTimeout(() => {
@@ -160,31 +160,31 @@ export default function DriverPortal({
 
   return (
     <div className="space-y-8 pb-16">
-      {/* Portal Header */}
+      {/* Portal Header in Simple English */}
       <div className="pb-6 border-b border-neutral-200/80">
         <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500 mb-2">
-          CHAUFFEUR PORTAL &amp; DISPATCH
+          DRIVER PORTAL
         </p>
         <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
-          Chauffeur Control Center
+          Driver Control Center
         </h1>
         <p className="text-sm text-neutral-600 mt-2 max-w-2xl">
-          Join {totalDriversCount || allDrivers.length} verified Hyderabad chauffeurs. Toggle your live Online/Offline duty status, manage your homepage profile, and accept passenger requests.
+          Join {totalDriversCount || allDrivers.length} verified drivers in Hyderabad. Turn your status Online or Offline, and manage trip requests.
         </p>
       </div>
 
-      {/* Modern Duty Status Banner (NOVA Style) */}
+      {/* Modern Duty Status Banner */}
       <div className="bg-[#121212] text-white rounded-3xl p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6 shadow-xl">
         <div className="space-y-2 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-medium text-neutral-300">
             <Power className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Uber-Style Duty Status</span>
+            <span>Driver Availability</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-sans">
-            Control Your Availability
+            Control Your Status
           </h2>
           <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed font-normal">
-            Turn your status <strong>ONLINE</strong> when ready to take trips. When <strong>OFFLINE</strong>, your contact buttons are paused so passengers do not disturb you while resting.
+            Turn your status <strong>ONLINE</strong> when ready to take trips. Turn <strong>OFFLINE</strong> when resting so customers do not disturb you.
           </p>
         </div>
 
@@ -211,7 +211,7 @@ export default function DriverPortal({
             onClick={() => setActiveTab('register')}
             className="px-6 py-3.5 bg-white text-neutral-950 hover:bg-neutral-100 rounded-full text-xs font-medium transition-all"
           >
-            Register Chauffeur (From ₹49)
+            Join as Driver (From ₹49)
           </button>
         </div>
       </div>
@@ -219,27 +219,27 @@ export default function DriverPortal({
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
         <div className="p-6 bg-white rounded-2xl border border-neutral-200/80">
-          <p className="text-xs text-neutral-500 font-medium">Freelance Plan</p>
+          <p className="text-xs text-neutral-500 font-medium">Hourly Driver Fee</p>
           <p className="text-3xl font-bold text-neutral-950 mt-1 font-sans">₹49</p>
           <p className="text-xs text-neutral-500 mt-1">3 months free homepage listing</p>
         </div>
 
         <div className="p-6 bg-white rounded-2xl border border-neutral-200/80">
-          <p className="text-xs text-neutral-500 font-medium">Permanent Plan</p>
+          <p className="text-xs text-neutral-500 font-medium">Monthly Driver Fee</p>
           <p className="text-3xl font-bold text-neutral-950 mt-1 font-sans">₹99</p>
-          <p className="text-xs text-neutral-500 mt-1">Full-time monthly jobs listing</p>
+          <p className="text-xs text-neutral-500 mt-1">3 months free homepage listing</p>
         </div>
 
         <div className="p-6 bg-white rounded-2xl border border-neutral-200/80">
           <p className="text-xs text-neutral-500 font-medium">Monthly Renewal</p>
           <p className="text-3xl font-bold text-neutral-950 mt-1 font-sans">₹99</p>
-          <p className="text-xs text-neutral-500 mt-1">Only after 3 months free</p>
+          <p className="text-xs text-neutral-500 mt-1">Only after 3 free months</p>
         </div>
 
         <div className="p-6 bg-neutral-950 text-white rounded-2xl shadow-sm">
           <p className="text-xs text-neutral-400 font-medium">Trip Commission</p>
           <p className="text-3xl font-bold text-white mt-1 font-sans">0%</p>
-          <p className="text-xs text-neutral-400 mt-1">Keep 100% of trip pay</p>
+          <p className="text-xs text-neutral-400 mt-1">Keep 100% of your earnings</p>
         </div>
       </div>
 
@@ -281,7 +281,7 @@ export default function DriverPortal({
           }`}
         >
           <CreditCard className="w-3.5 h-3.5" />
-          <span>Listing &amp; Plan (₹99/mo)</span>
+          <span>Listing Plan (₹99/mo)</span>
         </button>
 
         <button
@@ -307,12 +307,12 @@ export default function DriverPortal({
                 Live Online / Offline Switch
               </h3>
               <p className="text-xs text-neutral-500 mt-1">
-                Select your chauffeur profile and toggle status in real time.
+                Choose your driver profile and toggle your live status.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-xs text-neutral-500 font-medium">Chauffeur:</span>
+              <span className="text-xs text-neutral-500 font-medium">Driver:</span>
               <select
                 value={activeDutyDriver.id}
                 onChange={(e) => setSelectedDriverIdForDuty(e.target.value)}
@@ -372,7 +372,7 @@ export default function DriverPortal({
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white'
               }`}
             >
-              {isCurrentDriverOnline ? 'Switch to Offline (Resting)' : 'Go Online (Accept Rides)'}
+              {isCurrentDriverOnline ? 'Go Offline (Resting)' : 'Go Online (Accept Trips)'}
             </button>
           </div>
         </div>
@@ -383,18 +383,18 @@ export default function DriverPortal({
         <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-10 space-y-6 max-w-3xl">
           <div className="pb-4 border-b border-neutral-100">
             <h3 className="text-xl font-bold text-neutral-950 font-sans">
-              Register as a Verified Chauffeur
+              Register as a Verified Driver
             </h3>
             <p className="text-xs text-neutral-500 mt-1">
-              Select your chauffeur category. Your profile is active for 3 months free on the homepage.
+              Select how you want to work. First 3 months are free on the Mana Drivers homepage.
             </p>
           </div>
 
           <form onSubmit={handleRegisterSubmit} className="space-y-5">
-            {/* Split Category Options */}
+            {/* Split Category Options with Simple Labels */}
             <div>
               <label className="block text-xs font-semibold text-neutral-700 mb-2">
-                Chauffeur Category *
+                How do you want to work? *
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label
@@ -413,10 +413,10 @@ export default function DriverPortal({
                     className="mt-1"
                   />
                   <div>
-                    <p className="font-bold text-sm text-neutral-950">Freelance Driver</p>
-                    <p className="text-xs text-neutral-500 mt-0.5">Hourly rides &amp; airport drops</p>
+                    <p className="font-bold text-sm text-neutral-950">Work by the hour (₹49)</p>
+                    <p className="text-xs text-neutral-500 mt-0.5">Hourly trips &amp; airport drops</p>
                     <p className="text-xs font-semibold text-neutral-900 mt-2">
-                      ₹49 fee · 3 months free
+                      ₹49 one-time · 3 months free
                     </p>
                   </div>
                 </label>
@@ -437,10 +437,10 @@ export default function DriverPortal({
                     className="mt-1"
                   />
                   <div>
-                    <p className="font-bold text-sm text-neutral-950">Permanent Chauffeur</p>
+                    <p className="font-bold text-sm text-neutral-950">Work monthly (₹99)</p>
                     <p className="text-xs text-neutral-500 mt-0.5">Full-time monthly family support</p>
                     <p className="text-xs font-semibold text-neutral-900 mt-2">
-                      ₹99 fee · 3 months free
+                      ₹99 one-time · 3 months free
                     </p>
                   </div>
                 </label>
@@ -495,7 +495,7 @@ export default function DriverPortal({
               ) : (
                 <div>
                   <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                    Monthly Salary Expectation (₹/month)
+                    Monthly Salary (₹/month)
                   </label>
                   <input
                     type="number"
@@ -508,7 +508,7 @@ export default function DriverPortal({
 
               <div>
                 <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
-                  Primary Location in Hyderabad
+                  Your Area in Hyderabad
                 </label>
                 <select
                   value={formData.location}
@@ -554,7 +554,7 @@ export default function DriverPortal({
             >
               {isSubmitting
                 ? 'Processing Razorpay...'
-                : `Pay ₹${currentRegistrationFee} & Activate 3-Month Listing`}
+                : `Pay ₹${currentRegistrationFee} & Start 3-Month Listing`}
             </button>
           </form>
         </div>
@@ -565,10 +565,10 @@ export default function DriverPortal({
         <div className="bg-white rounded-3xl border border-neutral-200/80 p-6 sm:p-10 space-y-6 max-w-3xl">
           <div className="pb-4 border-b border-neutral-100">
             <h3 className="text-xl font-bold text-neutral-950 font-sans">
-              Homepage Listing Management
+              Listing Management
             </h3>
             <p className="text-xs text-neutral-500 mt-1">
-              Keep your profile active on the Mana Driver homepage.
+              Keep your profile active on the Mana Drivers homepage.
             </p>
           </div>
 
@@ -577,16 +577,16 @@ export default function DriverPortal({
               <div>
                 <p className="text-xs text-neutral-500 font-medium">Current Status</p>
                 <p className="text-base font-bold text-neutral-950 font-sans mt-0.5">
-                  Active (First 3 Months Free Included)
+                  Active (First 3 Months Free)
                 </p>
               </div>
               <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-semibold">
-                Verified Chauffeur
+                Verified Driver
               </span>
             </div>
 
             <p className="text-xs text-neutral-600 leading-relaxed">
-              After 3 free months, renewal is only ₹99/month. Zero percentage commission is ever deducted from customer trips.
+              After 3 free months, renewal is only ₹99/month. Zero commission is ever taken from customer trips.
             </p>
 
             <button
@@ -609,12 +609,12 @@ export default function DriverPortal({
               Customer Trip Requests ({bookings.length})
             </h3>
             <p className="text-xs text-neutral-500 mt-1">
-              Direct booking inquiries from Hyderabad vehicle owners.
+              Direct booking requests from car owners in Hyderabad.
             </p>
           </div>
 
           {bookings.length === 0 ? (
-            <p className="text-sm text-neutral-500 py-8 text-center">No active booking inquiries.</p>
+            <p className="text-sm text-neutral-500 py-8 text-center">No active trip requests.</p>
           ) : (
             <div className="space-y-3">
               {bookings.map((b) => (

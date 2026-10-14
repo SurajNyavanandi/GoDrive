@@ -65,7 +65,7 @@ export default function Header({
               className="flex items-center gap-2 group"
             >
               <span className="font-bold text-lg sm:text-xl tracking-tight text-neutral-950 font-sans">
-                MANA DRIVER
+                MANA DRIVERS
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500] inline-block mb-1" />
             </a>
