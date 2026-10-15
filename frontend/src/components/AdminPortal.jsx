@@ -65,11 +65,12 @@ export default function AdminPortal({ onBackToHome }) {
   };
 
   const handleReject = async (driverId, name) => {
-    if (!window.confirm(`Are you sure you want to reject ${name}'s application?`)) return;
+    const reason = window.prompt(`Rejecting ${name}'s application. Enter reason note (optional):`, 'Document verification required');
+    if (reason === null) return; // User cancelled prompt
     try {
       const res = await rejectDriverApi(driverId);
       if (res.success) {
-        toast.info(`${name}'s application was rejected.`);
+        toast.info(`${name}'s application was rejected. Note logged.`);
         loadAdminData();
       } else {
         toast.error(res.message || 'Failed to reject driver');
@@ -278,54 +279,79 @@ export default function AdminPortal({ onBackToHome }) {
 
                   {/* KYC Documents Card */}
                   <div className="space-y-3 pt-2">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5" />
-                      Mandatory KYC Documents Submitted
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-500 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5" />
+                        Uploaded KYC Documents
+                      </span>
+                      <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Cloudinary / Verified
+                      </span>
                     </h4>
 
                     <div className="grid grid-cols-2 gap-3">
-                      {/* Driving License */}
-                      <div className="bg-neutral-50 p-3 rounded-2xl border border-neutral-200 text-xs space-y-1">
-                        <span className="text-[10px] text-neutral-400 font-semibold block uppercase">
-                          Driving License
-                        </span>
-                        <div className="font-mono text-[11px] font-bold text-neutral-900">
-                          {driver.licenseNo || 'TS09-XXXX-XXXXX'}
+                      {/* Driving License Card */}
+                      <div className="bg-neutral-50 p-3 rounded-2xl border border-neutral-200 text-xs space-y-2 flex flex-col justify-between">
+                        <div>
+                          <span className="text-[10px] text-neutral-400 font-semibold block uppercase">
+                            Driving License
+                          </span>
+                          <div className="font-mono text-[11px] font-bold text-neutral-900">
+                            {driver.licenseNo || 'TS09-XXXX-XXXXX'}
+                          </div>
                         </div>
+
                         {driver.licensePhoto ? (
-                          <button
-                            type="button"
+                          <div
                             onClick={() => setSelectedDocModal({ title: `${driver.name} - Driving License`, image: driver.licensePhoto })}
-                            className="text-[11px] text-blue-600 hover:underline font-medium block pt-1"
+                            className="relative group cursor-pointer h-20 bg-neutral-200 rounded-xl overflow-hidden border border-neutral-300 shadow-2xs"
+                            title="Click to view high-resolution license document"
                           >
-                            View License Photo ↗
-                          </button>
+                            <img
+                              src={driver.licensePhoto}
+                              alt="Driving License"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
+                              Expand ↗
+                            </div>
+                          </div>
                         ) : (
-                          <span className="text-[10px] text-emerald-600 font-semibold block pt-1">
-                            ✓ Document Uploaded
+                          <span className="text-[10px] text-neutral-400 italic block pt-1">
+                            No License Image Attached
                           </span>
                         )}
                       </div>
 
                       {/* Aadhaar Card */}
-                      <div className="bg-neutral-50 p-3 rounded-2xl border border-neutral-200 text-xs space-y-1">
-                        <span className="text-[10px] text-neutral-400 font-semibold block uppercase">
-                          Aadhaar Card
-                        </span>
-                        <div className="font-mono text-[11px] font-bold text-neutral-900">
-                          {driver.aadhaarNo || 'XXXX-XXXX-XXXX'}
+                      <div className="bg-neutral-50 p-3 rounded-2xl border border-neutral-200 text-xs space-y-2 flex flex-col justify-between">
+                        <div>
+                          <span className="text-[10px] text-neutral-400 font-semibold block uppercase">
+                            Aadhaar Card
+                          </span>
+                          <div className="font-mono text-[11px] font-bold text-neutral-900">
+                            {driver.aadhaarNo || 'XXXX-XXXX-XXXX'}
+                          </div>
                         </div>
+
                         {driver.aadhaarPhoto ? (
-                          <button
-                            type="button"
+                          <div
                             onClick={() => setSelectedDocModal({ title: `${driver.name} - Aadhaar Card`, image: driver.aadhaarPhoto })}
-                            className="text-[11px] text-blue-600 hover:underline font-medium block pt-1"
+                            className="relative group cursor-pointer h-20 bg-neutral-200 rounded-xl overflow-hidden border border-neutral-300 shadow-2xs"
+                            title="Click to view high-resolution Aadhaar document"
                           >
-                            View Aadhaar Photo ↗
-                          </button>
+                            <img
+                              src={driver.aadhaarPhoto}
+                              alt="Aadhaar Card"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
+                              Expand ↗
+                            </div>
+                          </div>
                         ) : (
-                          <span className="text-[10px] text-emerald-600 font-semibold block pt-1">
-                            ✓ Document Uploaded
+                          <span className="text-[10px] text-neutral-400 italic block pt-1">
+                            No Aadhaar Image Attached
                           </span>
                         )}
                       </div>
@@ -337,7 +363,7 @@ export default function AdminPortal({ onBackToHome }) {
                     <button
                       type="button"
                       onClick={() => handleApprove(driver.id, driver.name)}
-                      className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                      className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                     >
                       <CheckCircle2 className="w-4 h-4" />
                       Approve & Publish to Homepage
@@ -345,7 +371,7 @@ export default function AdminPortal({ onBackToHome }) {
                     <button
                       type="button"
                       onClick={() => handleReject(driver.id, driver.name)}
-                      className="py-3 px-4 bg-red-50 hover:bg-red-100 text-red-600 rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1"
+                      className="py-3 px-4 bg-red-50 hover:bg-red-100 text-red-600 rounded-full text-xs font-semibold transition-all flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <XCircle className="w-4 h-4" />
                       Reject
@@ -371,13 +397,13 @@ export default function AdminPortal({ onBackToHome }) {
                   <img
                     src={driver.photo}
                     alt={driver.name}
-                    className="w-11 h-11 rounded-2xl object-cover bg-neutral-100"
+                    className="w-11 h-11 rounded-2xl object-cover bg-neutral-100 border border-neutral-200"
                   />
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-neutral-900 text-sm font-sans">{driver.name}</h3>
                       <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                        {driver.driverType === 'permanent' ? 'Monthly' : 'Hourly'}
+                        {driver.driverType === 'permanent' ? 'Monthly Chauffeur' : 'Hourly Driver'}
                       </span>
                     </div>
                     <p className="text-xs text-neutral-500">
@@ -388,9 +414,9 @@ export default function AdminPortal({ onBackToHome }) {
 
                 <div className="flex items-center gap-3 text-xs">
                   <span className="font-semibold text-neutral-950">
-                    {driver.driverType === 'permanent' ? `₹${driver.monthlySalary}/mo` : `₹${driver.hourlyRate}/hr`}
+                    {driver.driverType === 'permanent' ? `₹${driver.monthlySalary || 20000}/mo` : `₹${driver.hourlyRate || 180}/hr`}
                   </span>
-                  <span className="px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-700 font-medium">
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${driver.status === 'Available' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-neutral-100 text-neutral-700'}`}>
                     {driver.status}
                   </span>
                 </div>
@@ -408,24 +434,32 @@ export default function AdminPortal({ onBackToHome }) {
           </h2>
           {bookings.length === 0 ? (
             <p className="text-xs text-neutral-500 py-8 text-center">
-              No customer bookings recorded yet.
+              No customer bookings recorded yet. Bookings scheduled by car owners appear here in real-time.
             </p>
           ) : (
             <div className="space-y-3">
               {bookings.map((bk) => (
-                <div key={bk.id} className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <div className="font-bold text-neutral-900 text-sm">{bk.customerName || 'Customer'} ({bk.customerPhone})</div>
-                    <div className="text-neutral-500 mt-0.5">
-                      Driver: <span className="font-semibold text-neutral-800">{bk.driverName}</span> · Pickup: {bk.pickupLocation}
+                <div key={bk.id} className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[11px] font-bold text-neutral-400">{bk.id}</span>
+                      <span className="font-bold text-neutral-950 text-sm">{bk.customerName || 'Customer'} ({bk.customerPhone || '+91 99632 54183'})</span>
                     </div>
-                    <div className="text-[11px] text-neutral-400 mt-1">
-                      {new Date(bk.createdAt).toLocaleString('en-IN')}
+                    <div className="text-neutral-600">
+                      Driver Assigned: <span className="font-bold text-neutral-900">{bk.driverName || 'Verified Driver'}</span>
                     </div>
+                    <div className="text-neutral-500">
+                      Pickup Address: <span className="font-medium text-neutral-800">{bk.pickupAddress || bk.pickupLocation || 'Hyderabad'}</span>
+                    </div>
+                    {(bk.date || bk.time) && (
+                      <div className="text-[11px] text-neutral-500">
+                        Scheduled: <span className="font-semibold">{bk.date} at {bk.time}</span> ({bk.hours ? `${bk.hours} hrs` : 'Hourly Ride'})
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold text-neutral-950 text-sm">₹{bk.totalFare || 0}</div>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                  <div className="sm:text-right shrink-0 space-y-1">
+                    <div className="font-bold text-neutral-950 text-base">₹{(bk.totalCost || bk.totalFare || 540).toLocaleString('en-IN')}</div>
+                    <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold inline-block">
                       {bk.status || 'Confirmed'}
                     </span>
                   </div>

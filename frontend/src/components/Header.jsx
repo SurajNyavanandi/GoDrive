@@ -5,6 +5,7 @@ import {
   X,
   Compass,
   Briefcase,
+  Phone,
 } from 'lucide-react';
 
 export default function Header({
@@ -92,6 +93,16 @@ export default function Header({
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span>HYD · HITEC CITY</span>
             </div>
+
+            {/* 24/7 Helpline Pill */}
+            <a
+              href="tel:+919963254183"
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-neutral-200 hover:border-neutral-400 text-xs font-semibold text-neutral-800 transition-colors shadow-2xs"
+              title="Call 24/7 Driver Helpline"
+            >
+              <Phone className="w-3.5 h-3.5 text-[#FF5500]" />
+              <span>+91 99632 54183</span>
+            </a>
 
             {/* Trips Button */}
             <button

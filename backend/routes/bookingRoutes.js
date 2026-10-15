@@ -8,12 +8,24 @@ const storage = require('../services/storageService');
  */
 router.post('/', (req, res) => {
   try {
-    const { driverId, customerName, customerPhone, pickupLocation, tripType, totalFare } = req.body;
-    if (!driverId || !customerPhone || !pickupLocation) {
-      return res.status(400).json({ success: false, message: 'Driver, Customer Phone, and Pickup Location are required' });
+    const pickup = req.body.pickupAddress || req.body.pickupLocation;
+    const driverId = req.body.driverId;
+
+    if (!driverId || !pickup) {
+      return res.status(400).json({
+        success: false,
+        message: 'Driver and Pickup Address are required to schedule a trip.',
+      });
     }
 
-    const booking = storage.createBooking(req.body);
+    const bookingPayload = {
+      ...req.body,
+      pickupAddress: pickup,
+      customerPhone: req.body.customerPhone || 'Customer (Web)',
+      status: req.body.status || 'Confirmed',
+    };
+
+    const booking = storage.createBooking(bookingPayload);
     res.status(201).json({ success: true, message: 'Booking confirmed successfully', booking });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

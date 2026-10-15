@@ -2,6 +2,56 @@ const express = require('express');
 const router = express.Router();
 const storage = require('../services/storageService');
 const { verifyOtp } = require('../services/msg91Service');
+const upload = require('../utils/upload');
+const { uploadDocument, isConfigured } = require('../services/cloudinaryService');
+
+/**
+ * POST /api/drivers/upload-docs
+ * Upload Aadhaar card, Driving License, or Profile photo to Cloudinary (with fallback)
+ */
+router.post(
+  '/upload-docs',
+  upload.fields([
+    { name: 'aadhaarPhoto', maxCount: 1 },
+    { name: 'licensePhoto', maxCount: 1 },
+    { name: 'photo', maxCount: 1 },
+  ]),
+  async (req, res) => {
+    try {
+      const urls = {};
+      const files = req.files || {};
+
+      if (files.aadhaarPhoto && files.aadhaarPhoto[0]) {
+        const file = files.aadhaarPhoto[0];
+        const resUpload = await uploadDocument(file.buffer, file.mimetype, 'mana-drivers/aadhaar');
+        urls.aadhaarPhoto = resUpload.url;
+      }
+
+      if (files.licensePhoto && files.licensePhoto[0]) {
+        const file = files.licensePhoto[0];
+        const resUpload = await uploadDocument(file.buffer, file.mimetype, 'mana-drivers/license');
+        urls.licensePhoto = resUpload.url;
+      }
+
+      if (files.photo && files.photo[0]) {
+        const file = files.photo[0];
+        const resUpload = await uploadDocument(file.buffer, file.mimetype, 'mana-drivers/avatars');
+        urls.photo = resUpload.url;
+      }
+
+      res.json({
+        success: true,
+        message: 'Documents uploaded successfully',
+        urls,
+        isCloudinary: isConfigured,
+      });
+    } catch (err) {
+      console.error('Document upload error:', err);
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
+);
+
 
 /**
  * GET /api/drivers

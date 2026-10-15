@@ -13,7 +13,7 @@ import {
 import { toast } from 'sonner';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
 import { triggerDriverRegistrationRazorpay } from '../utils/razorpay';
-import { loginDriverApi, registerDriverApi, updateDriverStatusApi, sendOtpApi } from '../utils/api';
+import { loginDriverApi, registerDriverApi, updateDriverStatusApi, sendOtpApi, uploadDriverDocsApi } from '../utils/api';
 
 export default function DriverPortal({ onBackToHome }) {
   // Mode: 'login' | 'register' | 'dashboard'
@@ -23,11 +23,10 @@ export default function DriverPortal({ onBackToHome }) {
   const [loggedInDriver, setLoggedInDriver] = useState(null);
 
   // Login form state
-  const [loginPhone, setLoginPhone] = useState('9030260417'); // Default pre-filled with Shanker for quick 1-click test
+  const [loginPhone, setLoginPhone] = useState('');
   const [loginOtp, setLoginOtp] = useState('');
   const [loginStep, setLoginStep] = useState('phone'); // 'phone' | 'otp'
   const [loginLoading, setLoginLoading] = useState(false);
-  const [demoLoginOtp, setDemoLoginOtp] = useState('');
 
   // Registration form state
   const [registrationType, setRegistrationType] = useState('hourly'); // 'hourly' | 'monthly'
@@ -48,8 +47,9 @@ export default function DriverPortal({ onBackToHome }) {
   });
   const [registerSuccessBanner, setRegisterSuccessBanner] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
+  const [uploadStatusText, setUploadStatusText] = useState('');
 
-  // Handle Photo File Uploads (Converting to Base64 preview)
+  // Handle Photo File Uploads (Converting to Base64 preview and storing file)
   const handleFileUpload = (e, field) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -66,7 +66,7 @@ export default function DriverPortal({ onBackToHome }) {
         [field]: file,
         [`${field}Preview`]: reader.result,
       }));
-      toast.success(`${field === 'licensePhoto' ? 'Driving License' : 'Aadhaar Card'} photo attached`);
+      toast.success(`${field === 'licensePhoto' ? 'Driving License' : 'Aadhaar Card'} attached`);
     };
     reader.readAsDataURL(file);
   };
@@ -91,9 +91,8 @@ export default function DriverPortal({ onBackToHome }) {
       }
 
       // Dispatch OTP
-      const otpRes = await sendOtpApi(clean);
-      setDemoLoginOtp(otpRes.sandboxOtp || '1234');
-      toast.success(`OTP sent to +91 ${clean}`);
+      await sendOtpApi(clean);
+      toast.success(`Verification OTP sent to +91 ${clean}`);
       setLoginStep('otp');
     } catch {
       toast.error('Driver phone number not registered. Please register as a new driver.');
@@ -149,7 +148,7 @@ export default function DriverPortal({ onBackToHome }) {
     }
   };
 
-  // Registration Submit Handler
+  // Registration Submit Handler with Cloudinary Upload
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
 
@@ -168,6 +167,36 @@ export default function DriverPortal({ onBackToHome }) {
     }
 
     setRegisterLoading(true);
+    setUploadStatusText('Uploading Aadhaar & License to Cloudinary...');
+
+    let finalLicenseUrl = formData.licensePhotoPreview;
+    let finalAadhaarUrl = formData.aadhaarPhotoPreview;
+
+    // Upload files to Cloudinary (or safe data URL fallback)
+    try {
+      if (formData.licensePhoto instanceof File || formData.aadhaarPhoto instanceof File) {
+        const uploadData = new FormData();
+        if (formData.licensePhoto instanceof File) {
+          uploadData.append('licensePhoto', formData.licensePhoto);
+        }
+        if (formData.aadhaarPhoto instanceof File) {
+          uploadData.append('aadhaarPhoto', formData.aadhaarPhoto);
+        }
+
+        const uploadRes = await uploadDriverDocsApi(uploadData);
+        if (uploadRes.success && uploadRes.urls) {
+          if (uploadRes.urls.licensePhoto) finalLicenseUrl = uploadRes.urls.licensePhoto;
+          if (uploadRes.urls.aadhaarPhoto) finalAadhaarUrl = uploadRes.urls.aadhaarPhoto;
+          if (uploadRes.isCloudinary) {
+            toast.success('KYC documents securely saved to Cloudinary');
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Document upload fallback:', err);
+    }
+
+    setUploadStatusText('');
 
     const fee = registrationType === 'hourly' ? 49 : 99;
     const workingPref = registrationType === 'hourly' ? 'Work by the hour (₹49)' : 'Work monthly (₹99)';
@@ -181,11 +210,11 @@ export default function DriverPortal({ onBackToHome }) {
       location: formData.location,
       experience: formData.experience,
       languages: formData.languages,
-      bio: formData.bio,
+      bio: formData.bio || `${formData.name} is a verified private driver in ${formData.location}, Hyderabad.`,
       licenseNo: formData.licenseNo,
-      licensePhoto: formData.licensePhotoPreview,
+      licensePhoto: finalLicenseUrl,
       aadhaarNo: formData.aadhaarNo,
-      aadhaarPhoto: formData.aadhaarPhotoPreview,
+      aadhaarPhoto: finalAadhaarUrl,
       workingPreference: workingPref,
     };
 
@@ -198,7 +227,7 @@ export default function DriverPortal({ onBackToHome }) {
           const res = await registerDriverApi(registrationPayload);
           if (res.success) {
             setRegisterSuccessBanner(true);
-            toast.success('Registration payment verified & application submitted!');
+            toast.success('Registration payment verified & application submitted for Admin Verification!');
           } else {
             toast.error(res.message || 'Failed to submit driver application');
           }
@@ -371,17 +400,6 @@ export default function DriverPortal({ onBackToHome }) {
             </p>
           </div>
 
-          {/* Quick Demo Pre-Fill Banner */}
-          <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl text-xs text-amber-900 space-y-1">
-            <div className="font-bold flex items-center gap-1.5">
-              <AlertCircle className="w-4 h-4 text-amber-600" />
-              Pre-Registered Driver for Testing:
-            </div>
-            <p className="text-neutral-700">
-              Mobile Number: <span className="font-bold font-mono">9030260417</span> (Shanker - Permanent Chauffeur)
-            </p>
-          </div>
-
           {loginStep === 'phone' ? (
             <form onSubmit={handleSendLoginOtp} className="space-y-4">
               <div>
@@ -394,7 +412,7 @@ export default function DriverPortal({ onBackToHome }) {
                   </span>
                   <input
                     type="tel"
-                    placeholder="9030260417"
+                    placeholder="Enter 10-digit mobile"
                     value={loginPhone}
                     onChange={(e) => setLoginPhone(e.target.value)}
                     maxLength={10}
@@ -407,7 +425,7 @@ export default function DriverPortal({ onBackToHome }) {
               <button
                 type="submit"
                 disabled={loginLoading}
-                className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-xs"
+                className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-xs cursor-pointer"
               >
                 {loginLoading ? 'Checking Number...' : 'Send Login OTP'}
               </button>
@@ -418,7 +436,7 @@ export default function DriverPortal({ onBackToHome }) {
                   <button
                     type="button"
                     onClick={() => setMode('register')}
-                    className="text-neutral-950 font-bold hover:underline"
+                    className="text-neutral-950 font-bold hover:underline cursor-pointer"
                   >
                     Register as a New Driver ↗
                   </button>
@@ -435,7 +453,7 @@ export default function DriverPortal({ onBackToHome }) {
                   <button
                     type="button"
                     onClick={() => setLoginStep('phone')}
-                    className="text-[11px] text-neutral-500 hover:underline"
+                    className="text-[11px] text-neutral-500 hover:underline cursor-pointer"
                   >
                     Change ({loginPhone})
                   </button>
@@ -443,7 +461,7 @@ export default function DriverPortal({ onBackToHome }) {
 
                 <input
                   type="text"
-                  placeholder="1234"
+                  placeholder="••••"
                   value={loginOtp}
                   onChange={(e) => setLoginOtp(e.target.value)}
                   maxLength={6}
@@ -451,12 +469,6 @@ export default function DriverPortal({ onBackToHome }) {
                   required
                   autoFocus
                 />
-
-                {demoLoginOtp && (
-                  <p className="text-[11px] text-emerald-700 font-semibold text-center mt-2">
-                    Demo OTP Code: <span className="font-bold font-mono">{demoLoginOtp}</span>
-                  </p>
-                )}
               </div>
 
               <button
@@ -734,7 +746,10 @@ export default function DriverPortal({ onBackToHome }) {
                 className="w-full py-4 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-md flex items-center justify-center gap-2"
               >
                 {registerLoading ? (
-                  <span>Processing Application...</span>
+                  <span className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>{uploadStatusText || 'Processing Application...'}</span>
+                  </span>
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />

@@ -157,7 +157,15 @@ export default function App() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2 text-neutral-500">
+          <div className="flex items-center gap-4 text-neutral-500">
+            <a
+              href="tel:+919963254183"
+              className="hover:text-neutral-900 transition-colors flex items-center gap-1 font-semibold text-neutral-800"
+            >
+              <Phone className="w-3.5 h-3.5 text-[#FF5500]" />
+              <span>Helpline: +91 99632 54183</span>
+            </a>
+            <span>·</span>
             <span>© {new Date().getFullYear()} MANA DRIVERS HYDERABAD</span>
             <span>·</span>
             <span>AADHAAR & LICENSE VERIFIED</span>
@@ -200,15 +208,15 @@ export default function App() {
 
             <div className="space-y-2">
               <a
-                href="tel:+919876543210"
+                href="tel:+919963254183"
                 className="w-full py-2.5 px-4 bg-[#111111] hover:bg-neutral-800 text-white rounded-full text-xs font-medium flex items-center justify-center gap-2 transition-colors"
               >
                 <Phone className="w-3.5 h-3.5" />
-                <span>Call Helpline: +91 98765 43210</span>
+                <span>Call Helpline: +91 99632 54183</span>
               </a>
 
               <a
-                href={`https://wa.me/919876543210?text=${encodeURIComponent(
+                href={`https://wa.me/919963254183?text=${encodeURIComponent(
                   'Hello Mana Drivers, I need a verified private driver for my car in Hyderabad.'
                 )}`}
                 target="_blank"

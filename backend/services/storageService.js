@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const logger = require('../utils/logger');
 
 const DATA_DIR = path.resolve(__dirname, '../data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
@@ -127,11 +128,12 @@ function initDB() {
       data.drivers = INITIAL_DRIVERS;
       modified = true;
     } else {
-      // Clean up seed drivers if previous mock data exists with old drivers
-      const shankerExists = data.drivers.some(d => d.rawPhone === '9030260417' || d.name === 'Shanker');
-      if (!shankerExists || data.drivers.length > 10) {
-        data.drivers = INITIAL_DRIVERS;
-        modified = true;
+      // Ensure all 4 seed drivers are in the array
+      for (const seed of INITIAL_DRIVERS) {
+        if (!data.drivers.some(d => d.id === seed.id || d.rawPhone === seed.rawPhone)) {
+          data.drivers.push(seed);
+          modified = true;
+        }
       }
     }
 
@@ -146,7 +148,7 @@ function initDB() {
 
     return data;
   } catch (err) {
-    console.error('Failed to read db.json, re-initializing:', err.message);
+    logger.error('Failed to read db.json, re-initializing', err);
     const defaultData = {
       drivers: INITIAL_DRIVERS,
       bookings: [],
@@ -163,7 +165,7 @@ function saveDB(data) {
     }
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
   } catch (err) {
-    console.error('Error saving db.json:', err.message);
+    logger.error('Error saving db.json', err);
   }
 }
 
@@ -197,9 +199,36 @@ const registerNewDriver = (driverData) => {
   const raw = cleanPhone(driverData.phone);
   
   // Check if driver with phone already exists
-  const existing = db.drivers.find((d) => cleanPhone(d.rawPhone || d.phone) === raw);
-  if (existing) {
-    return { success: false, message: 'A driver application with this mobile number already exists.' };
+  const existingIndex = db.drivers.findIndex((d) => cleanPhone(d.rawPhone || d.phone) === raw);
+  if (existingIndex !== -1) {
+    const existing = db.drivers[existingIndex];
+    if (existing.isApproved) {
+      return { success: false, message: 'A verified driver account with this mobile number already exists. Please log in.' };
+    }
+    // Update existing pending application
+    const formattedPhone = raw.length === 10 ? `+91 ${raw.slice(0,5)} ${raw.slice(5)}` : driverData.phone;
+    db.drivers[existingIndex] = {
+      ...existing,
+      name: driverData.name || existing.name,
+      driverType: driverData.driverType || (driverData.workingPreference?.includes('monthly') ? 'permanent' : 'freelance'),
+      phone: formattedPhone,
+      rawPhone: raw,
+      location: driverData.location || existing.location,
+      experience: Number(driverData.experience) || existing.experience,
+      languages: driverData.languages || existing.languages,
+      bio: driverData.bio || existing.bio,
+      licenseNo: driverData.licenseNo || existing.licenseNo,
+      licensePhoto: driverData.licensePhoto || existing.licensePhoto,
+      aadhaarNo: driverData.aadhaarNo || existing.aadhaarNo,
+      aadhaarPhoto: driverData.aadhaarPhoto || existing.aadhaarPhoto,
+      workingPreference: driverData.workingPreference || existing.workingPreference,
+      photo: driverData.photo || existing.photo,
+      isApproved: false,
+      listingStatus: 'Pending Admin Verification',
+      updatedAt: new Date().toISOString(),
+    };
+    saveDB(db);
+    return { success: true, driver: db.drivers[existingIndex], updated: true };
   }
 
   const formattedPhone = raw.length === 10 ? `+91 ${raw.slice(0,5)} ${raw.slice(5)}` : driverData.phone;
@@ -258,8 +287,12 @@ const approveDriver = (id) => {
   return driver;
 };
 
-const rejectDriver = (id) => {
+const rejectDriver = (id, reason = '') => {
   const db = initDB();
+  const driver = db.drivers.find((d) => d.id === id);
+  if (!driver) return false;
+
+  // Filter out rejected driver
   db.drivers = db.drivers.filter((d) => d.id !== id);
   saveDB(db);
   return true;

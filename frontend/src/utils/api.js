@@ -1,3 +1,5 @@
+import logger from './logger';
+
 const API_BASE = '/api';
 
 export async function fetchPublicDrivers() {
@@ -9,7 +11,7 @@ export async function fetchPublicDrivers() {
     }
     return [];
   } catch (err) {
-    console.error('Failed to fetch drivers from backend:', err);
+    logger.error('Failed to fetch drivers from backend', err);
     return [];
   }
 }
@@ -31,6 +33,15 @@ export async function registerDriverApi(data) {
   });
   return await res.json();
 }
+
+export async function uploadDriverDocsApi(formData) {
+  const res = await fetch(`${API_BASE}/drivers/upload-docs`, {
+    method: 'POST',
+    body: formData,
+  });
+  return await res.json();
+}
+
 
 export async function updateDriverStatusApi(driverId, status) {
   const res = await fetch(`${API_BASE}/drivers/${driverId}/status`, {
