@@ -16,7 +16,7 @@ const apiRoutes = require('./routes');
 const { errorHandler, notFoundHandler } = require('./utils/errorHandler');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 5000;
 
 // Enable trust proxy for express-rate-limit when running behind reverse proxy
 app.set('trust proxy', 1);
@@ -49,11 +49,31 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 // CORS & Parsing
+const rawCorsOrigin = process.env.CORS_ORIGIN || process.env.ALLOWED_ORIGINS || '*';
+const allowedOrigins = rawCorsOrigin.includes(',')
+  ? rawCorsOrigin.split(',').map((o) => o.trim())
+  : rawCorsOrigin.trim();
+
 app.use(
   cors({
-    origin: '*',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins === '*') {
+        return callback(null, true);
+      }
+      if (Array.isArray(allowedOrigins)) {
+        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        return callback(null, false);
+      }
+      if (allowedOrigins === origin) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   })
 );
 app.use(express.json({ limit: '10mb' }));
