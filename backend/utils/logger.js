@@ -1,7 +1,12 @@
-const Sentry = require('@sentry/node');
+let Sentry;
+try {
+  Sentry = require('@sentry/node');
+} catch {
+  Sentry = null;
+}
 const isProd = process.env.NODE_ENV === 'production';
 
-if (isProd && process.env.SENTRY_DSN) {
+if (isProd && process.env.SENTRY_DSN && Sentry) {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     tracesSampleRate: 1.0,
@@ -17,7 +22,7 @@ const logger = {
   },
   error: (msg, error) => {
     console.error(`[ERROR] ${msg}`, error || '');
-    if (isProd && process.env.SENTRY_DSN) {
+    if (isProd && process.env.SENTRY_DSN && Sentry) {
       Sentry.captureException(error || new Error(msg));
     }
   }

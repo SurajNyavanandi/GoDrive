@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ShieldCheck, Phone, CheckCircle2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { sendOtpApi, verifyOtpApi } from '../utils/api';
+import { validateIndianMobile } from '../utils/helpers';
 
 export default function CustomerOtpVerificationModal({
   isOpen,
@@ -19,11 +20,12 @@ export default function CustomerOtpVerificationModal({
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    const clean = mobile.replace(/[^0-9]/g, '');
-    if (clean.length < 10) {
-      toast.error('Please enter a valid 10-digit Indian mobile number');
+    const valRes = validateIndianMobile(mobile);
+    if (!valRes.isValid) {
+      toast.error(valRes.error);
       return;
     }
+    const clean = valRes.cleaned;
 
     setLoading(true);
     try {
@@ -50,15 +52,16 @@ export default function CustomerOtpVerificationModal({
 
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
-    if (!otp.trim()) {
-      toast.error('Please enter the OTP received');
+    const cleanOtp = otp.replace(/\D/g, '').slice(0, 6);
+    if (cleanOtp.length < 4) {
+      toast.error('Please enter a valid 4 to 6-digit OTP code');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await verifyOtpApi(mobile, otp);
-      if (res.success || otp.trim() === '1234' || otp.trim() === '123456') {
+      const res = await verifyOtpApi(mobile, cleanOtp);
+      if (res.success || cleanOtp === '1234' || cleanOtp === '123456') {
         toast.success('Mobile number verified successfully!');
         onVerified(mobile);
         onClose();
@@ -66,7 +69,7 @@ export default function CustomerOtpVerificationModal({
         toast.error(res.message || 'Invalid OTP. Enter 1234 for demo.');
       }
     } catch {
-      if (otp.trim() === '1234' || otp.trim() === '123456') {
+      if (cleanOtp === '1234' || cleanOtp === '123456') {
         toast.success('Mobile number verified!');
         onVerified(mobile);
         onClose();
@@ -115,7 +118,7 @@ export default function CustomerOtpVerificationModal({
                   type="tel"
                   placeholder="98765 43210"
                   value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
+                  onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
                   maxLength={10}
                   className="w-full pl-12 pr-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   required
@@ -162,7 +165,7 @@ export default function CustomerOtpVerificationModal({
                 type="text"
                 placeholder="1234"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value)}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 maxLength={6}
                 className="w-full text-center tracking-[0.5em] text-2xl font-bold py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900 font-mono"
                 required

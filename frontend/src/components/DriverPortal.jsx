@@ -8,12 +8,19 @@ import {
   FileText,
   Upload,
   LogOut,
-  AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
 import { triggerDriverRegistrationRazorpay } from '../utils/razorpay';
 import { loginDriverApi, registerDriverApi, updateDriverStatusApi, sendOtpApi, uploadDriverDocsApi } from '../utils/api';
+import {
+  validateIndianMobile,
+  validateAadhaar,
+  formatAadhaarInput,
+  validateDrivingLicense,
+  validateExperience,
+  validateName,
+} from '../utils/helpers';
 
 export default function DriverPortal({ onBackToHome }) {
   // Mode: 'login' | 'register' | 'dashboard'
@@ -74,11 +81,12 @@ export default function DriverPortal({ onBackToHome }) {
   // Login Handlers
   const handleSendLoginOtp = async (e) => {
     e.preventDefault();
-    const clean = loginPhone.replace(/[^0-9]/g, '');
-    if (clean.length < 10) {
-      toast.error('Please enter a valid 10-digit mobile number');
+    const valRes = validateIndianMobile(loginPhone);
+    if (!valRes.isValid) {
+      toast.error(valRes.error);
       return;
     }
+    const clean = valRes.cleaned;
 
     setLoginLoading(true);
     try {
@@ -103,14 +111,15 @@ export default function DriverPortal({ onBackToHome }) {
 
   const handleVerifyLoginOtp = async (e) => {
     e.preventDefault();
-    if (!loginOtp.trim()) {
-      toast.error('Please enter the OTP');
+    const cleanOtp = loginOtp.replace(/\D/g, '').slice(0, 6);
+    if (cleanOtp.length < 4) {
+      toast.error('Please enter a valid 4 to 6-digit OTP code');
       return;
     }
 
     setLoginLoading(true);
     try {
-      const res = await loginDriverApi(loginPhone, loginOtp);
+      const res = await loginDriverApi(loginPhone, cleanOtp);
       if (res.success && res.driver) {
         setLoggedInDriver(res.driver);
         setMode('dashboard');
@@ -152,17 +161,44 @@ export default function DriverPortal({ onBackToHome }) {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
 
-    // Mandatory KYC Checks
-    if (!formData.name.trim() || !formData.phone.trim()) {
-      toast.error('Full Name and Mobile Number are required.');
+    // Comprehensive Field Validations
+    const nameRes = validateName(formData.name);
+    if (!nameRes.isValid) {
+      toast.error(nameRes.error);
       return;
     }
-    if (!formData.licenseNo.trim() || (!formData.licensePhoto && !formData.licensePhotoPreview)) {
-      toast.error('Driving License Number and License Photo are mandatory.');
+
+    const phoneRes = validateIndianMobile(formData.phone);
+    if (!phoneRes.isValid) {
+      toast.error(phoneRes.error);
       return;
     }
-    if (!formData.aadhaarNo.trim() || (!formData.aadhaarPhoto && !formData.aadhaarPhotoPreview)) {
-      toast.error('Aadhaar Card Number and Aadhaar Card Photo are mandatory.');
+
+    const expRes = validateExperience(formData.experience);
+    if (!expRes.isValid) {
+      toast.error(expRes.error);
+      return;
+    }
+
+    const licenseRes = validateDrivingLicense(formData.licenseNo);
+    if (!licenseRes.isValid) {
+      toast.error(licenseRes.error);
+      return;
+    }
+
+    if (!formData.licensePhoto && !formData.licensePhotoPreview) {
+      toast.error('Driving License Photo is mandatory.');
+      return;
+    }
+
+    const aadhaarRes = validateAadhaar(formData.aadhaarNo);
+    if (!aadhaarRes.isValid) {
+      toast.error(aadhaarRes.error);
+      return;
+    }
+
+    if (!formData.aadhaarPhoto && !formData.aadhaarPhotoPreview) {
+      toast.error('Aadhaar Card Photo is mandatory.');
       return;
     }
 
@@ -202,18 +238,18 @@ export default function DriverPortal({ onBackToHome }) {
     const workingPref = registrationType === 'hourly' ? 'Work by the hour (₹49)' : 'Work monthly (₹99)';
 
     const registrationPayload = {
-      name: formData.name,
-      phone: formData.phone,
+      name: nameRes.cleaned,
+      phone: phoneRes.cleaned,
       driverType: registrationType === 'hourly' ? 'freelance' : 'permanent',
       hourlyRate: registrationType === 'hourly' ? 180 : 200,
       monthlySalary: registrationType === 'monthly' ? 20000 : null,
       location: formData.location,
-      experience: formData.experience,
+      experience: expRes.value,
       languages: formData.languages,
-      bio: formData.bio || `${formData.name} is a verified private driver in ${formData.location}, Hyderabad.`,
-      licenseNo: formData.licenseNo,
+      bio: formData.bio ? formData.bio.slice(0, 300) : `${nameRes.cleaned} is a verified private driver in ${formData.location}, Hyderabad.`,
+      licenseNo: licenseRes.cleaned,
       licensePhoto: finalLicenseUrl,
-      aadhaarNo: formData.aadhaarNo,
+      aadhaarNo: aadhaarRes.formatted,
       aadhaarPhoto: finalAadhaarUrl,
       workingPreference: workingPref,
     };
@@ -414,7 +450,7 @@ export default function DriverPortal({ onBackToHome }) {
                     type="tel"
                     placeholder="Enter 10-digit mobile"
                     value={loginPhone}
-                    onChange={(e) => setLoginPhone(e.target.value)}
+                    onChange={(e) => setLoginPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     maxLength={10}
                     className="w-full pl-12 pr-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                     required
@@ -463,7 +499,7 @@ export default function DriverPortal({ onBackToHome }) {
                   type="text"
                   placeholder="••••"
                   value={loginOtp}
-                  onChange={(e) => setLoginOtp(e.target.value)}
+                  onChange={(e) => setLoginOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   maxLength={6}
                   className="w-full text-center tracking-[0.5em] text-2xl font-bold py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-neutral-950 font-mono focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   required
@@ -588,8 +624,9 @@ export default function DriverPortal({ onBackToHome }) {
                   <input
                     type="text"
                     placeholder="e.g. Ramesh Kumar"
+                    maxLength={60}
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value.slice(0, 60) })}
                     className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                     required
                   />
@@ -603,7 +640,7 @@ export default function DriverPortal({ onBackToHome }) {
                     type="tel"
                     placeholder="9876543210"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                     maxLength={10}
                     className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                     required
@@ -637,9 +674,12 @@ export default function DriverPortal({ onBackToHome }) {
                   <input
                     type="number"
                     value={formData.experience}
-                    onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 2);
+                      setFormData({ ...formData, experience: val });
+                    }}
                     min={1}
-                    max={30}
+                    max={50}
                     className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   />
                 </div>
@@ -663,8 +703,14 @@ export default function DriverPortal({ onBackToHome }) {
                     <input
                       type="text"
                       placeholder="TS09-2018-0091234"
+                      maxLength={20}
                       value={formData.licenseNo}
-                      onChange={(e) => setFormData({ ...formData, licenseNo: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          licenseNo: e.target.value.toUpperCase().replace(/[^A-Z0-9- ]/g, '').slice(0, 20),
+                        })
+                      }
                       className="w-full px-3 py-2.5 bg-white border border-neutral-300 rounded-xl text-xs font-mono font-bold text-neutral-950"
                       required
                     />
@@ -704,8 +750,9 @@ export default function DriverPortal({ onBackToHome }) {
                     <input
                       type="text"
                       placeholder="5432-8765-4321"
+                      maxLength={14}
                       value={formData.aadhaarNo}
-                      onChange={(e) => setFormData({ ...formData, aadhaarNo: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, aadhaarNo: formatAadhaarInput(e.target.value) })}
                       className="w-full px-3 py-2.5 bg-white border border-neutral-300 rounded-xl text-xs font-mono font-bold text-neutral-950"
                       required
                     />

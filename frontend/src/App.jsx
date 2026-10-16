@@ -7,7 +7,7 @@ import AdminPortal from './components/AdminPortal';
 import BookingModal from './components/BookingModal';
 import MyBookingsSheet from './components/MyBookingsSheet';
 import { initialDrivers } from './data/mockDrivers';
-import { Phone } from 'lucide-react';
+import { Phone, Lock } from 'lucide-react';
 import { createBookingApi } from './utils/api';
 
 const DEFAULT_BOOKINGS = [
@@ -99,6 +99,23 @@ export default function App() {
   };
 
   const [floatingContactOpen, setFloatingContactOpen] = useState(false);
+  const [lastLockClickTime, setLastLockClickTime] = useState(0);
+
+  const handleAdminLockClick = () => {
+    const now = Date.now();
+    if (now - lastLockClickTime < 450) {
+      handleRoleChange('admin');
+      toast.success('Admin Console unlocked');
+      setLastLockClickTime(0);
+    } else {
+      setLastLockClickTime(now);
+    }
+  };
+
+  const handleAdminLockDoubleClick = () => {
+    handleRoleChange('admin');
+    toast.success('Admin Console unlocked');
+  };
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] text-[#111111] flex flex-col selection:bg-neutral-900 selection:text-white font-sans">
@@ -150,10 +167,13 @@ export default function App() {
             </a>
             <button
               type="button"
-              onClick={() => handleRoleChange('admin')}
-              className="hover:text-neutral-900 text-neutral-900 font-bold underline underline-offset-4 cursor-pointer transition-colors"
+              onClick={handleAdminLockClick}
+              onDoubleClick={handleAdminLockDoubleClick}
+              className="p-1 text-neutral-400 hover:text-neutral-700 transition-colors cursor-pointer rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400"
+              title="Admin Console (Double-click to open)"
+              aria-label="Admin Console (Double-click to open)"
             >
-              Admin
+              <Lock className="w-3.5 h-3.5" />
             </button>
           </div>
 

@@ -1,4 +1,9 @@
-const axios = require('axios');
+let axios;
+try {
+  axios = require('axios');
+} catch {
+  axios = null;
+}
 
 const authKey = process.env.MSG91_AUTH_KEY;
 const defaultTemplateId = process.env.MSG91_TEMPLATE_ID;

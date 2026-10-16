@@ -1,24 +1,31 @@
 const mongoose = require('mongoose');
 
 /**
- * Connect to MongoDB database instance.
+ * Connect to MongoDB database instance with graceful in-memory fallback.
  */
 const connectDB = async () => {
   mongoose.set('bufferCommands', false);
-  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
-  if (!mongoUri) {
-    console.warn('MONGO_URI not set — database offline mode active');
+  const rawUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+  if (!rawUri) {
+    console.log('[Database] Running in local in-memory & JSON storage mode');
     return false;
+  }
+
+  let mongoUri = rawUri.trim();
+  // Append database name if cluster URL provided without one
+  if (mongoUri.startsWith('mongodb+srv://') && !mongoUri.includes('/', 14)) {
+    mongoUri = `${mongoUri}/manadrivers?retryWrites=true&w=majority`;
   }
 
   try {
     await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 3000,
+      serverSelectionTimeoutMS: 2000,
+      connectTimeoutMS: 2000,
     });
     console.log('MongoDB connected successfully');
     return true;
-  } catch (err) {
-    console.warn('MongoDB connection failed — database offline mode active:', err.message);
+  } catch (_err) {
+    console.log('[Database] Operating with local in-memory & file storage (Atlas unavailable or IP not whitelisted)');
     return false;
   }
 };

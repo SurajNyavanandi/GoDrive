@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Calendar, Clock, MapPin, Star, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { validateAddress } from '../utils/helpers';
 
 export default function BookingModal({ driver, isOpen, onClose, onBookingConfirmed }) {
   const [date, setDate] = useState(() => {
@@ -22,8 +23,20 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!pickupAddress.trim()) {
-      toast.error('Please enter a pickup address in Hyderabad');
+    const today = new Date().toISOString().split('T')[0];
+    if (date < today) {
+      toast.error('Pickup date cannot be in the past');
+      return;
+    }
+
+    const addrRes = validateAddress(pickupAddress);
+    if (!addrRes.isValid) {
+      toast.error(addrRes.error);
+      return;
+    }
+
+    if (!isPermanent && (hours < 1 || hours > 24)) {
+      toast.error('Duration must be between 1 and 24 hours');
       return;
     }
 
@@ -37,9 +50,9 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
         date,
         time,
         hours: isPermanent ? 'Monthly Chauffeur' : hours,
-        pickupAddress: pickupAddress.trim(),
+        pickupAddress: addrRes.cleaned,
         totalCost,
-        passengerNotes: passengerNotes.trim(),
+        passengerNotes: passengerNotes.trim().slice(0, 300),
         status: 'Confirmed',
         createdAt: new Date().toISOString(),
       };
@@ -127,6 +140,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
               <input
                 type="date"
                 required
+                min={new Date().toISOString().split('T')[0]}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium text-neutral-950 focus:outline-none focus:border-neutral-900 focus:bg-white transition-colors"
@@ -184,6 +198,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
             <input
               type="text"
               required
+              maxLength={200}
               value={pickupAddress}
               onChange={(e) => setPickupAddress(e.target.value)}
               placeholder="e.g. Cyber Towers Hitec City, Rd 36 Jubilee Hills, or RGIA Terminal"
@@ -198,6 +213,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
             </label>
             <input
               type="text"
+              maxLength={300}
               value={passengerNotes}
               onChange={(e) => setPassengerNotes(e.target.value)}
               placeholder="e.g. RGIA airport terminal drop, car is automatic BMW, night travel"

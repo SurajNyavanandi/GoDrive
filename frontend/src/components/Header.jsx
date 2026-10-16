@@ -63,12 +63,19 @@ export default function Header({
                 e.preventDefault();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="flex items-center gap-2 group"
+              className="flex items-center gap-2.5 group"
             >
-              <span className="font-bold text-lg sm:text-xl tracking-tight text-neutral-950 font-sans">
-                MANA DRIVERS
-              </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500] inline-block mb-1" />
+              <img
+                src="https://res.cloudinary.com/abjxnpfd/image/upload/v1792134938/manadriverslogo.jpg"
+                alt="Mana Drivers"
+                className="w-8 h-8 rounded-full object-cover border border-neutral-200 shadow-2xs group-hover:scale-105 transition-transform"
+              />
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-lg sm:text-xl tracking-tight text-neutral-950 font-sans">
+                  MANA DRIVERS
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500] inline-block mb-1" />
+              </div>
             </a>
           </div>
 

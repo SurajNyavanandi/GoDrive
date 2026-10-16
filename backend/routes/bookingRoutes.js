@@ -4,24 +4,55 @@ const storage = require('../services/storageService');
 
 /**
  * POST /api/bookings
- * Create new trip booking
+ * Create new trip booking with edge-case validation
  */
 router.post('/', (req, res) => {
   try {
-    const pickup = req.body.pickupAddress || req.body.pickupLocation;
+    const rawPickup = req.body.pickupAddress || req.body.pickupLocation;
     const driverId = req.body.driverId;
 
-    if (!driverId || !pickup) {
+    if (!driverId || !rawPickup) {
       return res.status(400).json({
         success: false,
         message: 'Driver and Pickup Address are required to schedule a trip.',
       });
     }
 
+    const cleanPickup = String(rawPickup).trim();
+    if (cleanPickup.length < 5 || cleanPickup.length > 200 || !/[a-zA-Z]/.test(cleanPickup)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid pickup address in Hyderabad (at least 5 characters with street or landmark names).',
+      });
+    }
+
+    // Format / sanitize phone if provided
+    let customerPhone = 'Customer (Web)';
+    if (req.body.customerPhone && req.body.customerPhone !== 'Customer (Web)') {
+      const digits = String(req.body.customerPhone).replace(/\D/g, '');
+      if (digits.length === 10 && /^[6-9]/.test(digits)) {
+        customerPhone = `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+      }
+    }
+
+    // Cost validation (reject negative or huge abnormal numbers)
+    let totalCost = req.body.totalCost;
+    if (totalCost !== undefined && totalCost !== null) {
+      const numCost = Number(totalCost);
+      if (isNaN(numCost) || numCost < 0 || numCost > 200000) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid booking cost specified.',
+        });
+      }
+      totalCost = numCost;
+    }
+
     const bookingPayload = {
       ...req.body,
-      pickupAddress: pickup,
-      customerPhone: req.body.customerPhone || 'Customer (Web)',
+      pickupAddress: cleanPickup,
+      customerPhone,
+      totalCost,
       status: req.body.status || 'Confirmed',
     };
 

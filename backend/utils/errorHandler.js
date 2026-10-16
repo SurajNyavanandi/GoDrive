@@ -22,7 +22,7 @@ const errorHandler = (err, req, res, next) => { // eslint-disable-line no-unused
         err.message.includes('client is closed') ||
         err.message.includes('not connected')))
   ) {
-    console.warn('[AI Studio] Database offline — handling gracefully:', err.message);
+    console.log('[Database] Offline fallback active — returning graceful response');
     if (req.method === 'GET') {
       return res.json({
         success: true,

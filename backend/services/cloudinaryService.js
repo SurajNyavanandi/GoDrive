@@ -1,10 +1,16 @@
-const cloudinary = require('cloudinary').v2;
+let cloudinary;
+try {
+  cloudinary = require('cloudinary').v2;
+} catch {
+  cloudinary = null;
+}
 
 const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 const apiKey = process.env.CLOUDINARY_API_KEY;
 const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
 const isConfigured = Boolean(
+  cloudinary &&
   cloudName &&
   apiKey &&
   apiSecret &&
@@ -12,7 +18,7 @@ const isConfigured = Boolean(
   !apiKey.startsWith('xxx')
 );
 
-if (isConfigured) {
+if (isConfigured && cloudinary) {
   cloudinary.config({
     cloud_name: cloudName,
     api_key: apiKey,
