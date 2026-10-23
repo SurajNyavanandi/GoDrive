@@ -130,8 +130,8 @@ export default function App() {
         onOpenBookings={() => setIsBookingsSheetOpen(true)}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
+      {/* Main Content Area - Full width edge-to-edge for hero section */}
+      <main className="flex-1 w-full pt-0">
         {activeRole === 'customer' && (
           <CustomerView
             drivers={initialDrivers}

@@ -278,7 +278,7 @@ export default function DriverPortal({ onBackToHome }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-16">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-8 pb-16">
       {/* Driver Portal Navigation Bar */}
       <div className="flex items-center justify-between bg-white rounded-3xl p-4 sm:p-6 border border-neutral-200 shadow-xs">
         <div>
