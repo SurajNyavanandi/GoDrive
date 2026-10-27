@@ -10,7 +10,6 @@ import {
   Plus,
   X,
 } from 'lucide-react';
-import CustomerOtpVerificationModal from './CustomerOtpVerificationModal';
 import { fetchPublicDrivers } from '../utils/api';
 
 export default function CustomerView({
@@ -27,17 +26,8 @@ export default function CustomerView({
   const [searchQuery, setSearchQuery] = useState('');
   const [onlyAvailable, setOnlyAvailable] = useState(false);
 
-  // Verified Customer state (phone stored upon OTP verification)
-  const [verifiedCustomerPhone, setVerifiedCustomerPhone] = useState('');
-  const [otpModalOpen, setOtpModalOpen] = useState(false);
-  const [pendingActionDriver, setPendingActionDriver] = useState(null); // driver to contact/book after OTP
-  const [pendingActionType, setPendingActionType] = useState('contact'); // 'contact' | 'book'
-
   // FAQ Accordion State
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
-
-  // Direct Contact Driver Modal (for circular ↗ button after OTP verification)
-  const [contactDriverModal, setContactDriverModal] = useState(null);
 
   // Fetch live approved drivers from backend database on mount
   useEffect(() => {
@@ -82,30 +72,9 @@ export default function CustomerView({
       });
   }, [drivers, selectedDriverType, selectedLocality, onlyAvailable, searchQuery]);
 
-  // Handle "View Contact" or "Book Driver" button click with mandatory customer OTP check
-  const handleInitiateDriverAction = (driver, actionType) => {
-    if (!verifiedCustomerPhone) {
-      setPendingActionDriver(driver);
-      setPendingActionType(actionType);
-      setOtpModalOpen(true);
-    } else {
-      executeDriverAction(driver, actionType);
-    }
-  };
-
-  const handleOtpVerified = (phone) => {
-    setVerifiedCustomerPhone(phone);
-    if (pendingActionDriver) {
-      executeDriverAction(pendingActionDriver, pendingActionType);
-    }
-  };
-
-  const executeDriverAction = (driver, actionType) => {
-    if (actionType === 'book') {
-      onOpenBooking(driver);
-    } else {
-      setContactDriverModal(driver);
-    }
+  // Handle "Book Driver" or "Contact Driver" button click (directly opens booking modal)
+  const handleInitiateDriverAction = (driver) => {
+    onOpenBooking(driver);
   };
 
   const faqs = [
@@ -574,11 +543,31 @@ export default function CustomerView({
         </div>
 
         {/* Driver Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {filteredDrivers.map((driver) => {
-            const isPermanent = driver.driverType === 'permanent';
+        {filteredDrivers.length === 0 ? (
+          <div className="bg-white rounded-3xl p-8 sm:p-12 text-center border border-neutral-200/80 space-y-4 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-neutral-100 text-neutral-500 flex items-center justify-center mx-auto text-xl font-bold">
+              🚗
+            </div>
+            <h3 className="text-lg sm:text-xl font-bold text-neutral-950 font-sans">No Verified Drivers Available Yet</h3>
+            <p className="text-xs sm:text-sm text-neutral-500 max-w-md mx-auto">
+              Drivers must submit their Aadhaar ID and Driving License through the Driver Registration Portal to be verified by admin and go live on the homepage.
+            </p>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={onSwitchToDriver}
+                className="px-6 py-3 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-xs"
+              >
+                Register as a Driver
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            {filteredDrivers.map((driver) => {
+              const isPermanent = driver.driverType === 'permanent';
 
-            return (
+              return (
               <div
                 key={driver.id}
                 className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-7 border border-neutral-200/80 hover:border-neutral-400 hover:shadow-xl sm:hover:shadow-2xl hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all duration-300 shadow-xs flex flex-col justify-between space-y-4 sm:space-y-6 group"
@@ -679,6 +668,7 @@ export default function CustomerView({
             );
           })}
         </div>
+      )}
       </section>
 
       {/* SERVICES SECTION */}
@@ -732,16 +722,13 @@ export default function CustomerView({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {reviews.map((r, i) => (
-            <div key={i} className="p-6 bg-neutral-50 rounded-2xl space-y-4 flex flex-col justify-between">
+            <div key={i} className="p-6 bg-neutral-50 rounded-2xl space-y-4 flex flex-col justify-between border border-neutral-100">
               <p className="text-xs sm:text-sm text-neutral-700 leading-relaxed font-normal">
                 "{r.quote}"
               </p>
-              <div className="flex items-center gap-3 pt-2">
-                <img src={r.avatar} alt={r.author} className="w-10 h-10 rounded-full object-cover" />
-                <div>
-                  <div className="text-xs font-bold text-neutral-950">{r.author}</div>
-                  <div className="text-[11px] text-neutral-500">{r.title}</div>
-                </div>
+              <div className="pt-2 border-t border-neutral-200/60">
+                <div className="text-xs font-bold text-neutral-950">{r.author}</div>
+                <div className="text-[11px] text-neutral-500">{r.title}</div>
               </div>
             </div>
           ))}
@@ -791,71 +778,6 @@ export default function CustomerView({
         </div>
       </section>
       </div>
-
-      {/* CUSTOMER OTP VERIFICATION MODAL */}
-      <CustomerOtpVerificationModal
-        isOpen={otpModalOpen}
-        onClose={() => setOtpModalOpen(false)}
-        onVerified={handleOtpVerified}
-        driverName={pendingActionDriver?.name || 'Driver'}
-      />
-
-      {/* DIRECT CONTACT DRIVER MODAL (REVEALED AFTER OTP VERIFICATION) */}
-      {contactDriverModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-6 shadow-2xl border border-neutral-100 relative">
-            <button
-              type="button"
-              onClick={() => setContactDriverModal(null)}
-              className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-900 p-1 font-bold text-sm"
-            >
-              ✕
-            </button>
-
-            <div className="text-center space-y-3">
-              <img
-                src={contactDriverModal.photo}
-                alt={contactDriverModal.name}
-                className="w-16 h-16 rounded-2xl object-cover mx-auto bg-neutral-100 border"
-              />
-              <div>
-                <h3 className="text-xl font-bold text-neutral-950 font-sans">
-                  {contactDriverModal.name}
-                </h3>
-                <p className="text-xs text-neutral-500">{contactDriverModal.location}</p>
-              </div>
-              <div className="p-3 bg-neutral-50 rounded-2xl border border-neutral-200">
-                <span className="text-[10px] uppercase font-bold text-neutral-400 block">Verified Driver Phone</span>
-                <span className="text-base font-bold font-mono text-neutral-950">
-                  {contactDriverModal.phone || contactDriverModal.rawPhone}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <a
-                href={`tel:${contactDriverModal.rawPhone || contactDriverModal.phone.replace(/[^0-9]/g, '')}`}
-                className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold flex items-center justify-center gap-2"
-              >
-                <Phone className="w-4 h-4" />
-                <span>Call Driver Directly</span>
-              </a>
-
-              <a
-                href={`https://wa.me/${contactDriverModal.rawPhone || contactDriverModal.phone.replace(/[^0-9]/g, '')}?text=Hi%20${encodeURIComponent(
-                  contactDriverModal.name
-                )},%20I%20found%20your%20profile%20on%20Mana%20Drivers%20Hyderabad.`}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold flex items-center justify-center gap-2"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>Message on WhatsApp</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

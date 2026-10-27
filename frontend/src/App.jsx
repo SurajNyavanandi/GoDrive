@@ -6,40 +6,8 @@ import DriverPortal from './components/DriverPortal';
 import AdminPortal from './components/AdminPortal';
 import BookingModal from './components/BookingModal';
 import MyBookingsSheet from './components/MyBookingsSheet';
-import { initialDrivers } from './data/mockDrivers';
 import { Phone, Lock } from 'lucide-react';
-import { createBookingApi } from './utils/api';
-
-const DEFAULT_BOOKINGS = [
-  {
-    id: 'HYD-8902',
-    driverId: 'drv-01',
-    driverName: 'Ramesh Kumar',
-    vehicle: 'Manual & Automatic Cars',
-    date: '2026-10-12',
-    time: '10:00',
-    hours: 3,
-    pickupAddress: 'Hitec City, Cyber Towers Main Gate, Hyderabad',
-    totalCost: 540,
-    passengerNotes: 'Airport pickup at RGIA Shamshabad, terminal arrival.',
-    status: 'Confirmed',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'HYD-7411',
-    driverId: 'drv-03',
-    driverName: 'Shanker',
-    vehicle: 'Manual & Automatic Cars',
-    date: '2026-10-13',
-    time: '15:30',
-    hours: 4,
-    pickupAddress: 'Gachibowli, Financial District, Hyderabad',
-    totalCost: 800,
-    passengerNotes: 'Family shopping and dinner at Jubilee Hills.',
-    status: 'Confirmed',
-    createdAt: new Date().toISOString(),
-  },
-];
+import { fetchAdminBookingsApi, createBookingApi, fetchPublicDrivers } from './utils/api';
 
 export default function App() {
   // Active Role: 'customer' | 'driver' | 'admin'
@@ -47,28 +15,58 @@ export default function App() {
     return localStorage.getItem('godrive_role') || 'customer';
   });
 
-  // Bookings / Client Inquiries
-  const [bookings, setBookings] = useState(() => {
-    try {
-      const saved = localStorage.getItem('godrive_bookings');
-      return saved ? JSON.parse(saved) : DEFAULT_BOOKINGS;
-    } catch {
-      return DEFAULT_BOOKINGS;
-    }
-  });
-
-  // Modals
+  const [drivers, setDrivers] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [selectedDriverForBooking, setSelectedDriverForBooking] = useState(null);
   const [isBookingsSheetOpen, setIsBookingsSheetOpen] = useState(false);
+
+  // Load live dynamic drivers & bookings from backend database on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadLiveData() {
+      try {
+        const [driversData, bookingsRes] = await Promise.all([
+          fetchPublicDrivers(),
+          fetchAdminBookingsApi().catch(() => ({ data: [] })),
+        ]);
+        if (isMounted) {
+          if (Array.isArray(driversData) && driversData.length > 0) {
+            setDrivers(driversData);
+          }
+          if (bookingsRes && Array.isArray(bookingsRes.data)) {
+            setBookings(bookingsRes.data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load dynamic data from backend:', err);
+      }
+    }
+    loadLiveData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Global Keyboard Shortcut: Ctrl + Shift + S or Cmd + Shift + S to toggle Admin Console
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'S' || e.key === 's')) {
+        e.preventDefault();
+        setActiveRole((prev) => {
+          const next = prev === 'admin' ? 'customer' : 'admin';
+          toast.success(next === 'admin' ? 'Admin Console unlocked' : 'Switched to Customer View');
+          return next;
+        });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Sync role to localStorage
   useEffect(() => {
     localStorage.setItem('godrive_role', activeRole);
   }, [activeRole]);
-
-  useEffect(() => {
-    localStorage.setItem('godrive_bookings', JSON.stringify(bookings));
-  }, [bookings]);
 
   // Handlers
   const handleRoleChange = (role) => {
@@ -85,11 +83,13 @@ export default function App() {
   };
 
   const handleBookingConfirmed = async (newBooking) => {
-    setBookings((prev) => [newBooking, ...prev]);
     try {
-      await createBookingApi(newBooking);
+      const res = await createBookingApi(newBooking);
+      const savedBooking = res.booking || newBooking;
+      setBookings((prev) => [savedBooking, ...prev]);
     } catch (err) {
       console.error('Failed to save booking to backend:', err);
+      setBookings((prev) => [newBooking, ...prev]);
     }
   };
 
@@ -134,7 +134,7 @@ export default function App() {
       <main className="flex-1 w-full pt-0">
         {activeRole === 'customer' && (
           <CustomerView
-            drivers={initialDrivers}
+            drivers={drivers}
             onOpenBooking={handleOpenBooking}
             onSwitchToDriver={() => handleRoleChange('driver')}
           />
@@ -165,16 +165,6 @@ export default function App() {
             <a href="#pricing" className="hover:text-neutral-900 transition-colors">
               Pricing
             </a>
-            <button
-              type="button"
-              onClick={handleAdminLockClick}
-              onDoubleClick={handleAdminLockDoubleClick}
-              className="p-1 text-neutral-400 hover:text-neutral-700 transition-colors cursor-pointer rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-400"
-              title="Admin Console (Double-click to open)"
-              aria-label="Admin Console (Double-click to open)"
-            >
-              <Lock className="w-3.5 h-3.5" />
-            </button>
           </div>
 
           <div className="flex items-center gap-4 text-neutral-500">
