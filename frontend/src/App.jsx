@@ -6,7 +6,7 @@ import DriverPortal from './components/DriverPortal';
 import AdminPortal from './components/AdminPortal';
 import BookingModal from './components/BookingModal';
 import MyBookingsSheet from './components/MyBookingsSheet';
-import { Phone, Lock } from 'lucide-react';
+import { Phone } from 'lucide-react';
 import { fetchAdminBookingsApi, createBookingApi, fetchPublicDrivers } from './utils/api';
 
 export default function App() {
@@ -99,23 +99,6 @@ export default function App() {
   };
 
   const [floatingContactOpen, setFloatingContactOpen] = useState(false);
-  const [lastLockClickTime, setLastLockClickTime] = useState(0);
-
-  const handleAdminLockClick = () => {
-    const now = Date.now();
-    if (now - lastLockClickTime < 450) {
-      handleRoleChange('admin');
-      toast.success('Admin Console unlocked');
-      setLastLockClickTime(0);
-    } else {
-      setLastLockClickTime(now);
-    }
-  };
-
-  const handleAdminLockDoubleClick = () => {
-    handleRoleChange('admin');
-    toast.success('Admin Console unlocked');
-  };
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] text-[#111111] flex flex-col selection:bg-neutral-900 selection:text-white font-sans">

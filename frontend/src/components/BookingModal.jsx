@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Calendar, Clock, MapPin, Star, ArrowRight, Phone, MessageCircle } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, Star, Phone, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { validateAddress, validateIndianMobile } from '../utils/helpers';
 

@@ -6,7 +6,6 @@ const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
-const { createServer: createViteServer } = require('vite');
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '.env') });
@@ -109,12 +108,14 @@ async function startServer() {
       next();
     });
   } else {
-    // Development mode: Mount Vite dev server middleware
+    // Development mode: Dynamically load Vite dev server middleware
     try {
+      const { createServer: createViteServer } = require('vite');
       const vite = await createViteServer({
-        server: { middlewareMode: true, host: '0.0.0.0' },
+        server: { middlewareMode: true, host: '0.0.0.0', allowedHosts: 'all' },
         appType: 'spa',
         root: frontendDir,
+        configFile: path.resolve(frontendDir, 'vite.config.js'),
       });
       app.use(vite.middlewares);
     } catch (viteErr) {
