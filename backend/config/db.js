@@ -1,11 +1,12 @@
 const mongoose = require('mongoose');
+const env = require('./env');
 
 /**
  * Connect to MongoDB database instance with graceful in-memory fallback.
  */
 const connectDB = async () => {
   mongoose.set('bufferCommands', false);
-  const rawUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+  const rawUri = process.env.MONGO_URI || process.env.MONGODB_URI || env.MONGO_URI;
   if (!rawUri) {
     console.log('[Database] Running in local in-memory & JSON storage mode');
     return false;

@@ -23,7 +23,7 @@ const protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || 'jwt_secret_dev_2026'
+      process.env.JWT_SECRET || 'your_jwt_secret'
     );
 
     const isDbConnected = mongoose.connection.readyState === 1;

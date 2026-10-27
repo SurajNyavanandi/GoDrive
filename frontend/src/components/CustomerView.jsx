@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Search,
   MapPin,
@@ -8,16 +8,11 @@ import {
   Plus,
   X,
 } from 'lucide-react';
-import { fetchPublicDrivers } from '../utils/api';
-
 export default function CustomerView({
-  drivers: initialDriversProp,
+  drivers = [],
   onOpenBooking,
   onSwitchToDriver,
 }) {
-  // Live Drivers state from backend API
-  const [drivers, setDrivers] = useState(initialDriversProp || []);
-
   // Driver Type filter: 'all' | 'freelance' | 'permanent'
   const [selectedDriverType, setSelectedDriverType] = useState('all');
   const [selectedLocality] = useState('All');
@@ -26,25 +21,6 @@ export default function CustomerView({
 
   // FAQ Accordion State
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
-
-  // Fetch live approved drivers from backend database on mount
-  useEffect(() => {
-    let isMounted = true;
-    async function loadBackendDrivers() {
-      try {
-        const liveData = await fetchPublicDrivers();
-        if (isMounted && liveData && liveData.length > 0) {
-          setDrivers(liveData);
-        }
-      } catch (err) {
-        console.error('Error fetching live drivers:', err);
-      }
-    }
-    loadBackendDrivers();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   // Filtered drivers based on driverType, locality, availability, and search query
   const filteredDrivers = useMemo(() => {
@@ -395,28 +371,34 @@ export default function CustomerView({
             </div>
 
             {/* Drivers Avatars Badge */}
-            <div className="flex flex-wrap items-center gap-3 p-3.5 bg-neutral-50 rounded-2xl border border-neutral-200/80">
-              <div className="flex -space-x-2.5 overflow-hidden shrink-0">
-                <img
-                  src="https://res.cloudinary.com/dfr0zghtc/image/upload/v1791975206/rider_tirlg3.jpg"
-                  alt="Driver Ramesh"
-                  className="inline-block h-9 w-9 rounded-full ring-2 ring-white object-cover"
-                />
-                <img
-                  src="https://res.cloudinary.com/dfr0zghtc/image/upload/v1791976161/rider2_hdanc9.png"
-                  alt="Driver Shanker"
-                  className="inline-block h-9 w-9 rounded-full ring-2 ring-white object-cover"
-                />
-                <img
-                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=120&q=80"
-                  alt="Driver Sunitha"
-                  className="inline-block h-9 w-9 rounded-full ring-2 ring-white object-cover"
-                />
+            {drivers.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-3 p-3.5 bg-neutral-50 rounded-2xl border border-neutral-200/80">
+                <div className="flex -space-x-2.5 overflow-hidden shrink-0">
+                  {drivers.slice(0, 3).map((d) => (
+                    <img
+                      key={d.id}
+                      src={d.photo || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80'}
+                      alt={d.name}
+                      className="inline-block h-9 w-9 rounded-full ring-2 ring-white object-cover"
+                    />
+                  ))}
+                </div>
+                <div className="text-xs font-medium text-neutral-700">
+                  {drivers.slice(0, 3).map((d, idx) => (
+                    <span key={d.id}>
+                      <span className="font-bold text-neutral-950">{d.name}</span>
+                      {idx < Math.min(drivers.length, 3) - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+                  {drivers.length > 3 && <span className="ml-1 text-neutral-500">+{drivers.length - 3} more</span>}
+                </div>
               </div>
-              <div className="text-xs font-medium text-neutral-700">
-                <span className="font-bold text-neutral-950">Driver Ramesh</span>, <span className="font-bold text-neutral-950">Driver Shanker</span>, <span className="font-bold text-neutral-950">Driver Sunitha</span>
+            ) : (
+              <div className="flex items-center gap-3 p-3.5 bg-neutral-50 rounded-2xl border border-neutral-200/80 text-xs font-medium text-neutral-700">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span>Real-Time Directory · Approved verified drivers appear live here instantly</span>
               </div>
-            </div>
+            )}
 
             {/* Feature Highlights */}
             <ul className="space-y-3 text-xs sm:text-sm text-neutral-800 font-medium">

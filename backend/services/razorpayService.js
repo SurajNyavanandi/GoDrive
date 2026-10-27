@@ -6,8 +6,10 @@ try {
 }
 const crypto = require('crypto');
 
-const keyId = process.env.RAZORPAY_KEY_ID;
-const keySecret = process.env.RAZORPAY_KEY_SECRET;
+const env = require('../config/env');
+
+const keyId = process.env.RAZORPAY_KEY_ID || env.RAZORPAY_KEY_ID;
+const keySecret = process.env.RAZORPAY_KEY_SECRET || env.RAZORPAY_KEY_SECRET;
 
 const isConfigured = keyId && keySecret && !keyId.startsWith('rzp_test_xxx') && keyId !== 'your_razorpay_key_id';
 

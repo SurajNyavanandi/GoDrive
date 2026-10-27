@@ -1,5 +1,4 @@
 import logger from './logger';
-import { initialDrivers } from '../data/mockDrivers';
 
 const rawApiUrl = import.meta.env.VITE_API_URL || '/api';
 const API_BASE = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`;
@@ -32,10 +31,10 @@ async function safeFetch(endpoint, options = {}) {
 
 export async function fetchPublicDrivers() {
   const json = await safeFetch('/drivers');
-  if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
+  if (json && json.success && Array.isArray(json.data)) {
     return json.data;
   }
-  return initialDrivers;
+  return [];
 }
 
 export async function loginDriverApi(phone, otp) {
@@ -46,12 +45,6 @@ export async function loginDriverApi(phone, otp) {
   });
   if (json) return json;
 
-  // Fallback local mock login
-  const cleanPhone = String(phone).replace(/\D/g, '');
-  const match = initialDrivers.find((d) => d.rawPhone === cleanPhone || d.phone.includes(cleanPhone));
-  if (match) {
-    return { success: true, driver: match, message: 'Driver login successful (offline mode)' };
-  }
   return { success: false, message: 'Driver mobile number is not registered. Please register as a new driver.' };
 }
 
@@ -137,7 +130,7 @@ export async function createBookingApi(bookingData) {
 export async function fetchAdminDriversApi() {
   const json = await safeFetch('/admin/drivers');
   if (json && Array.isArray(json.data)) return json;
-  return { success: true, data: initialDrivers };
+  return { success: true, data: [] };
 }
 
 export async function approveDriverApi(id) {

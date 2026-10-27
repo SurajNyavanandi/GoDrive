@@ -30,7 +30,7 @@ export default function App() {
           fetchAdminBookingsApi().catch(() => ({ data: [] })),
         ]);
         if (isMounted) {
-          if (Array.isArray(driversData) && driversData.length > 0) {
+          if (Array.isArray(driversData)) {
             setDrivers(driversData);
           }
           if (bookingsRes && Array.isArray(bookingsRes.data)) {
@@ -45,7 +45,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [activeRole]);
 
   // Global Keyboard Shortcut: Ctrl + Shift + S or Cmd + Shift + S to toggle Admin Console
   useEffect(() => {

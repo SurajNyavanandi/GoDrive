@@ -5,8 +5,10 @@ try {
   Resend = null;
 }
 
-const apiKey = process.env.RESEND_API_KEY;
-const defaultFromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+const env = require('../config/env');
+
+const apiKey = process.env.RESEND_API_KEY || env.RESEND_API_KEY;
+const defaultFromEmail = process.env.RESEND_FROM_EMAIL || env.RESEND_FROM_EMAIL;
 
 // Initialize Resend SDK instance if valid API key is present
 const resendClient = apiKey && !apiKey.startsWith('re_xxx') && Resend ? new Resend(apiKey) : null;

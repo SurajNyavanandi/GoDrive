@@ -110,7 +110,7 @@ async function startServer() {
   } else {
     // Development mode: Dynamically load Vite dev server middleware
     try {
-      const { createServer: createViteServer } = require('vite');
+      const { createServer: createViteServer } = await import('vite');
       const vite = await createViteServer({
         server: { middlewareMode: true, host: '0.0.0.0', allowedHosts: 'all' },
         appType: 'spa',
@@ -118,6 +118,23 @@ async function startServer() {
         configFile: path.resolve(frontendDir, 'vite.config.js'),
       });
       app.use(vite.middlewares);
+
+      // SPA fallback for HTML navigation in development mode
+      app.use(async (req, res, next) => {
+        if (req.method === 'GET' && !req.path.startsWith('/api')) {
+          try {
+            const indexHtmlPath = path.resolve(frontendDir, 'index.html');
+            if (fs.existsSync(indexHtmlPath)) {
+              let template = fs.readFileSync(indexHtmlPath, 'utf-8');
+              template = await vite.transformIndexHtml(req.originalUrl, template);
+              return res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+            }
+          } catch (e) {
+            return next(e);
+          }
+        }
+        next();
+      });
     } catch (viteErr) {
       console.warn('Vite dev middleware initialization failed, falling back to static files:', viteErr.message);
       if (fs.existsSync(distPath)) {

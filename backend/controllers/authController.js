@@ -36,7 +36,7 @@ const register = asyncHandler(async (req, res) => {
 
     const token = jwt.sign(
       { id: mockUser._id, email: mockUser.email, role: mockUser.role },
-      process.env.JWT_SECRET || 'jwt_secret_dev_2026',
+      process.env.JWT_SECRET || 'your_jwt_secret',
       { expiresIn: '30d' }
     );
 
@@ -112,7 +112,7 @@ const login = asyncHandler(async (req, res) => {
 
     const token = jwt.sign(
       { id: existing._id, email: existing.email, role: existing.role },
-      process.env.JWT_SECRET || 'jwt_secret_dev_2026',
+      process.env.JWT_SECRET || 'your_jwt_secret',
       { expiresIn: '30d' }
     );
 
