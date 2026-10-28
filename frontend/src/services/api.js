@@ -4,7 +4,10 @@ import axios from 'axios';
  * Pre-configured Axios instance for full-stack API requests
  */
 const rawApiUrl = import.meta.env.VITE_API_URL || '/api';
-const baseURL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`;
+const isLegacyUrl = rawApiUrl.includes('onrender.com') || rawApiUrl.includes('godrive');
+const baseURL = isLegacyUrl || !rawApiUrl || rawApiUrl === '/api'
+  ? '/api'
+  : (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`);
 
 const api = axios.create({
   baseURL,

@@ -1,29 +1,43 @@
 import logger from './logger';
 
-const rawApiUrl = import.meta.env.VITE_API_URL || '/api';
-const API_BASE = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`;
+const RENDER_BACKEND = 'https://godrive-293l.onrender.com';
+const envApiUrl = import.meta.env.VITE_API_URL;
+const PRIMARY_API = envApiUrl || RENDER_BACKEND;
+const PRIMARY_BASE = PRIMARY_API.endsWith('/api') ? PRIMARY_API : `${PRIMARY_API.replace(/\/$/, '')}/api`;
 
 async function safeFetch(endpoint, options = {}) {
-  const url = `${API_BASE}${endpoint}`;
+  // 1. Try Primary Render API with /api prefix (e.g. https://godrive-293l.onrender.com/api/drivers)
   try {
+    const url = `${PRIMARY_BASE}${endpoint}`;
     const res = await fetch(url, options);
     if (res.ok) {
       return await res.json();
     }
   } catch (err) {
-    logger.error(`API fetch failed for ${url}:`, err);
+    logger.warn(`Primary API request failed for ${PRIMARY_BASE}${endpoint}:`, err);
   }
 
-  // Fallback to relative local Express server if primary external API failed
-  if (API_BASE !== '/api') {
+  // 2. Try Render API without /api prefix (e.g. https://godrive-293l.onrender.com/drivers)
+  if (PRIMARY_API.includes('onrender.com')) {
     try {
-      const localRes = await fetch(`/api${endpoint}`, options);
-      if (localRes.ok) {
-        return await localRes.json();
+      const directUrl = `${PRIMARY_API.replace(/\/$/, '')}${endpoint}`;
+      const directRes = await fetch(directUrl, options);
+      if (directRes.ok) {
+        return await directRes.json();
       }
     } catch {
-      // Ignore local fallback error
+      // Ignore
     }
+  }
+
+  // 3. Fallback to same-origin relative Express server (/api/drivers)
+  try {
+    const localRes = await fetch(`/api${endpoint}`, options);
+    if (localRes.ok) {
+      return await localRes.json();
+    }
+  } catch {
+    // Ignore local fallback error
   }
 
   return null;
