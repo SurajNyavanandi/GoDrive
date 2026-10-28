@@ -110,7 +110,16 @@ async function startServer() {
   } else {
     // Development mode: Dynamically load Vite dev server middleware
     try {
-      const { createServer: createViteServer } = await import('vite');
+      let viteModule;
+      try {
+        viteModule = await import('vite');
+      } catch (_importErr) {
+        const vitePath = require.resolve('vite', {
+          paths: [frontendDir, path.resolve(__dirname, '..'), __dirname],
+        });
+        viteModule = await import(vitePath);
+      }
+      const { createServer: createViteServer } = viteModule;
       const vite = await createViteServer({
         server: { middlewareMode: true, host: '0.0.0.0', allowedHosts: 'all' },
         appType: 'spa',

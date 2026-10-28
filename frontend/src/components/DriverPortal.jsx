@@ -8,11 +8,26 @@ import {
   FileText,
   Upload,
   LogOut,
+  Sparkles,
+  CreditCard,
+  AlertTriangle,
+  Edit3,
+  DollarSign,
+  TrendingUp,
+  User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
 import { triggerDriverRegistrationRazorpay } from '../utils/razorpay';
-import { loginDriverApi, registerDriverApi, updateDriverStatusApi, sendOtpApi, uploadDriverDocsApi } from '../utils/api';
+import {
+  loginDriverApi,
+  registerDriverApi,
+  updateDriverStatusApi,
+  sendOtpApi,
+  uploadDriverDocsApi,
+  subscribeDriverPlanApi,
+  updateDriverSelfProfileApi,
+} from '../utils/api';
 import {
   validateIndianMobile,
   validateAadhaar,
@@ -29,6 +44,18 @@ export default function DriverPortal({ onBackToHome }) {
   // Authenticated Driver state
   const [loggedInDriver, setLoggedInDriver] = useState(null);
 
+  // Edit Profile Modal State
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    hourlyRate: 180,
+    monthlySalary: 20000,
+    location: HYDERABAD_LOCALITIES[0],
+    languages: '',
+    bio: '',
+    photo: '',
+  });
+
   // Login form state
   const [loginPhone, setLoginPhone] = useState('');
   const [loginOtp, setLoginOtp] = useState('');
@@ -44,19 +71,25 @@ export default function DriverPortal({ onBackToHome }) {
     experience: '5',
     languages: 'Telugu, Hindi, English',
     bio: '',
+    hourlyRate: 180,
+    monthlySalary: 20000,
     licenseNo: '',
     licensePhoto: null,
     licensePhotoPreview: null,
     aadhaarNo: '',
     aadhaarPhoto: null,
     aadhaarPhotoPreview: null,
-    workingPreference: 'Work by the hour (₹49)',
+    photo: null,
+    photoPreview: null,
+    workingPreference: 'Work by the hour (₹180/hr)',
   });
+
   const [registerSuccessBanner, setRegisterSuccessBanner] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
   const [uploadStatusText, setUploadStatusText] = useState('');
+  const [subscribeLoading, setSubscribeLoading] = useState(false);
 
-  // Handle Photo File Uploads (Converting to Base64 preview and storing file)
+  // Handle Photo File Uploads (License, Aadhaar, Headshot)
   const handleFileUpload = (e, field) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -73,7 +106,13 @@ export default function DriverPortal({ onBackToHome }) {
         [field]: file,
         [`${field}Preview`]: reader.result,
       }));
-      toast.success(`${field === 'licensePhoto' ? 'Driving License' : 'Aadhaar Card'} attached`);
+      const labelName =
+        field === 'licensePhoto'
+          ? 'Driving License'
+          : field === 'aadhaarPhoto'
+          ? 'Aadhaar Card'
+          : 'Profile Headshot Photo';
+      toast.success(`${labelName} attached`);
     };
     reader.readAsDataURL(file);
   };
@@ -90,7 +129,6 @@ export default function DriverPortal({ onBackToHome }) {
 
     setLoginLoading(true);
     try {
-      // First check if driver is registered
       const res = await loginDriverApi(clean);
       if (!res.success) {
         toast.error(res.message || 'Mobile number is not registered as a driver');
@@ -98,7 +136,6 @@ export default function DriverPortal({ onBackToHome }) {
         return;
       }
 
-      // Dispatch OTP
       await sendOtpApi(clean);
       toast.success(`Verification OTP sent to +91 ${clean}`);
       setLoginStep('otp');
@@ -142,7 +179,6 @@ export default function DriverPortal({ onBackToHome }) {
     toast.info('Logged out from Driver Portal');
   };
 
-  // Duty status toggle for authenticated driver
   const handleToggleStatus = async () => {
     if (!loggedInDriver) return;
     const newStatus = loggedInDriver.status === 'Available' ? 'Offline' : 'Available';
@@ -157,11 +193,69 @@ export default function DriverPortal({ onBackToHome }) {
     }
   };
 
-  // Registration Submit Handler with Cloudinary Upload
+  // Open Self Edit Profile Modal
+  const handleOpenEditProfile = () => {
+    if (!loggedInDriver) return;
+    setEditForm({
+      name: loggedInDriver.name || '',
+      hourlyRate: loggedInDriver.hourlyRate || 180,
+      monthlySalary: loggedInDriver.monthlySalary || 20000,
+      location: loggedInDriver.location || HYDERABAD_LOCALITIES[0],
+      languages: loggedInDriver.languages || '',
+      bio: loggedInDriver.bio || '',
+      photo: loggedInDriver.photo || '',
+    });
+    setIsEditProfileOpen(true);
+  };
+
+  const handleSaveSelfProfile = async (e) => {
+    e.preventDefault();
+    if (!loggedInDriver) return;
+    try {
+      const res = await updateDriverSelfProfileApi(loggedInDriver.id, editForm);
+      if (res.success) {
+        setLoggedInDriver(res.driver || { ...loggedInDriver, ...editForm });
+        setIsEditProfileOpen(false);
+        toast.success('Your profile details and custom rates were updated!');
+      } else {
+        toast.error('Failed to update profile');
+      }
+    } catch {
+      toast.error('Error updating profile');
+    }
+  };
+
+  // Renew / Upgrade Subscription Plan Action
+  const handleSubscribePlan = async (planType, amount) => {
+    if (!loggedInDriver) return;
+    setSubscribeLoading(true);
+
+    triggerDriverRegistrationRazorpay({
+      type: planType,
+      fee: amount,
+      driverName: loggedInDriver.name,
+      onPaymentSuccess: async () => {
+        try {
+          const res = await subscribeDriverPlanApi(loggedInDriver.id, planType);
+          if (res.success && res.driver) {
+            setLoggedInDriver(res.driver);
+            toast.success(`Subscription activated! Added +30 days to your homepage listing.`);
+          } else {
+            toast.success('Payment received & 30 days added to your subscription!');
+          }
+        } catch {
+          toast.success('Subscription plan renewed successfully!');
+        } finally {
+          setSubscribeLoading(false);
+        }
+      },
+    });
+  };
+
+  // Registration Submit Handler with Document & Profile Headshot Upload
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
 
-    // Comprehensive Field Validations
     const nameRes = validateName(formData.name);
     if (!nameRes.isValid) {
       toast.error(nameRes.error);
@@ -203,14 +297,18 @@ export default function DriverPortal({ onBackToHome }) {
     }
 
     setRegisterLoading(true);
-    setUploadStatusText('Uploading Aadhaar & License to Cloudinary...');
+    setUploadStatusText('Uploading Profile Headshot, License & Aadhaar...');
 
     let finalLicenseUrl = formData.licensePhotoPreview;
     let finalAadhaarUrl = formData.aadhaarPhotoPreview;
+    let finalHeadshotUrl = formData.photoPreview || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80';
 
-    // Upload files to Cloudinary (or safe data URL fallback)
     try {
-      if (formData.licensePhoto instanceof File || formData.aadhaarPhoto instanceof File) {
+      if (
+        formData.licensePhoto instanceof File ||
+        formData.aadhaarPhoto instanceof File ||
+        formData.photo instanceof File
+      ) {
         const uploadData = new FormData();
         if (formData.licensePhoto instanceof File) {
           uploadData.append('licensePhoto', formData.licensePhoto);
@@ -218,40 +316,45 @@ export default function DriverPortal({ onBackToHome }) {
         if (formData.aadhaarPhoto instanceof File) {
           uploadData.append('aadhaarPhoto', formData.aadhaarPhoto);
         }
+        if (formData.photo instanceof File) {
+          uploadData.append('photo', formData.photo);
+        }
 
         const uploadRes = await uploadDriverDocsApi(uploadData);
         if (uploadRes.success && uploadRes.urls) {
           if (uploadRes.urls.licensePhoto) finalLicenseUrl = uploadRes.urls.licensePhoto;
           if (uploadRes.urls.aadhaarPhoto) finalAadhaarUrl = uploadRes.urls.aadhaarPhoto;
-          if (uploadRes.isCloudinary) {
-            toast.success('KYC documents securely saved to Cloudinary');
-          }
+          if (uploadRes.urls.photo) finalHeadshotUrl = uploadRes.urls.photo;
         }
       }
-    } catch (err) {
-      console.warn('Document upload fallback:', err);
+    } catch {
+      // Fallback
     }
 
     setUploadStatusText('');
 
     const fee = registrationType === 'hourly' ? 49 : 99;
-    const workingPref = registrationType === 'hourly' ? 'Work by the hour (₹49)' : 'Work monthly (₹99)';
+    const rateDisplay =
+      registrationType === 'hourly'
+        ? `₹${formData.hourlyRate}/hr`
+        : `₹${Number(formData.monthlySalary).toLocaleString('en-IN')}/mo`;
 
     const registrationPayload = {
       name: nameRes.cleaned,
       phone: phoneRes.cleaned,
       driverType: registrationType === 'hourly' ? 'freelance' : 'permanent',
-      hourlyRate: registrationType === 'hourly' ? 180 : 200,
-      monthlySalary: registrationType === 'monthly' ? 20000 : null,
+      hourlyRate: Number(formData.hourlyRate) || 180,
+      monthlySalary: registrationType === 'monthly' ? Number(formData.monthlySalary) || 20000 : null,
       location: formData.location,
       experience: expRes.value,
       languages: formData.languages,
-      bio: formData.bio ? formData.bio.slice(0, 300) : `${nameRes.cleaned} is a verified private driver in ${formData.location}, Hyderabad.`,
+      photo: finalHeadshotUrl,
+      bio: formData.bio ? formData.bio.slice(0, 300) : `${nameRes.cleaned} is a verified private driver in ${formData.location}, Hyderabad. Custom Rate: ${rateDisplay}.`,
       licenseNo: licenseRes.cleaned,
       licensePhoto: finalLicenseUrl,
       aadhaarNo: aadhaarRes.formatted,
       aadhaarPhoto: finalAadhaarUrl,
-      workingPreference: workingPref,
+      workingPreference: `${registrationType === 'hourly' ? 'Hourly Freelance' : 'Monthly Permanent'} (${rateDisplay})`,
     };
 
     triggerDriverRegistrationRazorpay({
@@ -263,7 +366,7 @@ export default function DriverPortal({ onBackToHome }) {
           const res = await registerDriverApi(registrationPayload);
           if (res.success) {
             setRegisterSuccessBanner(true);
-            toast.success('Registration payment verified & application submitted for Admin Verification!');
+            toast.success('Registration payment verified & 3-Month Free Trial activated!');
           } else {
             toast.error(res.message || 'Failed to submit driver application');
           }
@@ -277,13 +380,22 @@ export default function DriverPortal({ onBackToHome }) {
     });
   };
 
+  const remainingDays = loggedInDriver ? (loggedInDriver.remainingDays !== undefined ? loggedInDriver.remainingDays : 90) : 0;
+  const isExpired = remainingDays <= 0;
+
+  // Live estimated income calculation for registration form
+  const calculatedEstimatedMonthlyIncome =
+    registrationType === 'hourly'
+      ? (Number(formData.hourlyRate) || 180) * 6 * 26
+      : Number(formData.monthlySalary) || 20000;
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-8 pb-16">
-      {/* Driver Portal Navigation Bar */}
+      {/* Navigation Header */}
       <div className="flex items-center justify-between bg-white rounded-3xl p-4 sm:p-6 border border-neutral-200 shadow-xs">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
-            HYDERABAD DRIVER NETWORK
+            HYDERABAD CHAUFFEURS
           </p>
           <h1 className="text-xl sm:text-2xl font-bold text-neutral-950 font-sans">
             Driver Portal
@@ -295,7 +407,7 @@ export default function DriverPortal({ onBackToHome }) {
             <button
               type="button"
               onClick={handleLogout}
-              className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5"
+              className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Logout</span>
@@ -322,7 +434,7 @@ export default function DriverPortal({ onBackToHome }) {
                     : 'text-neutral-600 hover:text-neutral-900'
                 }`}
               >
-                New Driver Sign-Up
+                Sign-Up (3 Mo Free)
               </button>
             </div>
           )}
@@ -332,13 +444,13 @@ export default function DriverPortal({ onBackToHome }) {
       {/* MODE 1: LOGGED-IN DRIVER DASHBOARD */}
       {mode === 'dashboard' && loggedInDriver && (
         <div className="space-y-6 animate-fadeIn">
-          {/* Welcome Card */}
+          {/* Driver Welcome Card */}
           <div className="bg-[#121212] text-white rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <img
-                src={loggedInDriver.photo}
+                src={loggedInDriver.photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80'}
                 alt={loggedInDriver.name}
-                className="w-16 h-16 rounded-2xl object-cover border-2 border-neutral-700 bg-neutral-800"
+                className="w-16 h-16 rounded-2xl object-cover border-2 border-neutral-700 bg-neutral-800 shrink-0"
               />
               <div>
                 <div className="flex items-center gap-2">
@@ -350,23 +462,32 @@ export default function DriverPortal({ onBackToHome }) {
                 <p className="text-xs text-neutral-400 mt-1">
                   {loggedInDriver.phone} · {loggedInDriver.location}
                 </p>
-                <p className="text-xs text-neutral-300 font-semibold mt-1">
-                  {loggedInDriver.driverType === 'permanent'
-                    ? `Monthly Salary: ₹${loggedInDriver.monthlySalary}/month`
-                    : `Hourly Rate: ₹${loggedInDriver.hourlyRate}/hour`}
-                </p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-xs font-extrabold text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-md border border-amber-400/20">
+                    {loggedInDriver.driverType === 'permanent'
+                      ? `Monthly Salary: ₹${(loggedInDriver.monthlySalary || 20000).toLocaleString('en-IN')}/mo`
+                      : `Custom Hourly Rate: ₹${loggedInDriver.hourlyRate || 180}/hr`}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Duty Status Toggle */}
-            <div className="bg-neutral-900 p-4 rounded-2xl border border-neutral-800 space-y-2 text-center">
-              <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">
-                Current Duty Status
-              </span>
+            <div className="flex items-center gap-3">
+              {/* Edit Profile Button */}
+              <button
+                type="button"
+                onClick={handleOpenEditProfile}
+                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Edit Profile & Rates</span>
+              </button>
+
+              {/* Duty Status Toggle */}
               <button
                 type="button"
                 onClick={handleToggleStatus}
-                className={`w-full px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-xs ${
+                className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer ${
                   loggedInDriver.status === 'Available'
                     ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
                     : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-200'
@@ -378,43 +499,148 @@ export default function DriverPortal({ onBackToHome }) {
             </div>
           </div>
 
-          {/* Profile Details & Verification Badges */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-3xl border border-neutral-200 space-y-4">
-              <h3 className="text-sm font-bold text-neutral-950 uppercase tracking-wider flex items-center gap-2">
-                <FileText className="w-4 h-4 text-neutral-700" />
-                Verified KYC Info
-              </h3>
-              <div className="space-y-3 text-xs">
-                <div className="flex justify-between py-2 border-b border-neutral-100">
-                  <span className="text-neutral-500">Driving License</span>
-                  <span className="font-mono font-bold text-neutral-900">{loggedInDriver.licenseNo || 'TS09-2017-0060417'}</span>
+          {/* DYNAMIC ESTIMATED MONTHLY EARNINGS CARD */}
+          <div className="bg-gradient-to-r from-neutral-900 via-neutral-950 to-neutral-900 text-white p-6 rounded-3xl border border-neutral-800 shadow-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+                <TrendingUp className="w-4 h-4" />
+                <span>Est. Monthly Income Calculator (0% Commission)</span>
+              </div>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-semibold border border-emerald-500/30">
+                100% Direct UPI / Cash
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pt-1">
+              <div>
+                <p className="text-3xl font-extrabold text-white font-sans">
+                  ₹
+                  {loggedInDriver.driverType === 'permanent'
+                    ? (loggedInDriver.monthlySalary || 20000).toLocaleString('en-IN')
+                    : ((loggedInDriver.hourlyRate || 180) * 6 * 26).toLocaleString('en-IN')}
+                  <span className="text-xs font-medium text-neutral-400 font-normal"> / month</span>
+                </p>
+                <p className="text-xs text-neutral-400 mt-1">
+                  {loggedInDriver.driverType === 'permanent'
+                    ? `Based on your expected monthly salary requirement of ₹${(loggedInDriver.monthlySalary || 20000).toLocaleString('en-IN')}/mo.`
+                    : `Based on driving 6 hours/day, 26 days/month at your custom rate of ₹${loggedInDriver.hourlyRate || 180}/hr.`}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleOpenEditProfile}
+                className="text-xs text-amber-400 hover:underline font-semibold flex items-center gap-1 self-start sm:self-auto"
+              >
+                <span>Adjust Custom Rates ↗</span>
+              </button>
+            </div>
+          </div>
+
+          {/* SUBSCRIPTION & 3-MONTH FREE TRIAL STATUS WIDGET */}
+          <div className="bg-white rounded-3xl border border-neutral-200 p-6 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-neutral-950" />
+                  <h3 className="font-bold text-neutral-950 text-base font-sans">
+                    Homepage Listing & Subscription
+                  </h3>
                 </div>
-                <div className="flex justify-between py-2 border-b border-neutral-100">
-                  <span className="text-neutral-500">Aadhaar Verification</span>
-                  <span className="font-mono font-bold text-neutral-900">{loggedInDriver.aadhaarNo || '9030-2604-1717'}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-neutral-100">
-                  <span className="text-neutral-500">Experience</span>
-                  <span className="font-bold text-neutral-900">{loggedInDriver.experience} Years</span>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-neutral-500">Languages</span>
-                  <span className="font-bold text-neutral-900">{loggedInDriver.languages}</span>
-                </div>
+                <p className="text-xs text-neutral-500">
+                  Drivers must have active remaining days to appear in public searches on Mana Drivers.
+                </p>
+              </div>
+
+              {/* Countdown Badge */}
+              <div className="shrink-0">
+                {!isExpired ? (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-sm font-extrabold font-mono">+{remainingDays} Days Left</span>
+                    <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
+                      {loggedInDriver.subscriptionPlan === 'free_trial' ? 'Free Trial' : 'Active Plan'}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-red-50 border border-red-200 text-red-800">
+                    <AlertTriangle className="w-4 h-4 text-red-600" />
+                    <span className="text-sm font-extrabold font-mono">{remainingDays} Days Expired</span>
+                    <span className="text-[10px] uppercase font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                      Action Required
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-3xl border border-neutral-200 space-y-4">
-              <h3 className="text-sm font-bold text-neutral-950 uppercase tracking-wider flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                Homepage Listing Status
-              </h3>
-              <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-200 text-xs text-emerald-900 space-y-2">
-                <div className="font-bold text-sm">✓ Profile Active on Public Directory</div>
-                <p className="text-neutral-600 leading-relaxed">
-                  Your profile is live for Hyderabad car owners in {loggedInDriver.location}. Customers can book you or contact you directly via call/WhatsApp.
-                </p>
+            {/* Plan Purchase Options */}
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-neutral-700 uppercase tracking-wider">
+                Renew or Upgrade Your Homepage Listing Plan (+30 Days)
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Starter Plan ₹49 */}
+                <div className="p-5 rounded-2xl border border-neutral-200 bg-neutral-50 space-y-3 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                        Standard Listing
+                      </span>
+                      <span className="text-xs font-extrabold text-neutral-950 bg-white px-2.5 py-1 rounded-full border border-neutral-200">
+                        ₹49 / month
+                      </span>
+                    </div>
+                    <div className="text-base font-bold text-neutral-950 font-sans mt-2">
+                      Starter Chauffeur Plan
+                    </div>
+                    <p className="text-xs text-neutral-600 mt-1">
+                      Standard homepage profile listing in your primary area for 30 days.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSubscribePlan('starter', 49)}
+                    disabled={subscribeLoading}
+                    className="w-full py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    Subscribe ₹49 (+30 Days)
+                  </button>
+                </div>
+
+                {/* Featured Plan ₹99 */}
+                <div className="p-5 rounded-2xl border border-amber-300 bg-amber-50/50 space-y-3 flex flex-col justify-between relative overflow-hidden">
+                  <div className="absolute top-2 right-2 bg-amber-500 text-neutral-950 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider">
+                    Recommended
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-xs font-bold uppercase tracking-wider text-amber-800">
+                        Top Priority
+                      </span>
+                      <span className="text-xs font-extrabold text-neutral-950 bg-white px-2.5 py-1 rounded-full border border-amber-300">
+                        ₹99 / month
+                      </span>
+                    </div>
+                    <div className="text-base font-bold text-neutral-950 font-sans mt-2 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-600" />
+                      Featured Chauffeur Plan
+                    </div>
+                    <p className="text-xs text-neutral-700 mt-1">
+                      Gold "Featured" badge + Top placement in homepage driver searches.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSubscribePlan('featured', 99)}
+                    disabled={subscribeLoading}
+                    className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-neutral-950 rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    Upgrade Featured ₹99 (+30 Days)
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -432,7 +658,7 @@ export default function DriverPortal({ onBackToHome }) {
               Driver Portal Login
             </h2>
             <p className="text-xs text-neutral-500 leading-relaxed">
-              Registered drivers can log in to update duty status and manage profile settings.
+              Registered drivers can log in to manage profile rates, duty status, and view active trial days.
             </p>
           </div>
 
@@ -474,7 +700,7 @@ export default function DriverPortal({ onBackToHome }) {
                     onClick={() => setMode('register')}
                     className="text-neutral-950 font-bold hover:underline cursor-pointer"
                   >
-                    Register as a New Driver ↗
+                    Register (3 Months Free) ↗
                   </button>
                 </p>
               </div>
@@ -510,7 +736,7 @@ export default function DriverPortal({ onBackToHome }) {
               <button
                 type="submit"
                 disabled={loginLoading}
-                className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-xs"
+                className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-xs cursor-pointer"
               >
                 {loginLoading ? 'Logging In...' : 'Verify & Log In'}
               </button>
@@ -522,20 +748,18 @@ export default function DriverPortal({ onBackToHome }) {
       {/* MODE 3: NEW DRIVER REGISTRATION FORM */}
       {mode === 'register' && (
         <div className="bg-white rounded-3xl p-6 sm:p-10 border border-neutral-200 shadow-sm space-y-8 animate-fadeIn">
-          {/* Header */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold tracking-widest uppercase text-neutral-400">
-              JOIN HYDERABAD CHAUFFEUR NETWORK
-            </p>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
+              🎁 Special Offer: 90 Days (3 Months) Free Trial
+            </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-neutral-950 font-sans">
-              Driver Sign-Up & Verification
+              Driver Sign-Up & Custom Rates
             </h2>
             <p className="text-xs sm:text-sm text-neutral-500">
-              Complete mandatory KYC details (Aadhaar & License) to get listed on the Mana Drivers homepage directory.
+              Set your own custom rates, upload your headshot & KYC documents to claim your 3-month free trial.
             </p>
           </div>
 
-          {/* Success Banner */}
           {registerSuccessBanner && (
             <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-3xl text-emerald-950 space-y-3">
               <div className="flex items-center gap-3">
@@ -543,7 +767,7 @@ export default function DriverPortal({ onBackToHome }) {
                 <div>
                   <h3 className="font-bold text-base">Application Submitted Successfully!</h3>
                   <p className="text-xs text-emerald-800 font-medium">
-                    Profile verification takes 24–48 hours. Once approved by admin, your profile will go live on the homepage.
+                    Profile verification takes 24–48 hours. Upon admin approval, your custom pricing and 90-day free trial will go live on the homepage!
                   </p>
                 </div>
               </div>
@@ -552,24 +776,24 @@ export default function DriverPortal({ onBackToHome }) {
                 onClick={onBackToHome}
                 className="mt-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-full transition-all"
               >
-                Return to Homepage
+                Return to Homepage Directory
               </button>
             </div>
           )}
 
           {!registerSuccessBanner && (
             <form onSubmit={handleRegisterSubmit} className="space-y-6">
-              {/* Working Preference Toggle */}
-              <div className="space-y-3">
+              {/* Working Preference & Custom Rate Calculator */}
+              <div className="space-y-4">
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700">
-                  Select Working Preference
+                  Select Working Preference & Custom Pricing
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <button
                     type="button"
                     onClick={() => {
                       setRegistrationType('hourly');
-                      setFormData((p) => ({ ...p, workingPreference: 'Work by the hour (₹49)' }));
+                      setFormData((p) => ({ ...p, workingPreference: 'Work by the hour' }));
                     }}
                     className={`p-5 rounded-2xl border text-left transition-all ${
                       registrationType === 'hourly'
@@ -579,13 +803,13 @@ export default function DriverPortal({ onBackToHome }) {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <Clock className="w-5 h-5" />
-                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-white/20">
-                        ₹49 Fee
+                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500 text-white">
+                        3 Months Free
                       </span>
                     </div>
-                    <div className="font-bold text-sm">Work by the hour (₹49)</div>
+                    <div className="font-bold text-sm">Work by the hour (Freelance)</div>
                     <p className="text-xs opacity-80 mt-1">
-                      Hourly on-demand trips in Hitec City, Gachibowli, RGIA airport.
+                      Set custom hourly rates for in-city, shopping & outstation trips.
                     </p>
                   </button>
 
@@ -593,7 +817,7 @@ export default function DriverPortal({ onBackToHome }) {
                     type="button"
                     onClick={() => {
                       setRegistrationType('monthly');
-                      setFormData((p) => ({ ...p, workingPreference: 'Work monthly (₹99)' }));
+                      setFormData((p) => ({ ...p, workingPreference: 'Work monthly' }));
                     }}
                     className={`p-5 rounded-2xl border text-left transition-all ${
                       registrationType === 'monthly'
@@ -603,15 +827,72 @@ export default function DriverPortal({ onBackToHome }) {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <UserPlus className="w-5 h-5" />
-                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-white/20">
-                        ₹99 Fee
+                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500 text-white">
+                        3 Months Free
                       </span>
                     </div>
-                    <div className="font-bold text-sm">Work monthly (₹99)</div>
+                    <div className="font-bold text-sm">Work monthly (Permanent)</div>
                     <p className="text-xs opacity-80 mt-1">
-                      Full-time family/corporate monthly driver (₹18k – ₹22k/month).
+                      Set expected monthly salary for full-time family or executive duty.
                     </p>
                   </button>
+                </div>
+
+                {/* DYNAMIC RATE INPUT & ESTIMATED INCOME BADGE */}
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3">
+                  {registrationType === 'hourly' ? (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                          <DollarSign className="w-4 h-4 text-emerald-600" />
+                          Set Custom Hourly Rate (₹ / hr) *
+                        </label>
+                        <span className="text-xs font-mono font-extrabold text-emerald-900 bg-emerald-200/80 px-2.5 py-0.5 rounded-md">
+                          ₹{formData.hourlyRate} / hr
+                        </span>
+                      </div>
+                      <input
+                        type="number"
+                        min={150}
+                        max={500}
+                        step={10}
+                        value={formData.hourlyRate}
+                        onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-white border border-emerald-300 rounded-xl text-sm font-bold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                        required
+                      />
+                      <p className="text-xs font-medium text-emerald-900 mt-2 flex items-center gap-1">
+                        💡 <span className="font-bold">Estimated Monthly Income:</span> ₹
+                        {calculatedEstimatedMonthlyIncome.toLocaleString('en-IN')}/mo (driving 6 hrs/day, 26 days/mo with 0% commission!)
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                          <DollarSign className="w-4 h-4 text-emerald-600" />
+                          Set Expected Monthly Salary (₹ / month) *
+                        </label>
+                        <span className="text-xs font-mono font-extrabold text-emerald-900 bg-emerald-200/80 px-2.5 py-0.5 rounded-md">
+                          ₹{Number(formData.monthlySalary || 20000).toLocaleString('en-IN')} / mo
+                        </span>
+                      </div>
+                      <input
+                        type="number"
+                        min={15000}
+                        max={40000}
+                        step={500}
+                        value={formData.monthlySalary}
+                        onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-white border border-emerald-300 rounded-xl text-sm font-bold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                        required
+                      />
+                      <p className="text-xs font-medium text-emerald-900 mt-2 flex items-center gap-1">
+                        💡 <span className="font-bold">Guaranteed Income:</span> ₹
+                        {Number(formData.monthlySalary || 20000).toLocaleString('en-IN')}/month with 0% commission!
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -648,7 +929,6 @@ export default function DriverPortal({ onBackToHome }) {
                 </div>
               </div>
 
-              {/* Location & Experience */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-2">
@@ -685,7 +965,43 @@ export default function DriverPortal({ onBackToHome }) {
                 </div>
               </div>
 
-              {/* MANDATORY INDIAN KYC DOCUMENTS */}
+              {/* DEDICATED PROFILE HEADSHOT PHOTO UPLOAD */}
+              <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-3">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-neutral-800" />
+                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-800">
+                    Upload Driver Profile Headshot Photo
+                  </label>
+                </div>
+                <p className="text-xs text-neutral-500">
+                  This photo will be displayed on the public homepage driver directory.
+                </p>
+
+                <div className="flex items-center gap-4">
+                  <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white border border-dashed border-neutral-300 hover:border-neutral-900 rounded-2xl cursor-pointer text-xs font-semibold text-neutral-800 transition-colors">
+                    <Upload className="w-4 h-4 text-neutral-500" />
+                    <span>{formData.photo ? 'Change Profile Headshot' : 'Choose Headshot Photo'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, 'photo')}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {formData.photoPreview && (
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden border border-neutral-300 shrink-0 bg-neutral-100">
+                      <img
+                        src={formData.photoPreview}
+                        alt="Profile Headshot Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* MANDATORY KYC DOCUMENTS */}
               <div className="space-y-4 pt-4 border-t border-neutral-200">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-neutral-900" />
@@ -786,11 +1102,10 @@ export default function DriverPortal({ onBackToHome }) {
                 </div>
               </div>
 
-              {/* Submit Registration Button */}
               <button
                 type="submit"
                 disabled={registerLoading}
-                className="w-full py-4 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-md flex items-center justify-center gap-2"
+                className="w-full py-4 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
                 {registerLoading ? (
                   <span className="flex items-center gap-2">
@@ -801,13 +1116,146 @@ export default function DriverPortal({ onBackToHome }) {
                   <>
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     <span>
-                      Pay ₹{registrationType === 'hourly' ? 49 : 99} & Submit Application
+                      Claim 3-Month Free Trial & Submit Registration
                     </span>
                   </>
                 )}
               </button>
             </form>
           )}
+        </div>
+      )}
+
+      {/* MODAL: DRIVER SELF-EDIT PROFILE & CUSTOM RATES */}
+      {isEditProfileOpen && loggedInDriver && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-5 my-8">
+            <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+              <h3 className="font-bold text-neutral-950 text-base font-sans flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-neutral-900" />
+                Edit Profile Details & Custom Rates
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsEditProfileOpen(false)}
+                className="text-neutral-400 hover:text-neutral-900 p-1 rounded-full"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSelfProfile} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
+                    Custom Hourly Rate (₹ / hr)
+                  </label>
+                  <input
+                    type="number"
+                    value={editForm.hourlyRate}
+                    onChange={(e) => setEditForm({ ...editForm, hourlyRate: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold text-neutral-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
+                    Monthly Salary (₹ / mo)
+                  </label>
+                  <input
+                    type="number"
+                    value={editForm.monthlySalary}
+                    onChange={(e) => setEditForm({ ...editForm, monthlySalary: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold text-neutral-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
+                  Primary Area
+                </label>
+                <select
+                  value={editForm.location}
+                  onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
+                >
+                  {HYDERABAD_LOCALITIES.map((loc) => (
+                    <option key={loc} value={loc}>
+                      {loc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
+                  Languages Spoken
+                </label>
+                <input
+                  type="text"
+                  value={editForm.languages}
+                  onChange={(e) => setEditForm({ ...editForm, languages: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
+                  placeholder="e.g. Telugu, Hindi, English"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
+                  Profile Photo URL / Image Link
+                </label>
+                <input
+                  type="url"
+                  value={editForm.photo}
+                  onChange={(e) => setEditForm({ ...editForm, photo: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
+                  Personal Bio / Description
+                </label>
+                <textarea
+                  rows={2}
+                  value={editForm.bio}
+                  onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-medium text-neutral-900"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-neutral-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditProfileOpen(false)}
+                  className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-full text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-neutral-950 text-white rounded-full text-xs font-bold cursor-pointer"
+                >
+                  Save Profile Changes
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

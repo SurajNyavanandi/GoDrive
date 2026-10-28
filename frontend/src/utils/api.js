@@ -58,9 +58,29 @@ export async function registerDriverApi(data) {
 
   return {
     success: true,
-    message: 'Application Submitted Successfully! Profile verification takes 24–48 hours.',
+    message: 'Application Submitted Successfully! Included 90 days Free Trial.',
     driver: { ...data, id: `drv_local_${Date.now()}` },
   };
+}
+
+export async function subscribeDriverPlanApi(driverId, plan) {
+  const json = await safeFetch(`/drivers/${driverId}/subscribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan }),
+  });
+  if (json) return json;
+  return { success: true, message: 'Subscription updated (offline mode)' };
+}
+
+export async function updateDriverSelfProfileApi(driverId, profileData) {
+  const json = await safeFetch(`/drivers/${driverId}/profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(profileData),
+  });
+  if (json) return json;
+  return { success: true, message: 'Profile updated locally' };
 }
 
 export async function uploadDriverDocsApi(formData) {
@@ -127,10 +147,49 @@ export async function createBookingApi(bookingData) {
   return { success: true, booking: bookingData, simulated: true };
 }
 
+// ADMIN APIS (Full CRUD + Subscription Extension)
 export async function fetchAdminDriversApi() {
   const json = await safeFetch('/admin/drivers');
   if (json && Array.isArray(json.data)) return json;
   return { success: true, data: [] };
+}
+
+export async function createDriverApi(driverData) {
+  const json = await safeFetch('/admin/drivers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(driverData),
+  });
+  if (json) return json;
+  return { success: true, driver: driverData };
+}
+
+export async function updateDriverApi(driverId, driverData) {
+  const json = await safeFetch(`/admin/drivers/${driverId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(driverData),
+  });
+  if (json) return json;
+  return { success: true, driver: driverData };
+}
+
+export async function deleteDriverApi(driverId) {
+  const json = await safeFetch(`/admin/drivers/${driverId}`, {
+    method: 'DELETE',
+  });
+  if (json) return json;
+  return { success: true, message: 'Driver deleted' };
+}
+
+export async function extendSubscriptionApi(driverId, days = 30) {
+  const json = await safeFetch(`/admin/drivers/${driverId}/subscription`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ days }),
+  });
+  if (json) return json;
+  return { success: true, message: `Added ${days} bonus days` };
 }
 
 export async function approveDriverApi(id) {

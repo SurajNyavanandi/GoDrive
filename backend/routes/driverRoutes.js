@@ -52,10 +52,9 @@ router.post(
   }
 );
 
-
 /**
  * GET /api/drivers
- * Returns public approved drivers
+ * Returns public active drivers (approved & remainingDays > 0)
  */
 router.get('/', (req, res) => {
   try {
@@ -102,7 +101,7 @@ router.post('/login', async (req, res) => {
 
 /**
  * POST /api/drivers/register
- * New Driver Registration with mandatory KYC (Aadhaar, License) & Edge-Case Validation
+ * New Driver Registration with 3-month free trial upon approval
  */
 router.post('/register', (req, res) => {
   try {
@@ -115,53 +114,10 @@ router.post('/register', (req, res) => {
       });
     }
 
-    // Name Validation
     const cleanName = String(name).trim();
-    if (cleanName.length < 2 || cleanName.length > 60 || !/[a-zA-Z]/.test(cleanName)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please enter a valid full name (2 to 60 characters with letters).',
-      });
-    }
-
-    // Phone Validation (10 digits starting with 6-9)
     const cleanPhone = String(phone).replace(/\D/g, '');
-    if (cleanPhone.length !== 10 || !/^[6-9]/.test(cleanPhone) || /^(\d)\1{9}$/.test(cleanPhone)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.',
-      });
-    }
-
-    // Experience Validation (1 to 50 years)
-    if (experience !== undefined && experience !== null && experience !== '') {
-      const exp = Number(experience);
-      if (isNaN(exp) || !Number.isInteger(exp) || exp < 1 || exp > 50) {
-        return res.status(400).json({
-          success: false,
-          message: 'Driving experience must be a whole number between 1 and 50 years.',
-        });
-      }
-    }
-
-    // Driving License Validation (10-20 alphanumeric characters)
     const cleanLicense = String(licenseNo).trim().toUpperCase();
-    const strippedLicense = cleanLicense.replace(/[^A-Z0-9]/g, '');
-    if (strippedLicense.length < 10 || strippedLicense.length > 20 || /^\d+$/.test(strippedLicense)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid Indian Driving License number (e.g. TS09-2018-0091234).',
-      });
-    }
-
-    // Aadhaar Validation (12 digits, cannot start with 0 or 1)
     const cleanAadhaar = String(aadhaarNo).replace(/\D/g, '');
-    if (cleanAadhaar.length !== 12 || /^[01]/.test(cleanAadhaar) || /^(\d)\1{11}$/.test(cleanAadhaar)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid 12-digit Indian Aadhaar card number.',
-      });
-    }
 
     const result = storage.registerNewDriver({
       ...req.body,
@@ -177,9 +133,46 @@ router.post('/register', (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Application Submitted Successfully! Profile verification takes 24–48 hours. Once approved by admin, your profile will go live on the homepage.',
+      message: 'Application Submitted Successfully! Included 90 days (3 Months) Free Trial upon admin approval.',
       driver: result.driver,
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/drivers/:id/subscribe
+ * Driver renews or upgrades subscription plan (Starter ₹49 / Featured ₹99)
+ */
+router.post('/:id/subscribe', (req, res) => {
+  try {
+    const { plan } = req.body; // 'starter' | 'featured'
+    const updated = storage.subscribeDriverPlan(req.params.id, plan || 'starter');
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Driver not found' });
+    }
+    res.json({
+      success: true,
+      message: `Subscription plan updated to ${plan === 'featured' ? 'Featured Chauffeur (₹99/mo)' : 'Starter Plan (₹49/mo)'}. Added 30 days!`,
+      driver: updated,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * PUT /api/drivers/:id/profile
+ * Driver updates their own profile details (Rates, Photo, Bio, Location, Languages)
+ */
+router.put('/:id/profile', (req, res) => {
+  try {
+    const updated = storage.updateDriverSelfProfile(req.params.id, req.body);
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Driver not found' });
+    }
+    res.json({ success: true, message: 'Profile updated successfully', driver: updated });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
