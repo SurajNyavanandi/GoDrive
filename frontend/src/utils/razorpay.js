@@ -1,18 +1,18 @@
 import confetti from 'canvas-confetti';
 import { toast } from 'sonner';
 
+const DEFAULT_RAZORPAY_TEST_KEY_ID = 'rzp_test_TnM27jHHHHOsFP';
+
 /**
- * Validates if a real, registered Razorpay key ID is provided
+ * Validates if a registered Razorpay key ID is provided
  */
 function isRealRazorpayKey(key) {
   if (!key || typeof key !== 'string') return false;
   const isMatch = /^rzp_(test|live)_[a-zA-Z0-9]{10,}$/.test(key);
   const isPlaceholder =
-    key.includes('Mana') ||
-    key.includes('GoDrive') ||
-    key.includes('mock') ||
-    key.includes('sandbox') ||
-    key.includes('your_');
+    key.includes('placeholder') ||
+    key.includes('your_') ||
+    key.includes('mock');
   return isMatch && !isPlaceholder;
 }
 
@@ -38,7 +38,6 @@ function loadRazorpayScript() {
  * Driver Onboarding Registration Payment
  * Freelance Driver: ₹49 (First 3 months free homepage listing)
  * Permanent Driver: ₹99 (First 3 months free homepage listing)
- * Both renew at ₹99/month after 3 months.
  */
 export async function triggerDriverRegistrationRazorpay({
   driverName = 'Driver',
@@ -66,7 +65,7 @@ export async function triggerDriverRegistrationRazorpay({
 
   const configuredKey =
     import.meta.env.VITE_RAZORPAY_KEY_ID ||
-    (typeof window !== 'undefined' && window.__RAZORPAY_KEY_ID__);
+    DEFAULT_RAZORPAY_TEST_KEY_ID;
 
   if (isRealRazorpayKey(configuredKey)) {
     const loaded = await loadRazorpayScript();
@@ -76,8 +75,8 @@ export async function triggerDriverRegistrationRazorpay({
           key: configuredKey,
           amount: amountInPaise,
           currency: 'INR',
-          name: 'Mana Drivers',
-          description: `${typeLabel} Registration Fee (₹${fee} · 3 Months Free Homepage Listing)`,
+          name: 'Mana Drivers Hyderabad',
+          description: `${typeLabel} Registration Fee (₹${fee} · 3 Months Free Listing)`,
           image: 'https://cdn.razorpay.com/static/assets/logo/rzp.svg',
           theme: {
             color: '#FF5500',
@@ -85,7 +84,7 @@ export async function triggerDriverRegistrationRazorpay({
           prefill: {
             name: driverName,
             email: 'driver@manadrivers.in',
-            contact: '+919849000000',
+            contact: '+919876543210',
           },
           handler: function () {
             completePayment();
@@ -139,7 +138,7 @@ export async function triggerDriverSubscriptionRazorpay({ driverName = 'Driver',
 
   const configuredKey =
     import.meta.env.VITE_RAZORPAY_KEY_ID ||
-    (typeof window !== 'undefined' && window.__RAZORPAY_KEY_ID__);
+    DEFAULT_RAZORPAY_TEST_KEY_ID;
 
   if (isRealRazorpayKey(configuredKey)) {
     const loaded = await loadRazorpayScript();
@@ -147,9 +146,9 @@ export async function triggerDriverSubscriptionRazorpay({ driverName = 'Driver',
       try {
         const options = {
           key: configuredKey,
-          amount: 9900, // ₹99 in paise
+          amount: 9900,
           currency: 'INR',
-          name: 'Mana Drivers',
+          name: 'Mana Drivers Hyderabad',
           description: 'Homepage Listing Monthly Renewal (₹99/month)',
           image: 'https://cdn.razorpay.com/static/assets/logo/rzp.svg',
           theme: {

@@ -117,7 +117,7 @@ export default function DriverPortal({ onBackToHome }) {
     reader.readAsDataURL(file);
   };
 
-  // Login Handlers
+  // Login Handlers (Direct 1-Step Login for Registered Drivers)
   const handleSendLoginOtp = async (e) => {
     e.preventDefault();
     const valRes = validateIndianMobile(loginPhone);
@@ -130,17 +130,15 @@ export default function DriverPortal({ onBackToHome }) {
     setLoginLoading(true);
     try {
       const res = await loginDriverApi(clean);
-      if (!res.success) {
-        toast.error(res.message || 'Mobile number is not registered as a driver');
-        setLoginLoading(false);
-        return;
+      if (res && res.success && res.driver) {
+        setLoggedInDriver(res.driver);
+        setMode('dashboard');
+        toast.success(`Welcome back, ${res.driver.name}! Logged into Driver Portal.`);
+      } else {
+        toast.error(res?.message || 'Mobile number is not registered as a driver. Please register below.');
       }
-
-      await sendOtpApi(clean);
-      toast.success(`Verification OTP sent to +91 ${clean}`);
-      setLoginStep('otp');
     } catch {
-      toast.error('Driver phone number not registered. Please register as a new driver.');
+      toast.error('Driver mobile number is not registered. Please register below.');
     } finally {
       setLoginLoading(false);
     }
@@ -689,7 +687,7 @@ export default function DriverPortal({ onBackToHome }) {
                 disabled={loginLoading}
                 className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-xs cursor-pointer"
               >
-                {loginLoading ? 'Checking Number...' : 'Send Login OTP'}
+                {loginLoading ? 'Verifying Mobile Number...' : 'Log In to Driver Portal'}
               </button>
 
               <div className="text-center pt-2">
