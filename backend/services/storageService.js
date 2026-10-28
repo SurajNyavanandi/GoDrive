@@ -64,14 +64,19 @@ function initDB() {
   }
 }
 
-function saveDB(data) {
+function saveDB(data, action = 'SAVE_DB') {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
+    logger.db(action, {
+      driverCount: data.drivers ? data.drivers.length : 0,
+      bookingCount: data.bookings ? data.bookings.length : 0,
+      timestamp: new Date().toISOString(),
+    });
   } catch (err) {
-    logger.error('Error saving db.json', err);
+    logger.error(`Error saving db.json during ${action}`, err);
   }
 }
 

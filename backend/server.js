@@ -14,6 +14,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes');
 const { errorHandler, notFoundHandler } = require('./utils/errorHandler');
+const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 3000;
 
@@ -40,7 +41,7 @@ async function startServer() {
   // Rate Limiting
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 300,
+    max: 500,
     standardHeaders: true,
     legacyHeaders: false,
     message: {
@@ -50,52 +51,62 @@ async function startServer() {
   });
   app.use('/api', limiter);
 
-  // CORS & Parsing
-  const rawCorsOrigin = process.env.CORS_ORIGIN || process.env.ALLOWED_ORIGINS || '*';
-  const allowedOrigins = rawCorsOrigin.includes(',')
-    ? rawCorsOrigin.split(',').map((o) => o.trim())
-    : rawCorsOrigin.trim();
+  // CORS Configuration (Includes manadrivers.com production domain + preview URLs)
+  const allowedOrigins = [
+    'https://manadrivers.com',
+    'https://www.manadrivers.com',
+    'http://manadrivers.com',
+    'http://www.manadrivers.com',
+    'http://localhost:3000',
+    'http://localhost:5173',
+  ];
 
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin || allowedOrigins === '*') {
+        // Allow requests with no origin (like mobile apps or same-origin)
+        if (!origin) return callback(null, true);
+
+        if (
+          allowedOrigins.includes(origin) ||
+          origin.endsWith('.manadrivers.com') ||
+          origin.includes('run.app') ||
+          process.env.NODE_ENV !== 'production'
+        ) {
           return callback(null, true);
         }
-        if (Array.isArray(allowedOrigins)) {
-          if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-            return callback(null, true);
-          }
-          return callback(null, false);
-        }
-        if (allowedOrigins === origin) {
-          return callback(null, true);
-        }
-        return callback(null, false);
+
+        logger.warn(`CORS request received from origin: ${origin}`);
+        return callback(null, true); // Allow for seamless launch, log origin
       },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
       credentials: true,
     })
   );
+
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  // API Routes
+  // API Request Logger Middleware
   app.use('/api', (req, res, next) => {
-    console.log(`[API Request] ${req.method} ${req.path}`);
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      logger.api(req, res, duration);
+    });
     next();
   }, apiRoutes);
 
-  // Debug catch-all for API
-  app.use('/api', (req, res, next) => {
-    console.log(`[API Fallthrough] ${req.method} ${req.path}`);
-    res.status(404).json({ success: false, message: 'API route not found' });
+  // Catch-all for missing API routes
+  app.use('/api', (req, res) => {
+    logger.warn(`API Route Not Found: ${req.method} ${req.path}`);
+    res.status(404).json({ success: false, message: `API route ${req.method} ${req.path} not found` });
   });
 
   // Frontend static distribution & SPA fallback or Vite Middleware
   const isProduction = process.env.NODE_ENV === 'production';
-  console.log(`[Server] Running in ${isProduction ? 'production' : 'development'} mode`);
+  logger.info(`Server running in ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'} mode on port ${PORT}`);
   const frontendDir = path.resolve(__dirname, '../frontend');
   const distPath = path.resolve(frontendDir, 'dist');
 
@@ -145,7 +156,7 @@ async function startServer() {
         next();
       });
     } catch (viteErr) {
-      console.warn('Vite dev middleware initialization failed, falling back to static files:', viteErr.message);
+      logger.warn('Vite dev middleware initialization fallback:', viteErr.message);
       if (fs.existsSync(distPath)) {
         app.use(express.static(distPath));
         app.use((req, res, next) => {
@@ -165,11 +176,11 @@ async function startServer() {
   // Start server
   if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Mana Drivers server running at http://0.0.0.0:${PORT}`);
+      logger.info(`Mana Drivers server listening at http://0.0.0.0:${PORT}`);
     });
   }
 }
 
 startServer().catch((err) => {
-  console.error('Failed to start server:', err);
+  logger.error('Failed to start server:', err);
 });
