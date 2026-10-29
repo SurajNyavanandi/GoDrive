@@ -15,6 +15,8 @@ import {
   User,
   X,
   Lock,
+  DollarSign,
+  IndianRupee,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';

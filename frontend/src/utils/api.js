@@ -5,28 +5,45 @@ const envApiUrl = import.meta.env.VITE_API_URL;
 const PRIMARY_API = envApiUrl || RENDER_BACKEND;
 const PRIMARY_BASE = PRIMARY_API.endsWith('/api') ? PRIMARY_API : `${PRIMARY_API.replace(/\/$/, '')}/api`;
 
+let relativeApiAvailable = null;
+
 async function safeFetch(endpoint, options = {}) {
-  // 1. Try local/same-origin relative Express server (/api/drivers) first
+  const renderUrl = `${PRIMARY_BASE}${endpoint}`;
+
+  // If we already know relative /api is unavailable (e.g. static domain like manadrivers.com), hit Render directly
+  if (relativeApiAvailable === false && PRIMARY_BASE) {
+    try {
+      const res = await fetch(renderUrl, options);
+      if (res.ok) return await res.json();
+    } catch {
+      // Fall through to retry strategy below
+    }
+  }
+
+  // 1. Try local/same-origin relative Express server (/api/drivers)
   try {
     const localRes = await fetch(`/api${endpoint}`, options);
     if (localRes.ok) {
+      relativeApiAvailable = true;
       return await localRes.json();
     }
+    if (localRes.status === 404) {
+      relativeApiAvailable = false;
+    }
   } catch {
-    // Relative endpoint unavailable, fallback to configured primary backend
+    relativeApiAvailable = false;
   }
 
   // 2. Try Primary Render API with /api prefix (e.g. https://godrive-293l.onrender.com/api/drivers)
   if (PRIMARY_BASE) {
     try {
-      const url = `${PRIMARY_BASE}${endpoint}`;
-      const res = await fetch(url, options);
+      const res = await fetch(renderUrl, options);
       if (res.ok) {
         return await res.json();
       }
     } catch (err) {
       if (import.meta.env.DEV) {
-        logger.debug(`Primary API request skipped/failed for ${PRIMARY_BASE}${endpoint}:`, err);
+        logger.debug(`Primary API request failed for ${renderUrl}:`, err);
       }
     }
   }
@@ -223,7 +240,7 @@ export async function rejectDriverApi(id) {
 }
 
 export async function fetchAdminBookingsApi() {
-  const json = await safeFetch('/bookings');
+  const json = (await safeFetch('/admin/bookings')) || (await safeFetch('/bookings'));
   if (json && Array.isArray(json.data)) return json;
   return { success: true, data: [] };
 }
