@@ -15,6 +15,8 @@ import {
   AlertTriangle,
   Clock,
   UserCheck,
+  Lock,
+  Key,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -28,8 +30,13 @@ import {
   extendSubscriptionApi,
 } from '../utils/api';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
+import { formatDrivingLicenseInput, formatAadhaarInput } from '../utils/helpers';
 
 export default function AdminPortal({ onBackToHome }) {
+  // Admin PIN Auth Security State
+  const [adminAuthed, setAdminAuthed] = useState(false);
+  const [adminPinInput, setAdminPinInput] = useState('');
+
   // Tabs: 'all' | 'trial' | 'paid' | 'expired' | 'pending' | 'bookings'
   const [activeTab, setActiveTab] = useState('all');
   const [drivers, setDrivers] = useState([]);
@@ -48,12 +55,11 @@ export default function AdminPortal({ onBackToHome }) {
     phone: '',
     driverType: 'freelance',
     hourlyRate: '180',
-    monthlySalary: '20000',
     location: HYDERABAD_LOCALITIES[0],
     experience: '5',
     status: 'Available',
     languages: 'Telugu, Hindi, English',
-    licenseNo: 'TS09-2023-0098765',
+    licenseNo: 'TS-09-2023-0098765',
     aadhaarNo: '9030-2604-1717',
     photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
     subscriptionPlan: 'free_trial',
@@ -147,7 +153,6 @@ export default function AdminPortal({ onBackToHome }) {
       phone: driver.phone || driver.rawPhone || '',
       driverType: driver.driverType || 'freelance',
       hourlyRate: driver.hourlyRate || 180,
-      monthlySalary: driver.monthlySalary || 20000,
       location: driver.location || HYDERABAD_LOCALITIES[0],
       experience: driver.experience || 3,
       status: driver.status || 'Available',
@@ -196,12 +201,11 @@ export default function AdminPortal({ onBackToHome }) {
       phone: '',
       driverType: 'freelance',
       hourlyRate: '180',
-      monthlySalary: '20000',
       location: HYDERABAD_LOCALITIES[0],
       experience: '5',
       status: 'Available',
       languages: 'Telugu, Hindi, English',
-      licenseNo: 'TS09-2023-0098765',
+      licenseNo: 'TS-09-2023-0098765',
       aadhaarNo: '9030-2604-1717',
       photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
       subscriptionPlan: 'free_trial',
@@ -222,6 +226,72 @@ export default function AdminPortal({ onBackToHome }) {
     if (activeTab === 'expired') return d.isApproved && d.remainingDays <= 0;
     return true; // 'all'
   });
+
+  if (!adminAuthed) {
+    return (
+      <div className="max-w-md mx-auto px-4 pt-16 pb-20 font-sans">
+        <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-xl text-center space-y-6">
+          <div className="w-14 h-14 bg-neutral-950 text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
+            <Lock className="w-7 h-7" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-100 text-neutral-800 text-[10px] font-extrabold uppercase tracking-widest">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>ADMIN ACCESS RESTRICTED</span>
+            </div>
+            <h2 className="text-2xl font-bold text-neutral-950 font-sans">
+              Admin Console Authorization
+            </h2>
+            <p className="text-xs text-neutral-500 leading-relaxed">
+              Enter the security PIN or password to authorize admin operations and driver approvals.
+            </p>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (adminPinInput === '2026' || adminPinInput.toLowerCase() === 'admin' || adminPinInput === '1234') {
+                setAdminAuthed(true);
+                toast.success('Admin authorization granted');
+              } else {
+                toast.error('Invalid Admin Security PIN');
+              }
+            }}
+            className="space-y-4 pt-2"
+          >
+            <div>
+              <input
+                type="password"
+                placeholder="Enter Admin Security PIN"
+                value={adminPinInput}
+                onChange={(e) => setAdminPinInput(e.target.value)}
+                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-300 rounded-2xl text-center text-sm font-bold tracking-widest text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                required
+                autoFocus
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Key className="w-4 h-4 text-amber-400" />
+              <span>Authorize Admin Access</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onBackToHome}
+              className="w-full text-center text-xs font-semibold text-neutral-500 hover:text-neutral-900 pt-2 cursor-pointer"
+            >
+              ← Return to Mana Drivers
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-8 pb-16">
@@ -749,25 +819,14 @@ export default function AdminPortal({ onBackToHome }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Hourly Rate (₹)</label>
-                  <input
-                    type="number"
-                    value={driverForm.hourlyRate}
-                    onChange={(e) => setDriverForm({ ...driverForm, hourlyRate: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Monthly Salary (₹)</label>
-                  <input
-                    type="number"
-                    value={driverForm.monthlySalary}
-                    onChange={(e) => setDriverForm({ ...driverForm, monthlySalary: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                  />
-                </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Hourly Rate (₹)</label>
+                <input
+                  type="number"
+                  value={driverForm.hourlyRate}
+                  onChange={(e) => setDriverForm({ ...driverForm, hourlyRate: e.target.value })}
+                  className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -882,25 +941,14 @@ export default function AdminPortal({ onBackToHome }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Hourly Rate (₹)</label>
-                  <input
-                    type="number"
-                    value={driverForm.hourlyRate}
-                    onChange={(e) => setDriverForm({ ...driverForm, hourlyRate: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Monthly Salary (₹)</label>
-                  <input
-                    type="number"
-                    value={driverForm.monthlySalary}
-                    onChange={(e) => setDriverForm({ ...driverForm, monthlySalary: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                  />
-                </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Hourly Rate (₹)</label>
+                <input
+                  type="number"
+                  value={driverForm.hourlyRate}
+                  onChange={(e) => setDriverForm({ ...driverForm, hourlyRate: e.target.value })}
+                  className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">

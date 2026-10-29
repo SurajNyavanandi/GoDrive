@@ -103,35 +103,19 @@ export default function Header({
 
             {/* Official Support Email Pill */}
             <a
-              href="mailto:support@manadrivers.in"
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-neutral-200 hover:border-neutral-400 text-xs font-semibold text-neutral-800 transition-colors shadow-2xs"
+              href="mailto:supportmanadrivers@gmail.com"
+              className="hidden lg:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-neutral-200 hover:border-neutral-400 text-xs font-semibold text-neutral-800 transition-all hover:-translate-y-0.5 active:scale-95 shadow-2xs min-h-[38px]"
               title="Official Support Email"
             >
               <span className="text-[#FF5500] font-bold">✉</span>
-              <span>support@manadrivers.in</span>
+              <span>supportmanadrivers@gmail.com</span>
             </a>
-
-            {/* Trips Button */}
-            <button
-              type="button"
-              onClick={onOpenBookings}
-              className="relative p-2.5 rounded-full bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-800 transition-colors"
-              title="View Scheduled Trips"
-              aria-label="View Scheduled Trips"
-            >
-              <Calendar className="w-4 h-4" />
-              {bookingsCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#111111] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {bookingsCount}
-                </span>
-              )}
-            </button>
 
             {/* Solid Black Pill CTA: Book Driver or Driver Portal */}
             {activeRole === 'customer' ? (
               <a
                 href="#drivers"
-                className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 bg-[#111111] hover:bg-neutral-800 text-white rounded-full text-sm font-medium transition-all shadow-xs"
+                className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 bg-[#111111] hover:bg-neutral-800 active:scale-95 text-white rounded-full text-sm font-medium transition-all hover:-translate-y-0.5 shadow-xs min-h-[44px]"
               >
                 <span>Book a driver</span>
               </a>
@@ -139,7 +123,7 @@ export default function Header({
               <button
                 type="button"
                 onClick={() => onRoleChange('customer')}
-                className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 bg-[#111111] hover:bg-neutral-800 text-white rounded-full text-sm font-medium transition-all shadow-xs"
+                className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 bg-[#111111] hover:bg-neutral-800 active:scale-95 text-white rounded-full text-sm font-medium transition-all hover:-translate-y-0.5 shadow-xs min-h-[44px]"
               >
                 <Compass className="w-4 h-4" />
                 <span>Customer View</span>
@@ -150,7 +134,7 @@ export default function Header({
             <button
               type="button"
               onClick={() => onRoleChange(activeRole === 'customer' ? 'driver' : 'customer')}
-              className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-neutral-100 border border-neutral-300 rounded-full text-xs font-medium text-neutral-900 transition-colors"
+              className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-neutral-100 active:scale-95 border border-neutral-300 rounded-full text-xs font-medium text-neutral-900 transition-all hover:-translate-y-0.5 min-h-[38px]"
             >
               <Briefcase className="w-3.5 h-3.5 text-[#FF5500]" />
               <span>{activeRole === 'customer' ? 'Driver Portal' : 'Find Drivers'}</span>
@@ -160,7 +144,7 @@ export default function Header({
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2.5 rounded-full bg-white border border-neutral-200 text-neutral-900 hover:bg-neutral-100 transition-colors"
+              className="md:hidden p-3 rounded-full bg-white border border-neutral-200 text-neutral-900 hover:bg-neutral-100 active:scale-90 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -170,24 +154,25 @@ export default function Header({
 
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-neutral-200 bg-[#FAF9F6] animate-in fade-in duration-150">
-            <div className="flex flex-col space-y-3 px-2">
+          <div className="md:hidden py-4 border-t border-neutral-200 bg-[#FAF9F6]/95 backdrop-blur-lg animate-scale-up duration-200 shadow-lg rounded-b-2xl">
+            <div className="flex flex-col space-y-2 px-3">
               {navLinks.map((link) => (
                 <a
                   key={link.name}
                   href={link.href}
                   onClick={(e) => handleNavClick(e, link.href)}
-                  className="text-base font-medium text-neutral-800 hover:text-neutral-950 py-2 px-3 rounded-lg hover:bg-neutral-100 transition-colors"
+                  className="text-base font-medium text-neutral-800 hover:text-neutral-950 py-3 px-4 rounded-xl hover:bg-neutral-100/80 active:bg-neutral-200/60 transition-all flex items-center justify-between min-h-[44px]"
                 >
-                  {link.name}
+                  <span>{link.name}</span>
+                  <span className="text-neutral-400 text-xs">→</span>
                 </a>
               ))}
 
-              <div className="pt-3 border-t border-neutral-200 flex flex-col gap-2">
+              <div className="pt-3 border-t border-neutral-200/80 flex flex-col gap-2.5">
                 <a
                   href="#drivers"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full text-center py-3 bg-[#111111] text-white rounded-full text-sm font-medium"
+                  className="w-full text-center py-3.5 bg-[#111111] hover:bg-neutral-800 active:scale-98 text-white rounded-full text-sm font-semibold transition-all shadow-md min-h-[44px] flex items-center justify-center"
                 >
                   Book a Driver
                 </a>
@@ -197,11 +182,18 @@ export default function Header({
                     onRoleChange(activeRole === 'customer' ? 'driver' : 'customer');
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full text-center py-2.5 bg-white border border-neutral-300 text-neutral-900 rounded-full text-sm font-medium flex items-center justify-center gap-2"
+                  className="w-full text-center py-3 bg-white border border-neutral-300 active:scale-98 text-neutral-900 rounded-full text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-2xs min-h-[44px]"
                 >
                   <Briefcase className="w-4 h-4 text-[#FF5500]" />
                   <span>{activeRole === 'customer' ? 'Switch to Driver Portal (from ₹49)' : 'Switch to Customer View'}</span>
                 </button>
+                <a
+                  href="mailto:supportmanadrivers@gmail.com"
+                  className="text-center py-2 text-xs text-neutral-600 font-medium flex items-center justify-center gap-1.5"
+                >
+                  <span className="text-[#FF5500]">✉</span>
+                  <span>supportmanadrivers@gmail.com</span>
+                </a>
               </div>
             </div>
           </div>

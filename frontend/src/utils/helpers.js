@@ -126,7 +126,20 @@ export function formatAadhaarInput(val) {
 }
 
 /**
- * Indian Driving License Validator (e.g. TS09-2018-0091234 or AP09 20200001234)
+ * Format Driving License with hyphens as user types (e.g. TS-09-2023-0098765)
+ */
+export function formatDrivingLicenseInput(val) {
+  const clean = String(val || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 16);
+  if (!clean) return '';
+  let formatted = clean.slice(0, 2);
+  if (clean.length > 2) formatted += '-' + clean.slice(2, 4);
+  if (clean.length > 4) formatted += '-' + clean.slice(4, 8);
+  if (clean.length > 8) formatted += '-' + clean.slice(8, 15);
+  return formatted;
+}
+
+/**
+ * Indian Driving License Validator (e.g. TS-09-2023-0098765)
  */
 export function validateDrivingLicense(license) {
   const raw = String(license || '').trim().toUpperCase();
@@ -134,20 +147,21 @@ export function validateDrivingLicense(license) {
     return { isValid: false, error: 'Driving License number is required', cleaned: '' };
   }
   const stripped = raw.replace(/[^A-Z0-9]/g, '');
-  if (stripped.length < 10 || stripped.length > 20) {
-    return { isValid: false, error: 'Driving License must be 10 to 20 alphanumeric characters (e.g. TS09-2018-0091234)', cleaned: raw };
+  if (stripped.length < 10 || stripped.length > 16) {
+    return { isValid: false, error: 'Driving License must be 10 to 15 alphanumeric characters (e.g. TS-09-2023-0098765)', cleaned: raw };
   }
-  // Must have at least 2 letters (state code like TS, AP, DL) and at least 4 digits
+  // Must have state code letters and numbers
   const letters = (stripped.match(/[A-Z]/g) || []).length;
   const digits = (stripped.match(/[0-9]/g) || []).length;
   if (letters < 2 || digits < 4) {
-    return { isValid: false, error: 'Driving License must include state code (e.g. TS, AP) and license digits', cleaned: raw };
+    return { isValid: false, error: 'Driving License must include state code (e.g. TS-09-2023-0098765)', cleaned: raw };
   }
   // Reject pure numbers or repetitive strings
   if (/^\d+$/.test(stripped) || /^([A-Z0-9])\1+$/.test(stripped)) {
     return { isValid: false, error: 'Invalid Driving License number format', cleaned: raw };
   }
-  return { isValid: true, cleaned: raw };
+  const formatted = formatDrivingLicenseInput(stripped);
+  return { isValid: true, cleaned: stripped, formatted };
 }
 
 /**

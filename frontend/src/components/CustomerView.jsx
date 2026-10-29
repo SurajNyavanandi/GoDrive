@@ -166,8 +166,8 @@ export default function CustomerView({
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-16 pb-8 sm:pb-16 flex flex-col lg:flex-row lg:items-center justify-between gap-8 sm:gap-10">
-          <div className="max-w-2xl text-white space-y-4 sm:space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[10px] sm:text-xs font-semibold tracking-wider uppercase text-neutral-200 shadow-inner">
+          <div className="max-w-2xl text-white space-y-4 sm:space-y-6 animate-fade-in-up">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[10px] sm:text-xs font-semibold tracking-wider uppercase text-neutral-200 shadow-inner">
               <span className="w-2 h-2 rounded-full bg-[#FF5500] animate-pulse" />
               <span>HYDERABAD'S PREMIER DRIVER NETWORK</span>
             </div>
@@ -186,7 +186,7 @@ export default function CustomerView({
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1 sm:pt-2">
               <a
                 href="#drivers"
-                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 sm:py-4 bg-[#FF5500] hover:bg-[#E04B00] active:scale-95 text-white rounded-full text-xs sm:text-sm font-semibold transition-all shadow-lg shadow-[#FF5500]/30 hover:shadow-xl hover:shadow-[#FF5500]/40 text-center"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 sm:py-4 bg-[#FF5500] hover:bg-[#E04B00] active:scale-95 text-white rounded-full text-xs sm:text-sm font-semibold transition-all hover:-translate-y-0.5 shadow-lg shadow-[#FF5500]/30 hover:shadow-xl hover:shadow-[#FF5500]/40 text-center min-h-[44px]"
               >
                 <span>Find a Driver Nearby</span>
                 <ArrowRight className="w-4 h-4" />
@@ -194,7 +194,7 @@ export default function CustomerView({
               <button
                 type="button"
                 onClick={onSwitchToDriver}
-                className="inline-flex items-center justify-center px-7 py-3.5 sm:py-4 bg-white/10 hover:bg-white/20 active:scale-95 backdrop-blur-md border border-white/20 text-white rounded-full text-xs sm:text-sm font-medium transition-all text-center"
+                className="inline-flex items-center justify-center px-7 py-3.5 sm:py-4 bg-white/10 hover:bg-white/20 active:scale-95 backdrop-blur-md border border-white/20 text-white rounded-full text-xs sm:text-sm font-medium transition-all hover:-translate-y-0.5 text-center min-h-[44px]"
               >
                 Driver Portal (3-Mo Free Trial)
               </button>
@@ -216,7 +216,7 @@ export default function CustomerView({
             </div>
           </div>
 
-          <div className="w-full lg:max-w-xs bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl sm:rounded-3xl p-5 sm:p-6 text-white shadow-2xl space-y-3.5 hover:border-white/30 transition-all">
+          <div className="w-full lg:max-w-xs bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl sm:rounded-3xl p-5 sm:p-6 text-white shadow-2xl space-y-3.5 hover:border-white/30 transition-all hover:-translate-y-1 animate-scale-up animation-delay-200">
             <div className="flex items-center justify-between pb-3 border-b border-white/15">
               <div>
                 <p className="text-[10px] sm:text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
@@ -224,28 +224,28 @@ export default function CustomerView({
                 </p>
                 <p className="text-lg sm:text-xl font-bold text-white font-sans">Hyderabad Metro</p>
               </div>
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#FF5500]/20 border border-[#FF5500]/40 flex items-center justify-center text-[#FF5500]">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#FF5500]/20 border border-[#FF5500]/40 flex items-center justify-center text-[#FF5500] shadow-xs">
                 <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
             </div>
 
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                 <span className="text-neutral-300">Hourly Freelance</span>
                 <span className="font-bold text-white">From ₹160/hr</span>
               </div>
-              <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                 <span className="text-neutral-300">Monthly Permanent</span>
                 <span className="font-bold text-white">₹18,000 – ₹22,000/mo</span>
               </div>
-              <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                 <span className="text-neutral-300">Driver Trial Offer</span>
                 <span className="font-bold text-emerald-400">🎁 3 Months Free</span>
               </div>
             </div>
 
             <div className="pt-1">
-              <p className="text-[10px] sm:text-[11px] text-neutral-400 text-center">
+              <p className="text-[10px] sm:text-[11px] text-neutral-400 text-center font-medium">
                 Manual & Automatic Cars · In-city & Outstation
               </p>
             </div>
@@ -306,7 +306,7 @@ export default function CustomerView({
               <div className="space-y-3">
                 <div className="relative h-48 rounded-2xl overflow-hidden bg-neutral-100 border border-neutral-200">
                   <img
-                    src="https://expressmulticabz.com/wp-content/uploads/2026/05/airport-pickup-and-drop-service-Hyderabad-1024x576.png"
+                    src="https://www.deepamcabs.com/images/new-site-images/airport_transfer_hero_image.webp"
                     alt="Airport pickup and drop service Hyderabad"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
@@ -617,13 +617,13 @@ export default function CustomerView({
                     <div className="pt-3 sm:pt-4 border-t border-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                       <div className="flex items-baseline justify-between sm:block">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block sm:mb-0.5">
-                          {isCombined ? 'Hourly & Monthly' : isPermanent ? 'Monthly Package' : 'Hourly Rate'}
+                          {isCombined ? 'Hourly & Monthly' : isPermanent ? 'Monthly Chauffeur' : 'Hourly Rate'}
                         </span>
                         <div className="text-base sm:text-lg font-bold tracking-tight text-neutral-950 font-sans">
                           {isCombined
-                            ? `₹${driver.hourlyRate || 180}/hr · ₹${(driver.monthlySalary || 20000).toLocaleString('en-IN')}/mo`
+                            ? `₹${driver.hourlyRate || 180}/hr · Monthly`
                             : isPermanent
-                            ? `₹${(driver.monthlySalary || 20000).toLocaleString('en-IN')} / mo`
+                            ? `Full-Time Monthly`
                             : `₹${driver.hourlyRate || 180} / hr`}
                         </div>
                       </div>

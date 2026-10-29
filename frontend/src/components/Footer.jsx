@@ -74,18 +74,11 @@ export default function Footer({ onSwitchToDriver, onOpenBookings }) {
 
           <div className="pt-2 space-y-1.5 text-neutral-300">
             <a
-              href="tel:+919963254183"
-              className="flex items-center gap-2 hover:text-white transition-colors text-xs font-semibold"
+              href="mailto:supportmanadrivers@gmail.com"
+              className="inline-flex items-center gap-2 text-white hover:text-[#FF5500] active:scale-98 transition-all text-xs font-semibold"
             >
-              <Phone className="w-3.5 h-3.5 text-[#FF5500]" />
-              <span>Helpline: +91 99632 54183</span>
-            </a>
-            <a
-              href="mailto:support@manadrivers.in"
-              className="flex items-center gap-2 hover:text-white transition-colors text-xs font-medium text-neutral-400"
-            >
-              <Mail className="w-3.5 h-3.5 text-neutral-400" />
-              <span>support@manadrivers.in</span>
+              <Mail className="w-4 h-4 text-[#FF5500]" />
+              <span>supportmanadrivers@gmail.com</span>
             </a>
           </div>
         </div>

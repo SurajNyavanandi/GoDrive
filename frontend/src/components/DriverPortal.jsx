@@ -12,9 +12,9 @@ import {
   CreditCard,
   AlertTriangle,
   Edit3,
-  DollarSign,
-  TrendingUp,
   User,
+  X,
+  Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
@@ -23,7 +23,6 @@ import {
   loginDriverApi,
   registerDriverApi,
   updateDriverStatusApi,
-  sendOtpApi,
   uploadDriverDocsApi,
   subscribeDriverPlanApi,
   updateDriverSelfProfileApi,
@@ -33,6 +32,7 @@ import {
   validateAadhaar,
   formatAadhaarInput,
   validateDrivingLicense,
+  formatDrivingLicenseInput,
   validateExperience,
   validateName,
 } from '../utils/helpers';
@@ -44,12 +44,14 @@ export default function DriverPortal({ onBackToHome }) {
   // Authenticated Driver state
   const [loggedInDriver, setLoggedInDriver] = useState(null);
 
+  // Popup Modal state for Login verification (Unregistered / Pending Approval)
+  const [authStatusModal, setAuthStatusModal] = useState(null); // null | { type: 'unregistered' | 'pending', phone: string, driverName?: string }
+
   // Edit Profile Modal State
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
     hourlyRate: 180,
-    monthlySalary: 20000,
     location: HYDERABAD_LOCALITIES[0],
     languages: '',
     bio: '',
@@ -72,7 +74,6 @@ export default function DriverPortal({ onBackToHome }) {
     languages: 'Telugu, Hindi, English',
     bio: '',
     hourlyRate: 180,
-    monthlySalary: 20000,
     licenseNo: '',
     licensePhoto: null,
     licensePhotoPreview: null,
@@ -117,7 +118,7 @@ export default function DriverPortal({ onBackToHome }) {
     reader.readAsDataURL(file);
   };
 
-  // Login Handlers (Direct 1-Step Login for Registered Drivers)
+  // Login Handlers (Direct Login for Approved Drivers, Popups for Unregistered / Pending)
   const handleSendLoginOtp = async (e) => {
     e.preventDefault();
     const valRes = validateIndianMobile(loginPhone);
@@ -130,15 +131,38 @@ export default function DriverPortal({ onBackToHome }) {
     setLoginLoading(true);
     try {
       const res = await loginDriverApi(clean);
-      if (res && res.success && res.driver) {
+      if (res && res.success && res.driver && res.driver.isApproved) {
         setLoggedInDriver(res.driver);
         setMode('dashboard');
         toast.success(`Welcome back, ${res.driver.name}! Logged into Driver Portal.`);
+      } else if (res && res.code === 'PENDING_APPROVAL') {
+        setAuthStatusModal({
+          type: 'pending',
+          phone: clean,
+          driverName: res.driver?.name || 'Driver',
+        });
+      } else if (res && (res.code === 'UNREGISTERED' || !res.driver)) {
+        setAuthStatusModal({
+          type: 'unregistered',
+          phone: clean,
+        });
+      } else if (res && res.driver && !res.driver.isApproved) {
+        setAuthStatusModal({
+          type: 'pending',
+          phone: clean,
+          driverName: res.driver?.name || 'Driver',
+        });
       } else {
-        toast.error(res?.message || 'Mobile number is not registered as a driver. Please register below.');
+        setAuthStatusModal({
+          type: 'unregistered',
+          phone: clean,
+        });
       }
     } catch {
-      toast.error('Driver mobile number is not registered. Please register below.');
+      setAuthStatusModal({
+        type: 'unregistered',
+        phone: clean,
+      });
     } finally {
       setLoginLoading(false);
     }
@@ -332,29 +356,23 @@ export default function DriverPortal({ onBackToHome }) {
     setUploadStatusText('');
 
     const fee = registrationType === 'hourly' ? 49 : 99;
-    const rateDisplay =
-      registrationType === 'combined'
-        ? `₹${formData.hourlyRate}/hr & ₹${Number(formData.monthlySalary).toLocaleString('en-IN')}/mo`
-        : registrationType === 'hourly'
-        ? `₹${formData.hourlyRate}/hr`
-        : `₹${Number(formData.monthlySalary).toLocaleString('en-IN')}/mo`;
+    const rateDisplay = `₹${formData.hourlyRate}/hr`;
 
     const registrationPayload = {
       name: nameRes.cleaned,
       phone: phoneRes.cleaned,
       driverType: registrationType === 'combined' ? 'combined' : registrationType === 'hourly' ? 'freelance' : 'permanent',
       hourlyRate: Number(formData.hourlyRate) || 180,
-      monthlySalary: registrationType === 'hourly' ? null : Number(formData.monthlySalary) || 20000,
       location: formData.location,
       experience: expRes.value,
       languages: formData.languages,
       photo: finalHeadshotUrl,
-      bio: formData.bio ? formData.bio.slice(0, 300) : `${nameRes.cleaned} is a verified private driver in ${formData.location}, Hyderabad. Rates: ${rateDisplay}.`,
-      licenseNo: licenseRes.cleaned,
+      bio: formData.bio ? formData.bio.slice(0, 300) : `${nameRes.cleaned} is a verified private driver in ${formData.location}, Hyderabad.`,
+      licenseNo: licenseRes.formatted || licenseRes.cleaned,
       licensePhoto: finalLicenseUrl,
       aadhaarNo: aadhaarRes.formatted,
       aadhaarPhoto: finalAadhaarUrl,
-      workingPreference: `${registrationType === 'combined' ? 'Combined (Hourly & Monthly)' : registrationType === 'hourly' ? 'Hourly Freelance' : 'Monthly Permanent'} (${rateDisplay})`,
+      workingPreference: `${registrationType === 'combined' ? 'Combined (Hourly & Monthly)' : registrationType === 'hourly' ? 'Hourly Freelance' : 'Monthly Permanent'} (₹${formData.hourlyRate}/hr)`,
     };
 
     triggerDriverRegistrationRazorpay({
@@ -382,12 +400,6 @@ export default function DriverPortal({ onBackToHome }) {
 
   const remainingDays = loggedInDriver ? (loggedInDriver.remainingDays !== undefined ? loggedInDriver.remainingDays : 90) : 0;
   const isExpired = remainingDays <= 0;
-
-  // Live estimated income calculation for registration form
-  const calculatedEstimatedMonthlyIncome =
-    registrationType === 'hourly'
-      ? (Number(formData.hourlyRate) || 180) * 6 * 26
-      : Number(formData.monthlySalary) || 20000;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-8 pb-16">
@@ -483,11 +495,7 @@ export default function DriverPortal({ onBackToHome }) {
                 </p>
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className="text-xs font-extrabold text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-md border border-amber-400/20">
-                    {loggedInDriver.driverType === 'combined'
-                      ? `Hourly: ₹${loggedInDriver.hourlyRate || 180}/hr · Monthly: ₹${(loggedInDriver.monthlySalary || 20000).toLocaleString('en-IN')}/mo`
-                      : loggedInDriver.driverType === 'permanent'
-                      ? `Monthly Salary: ₹${(loggedInDriver.monthlySalary || 20000).toLocaleString('en-IN')}/mo`
-                      : `Custom Hourly Rate: ₹${loggedInDriver.hourlyRate || 180}/hr`}
+                    Custom Hourly Rate: ₹{loggedInDriver.hourlyRate || 180}/hr
                   </span>
                 </div>
               </div>
@@ -526,44 +534,6 @@ export default function DriverPortal({ onBackToHome }) {
                     ? 'ONLINE (AVAILABLE)'
                     : 'OFFLINE'}
                 </span>
-              </button>
-            </div>
-          </div>
-
-          {/* DYNAMIC ESTIMATED MONTHLY EARNINGS CARD */}
-          <div className="bg-gradient-to-r from-neutral-900 via-neutral-950 to-neutral-900 text-white p-6 rounded-3xl border border-neutral-800 shadow-lg space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
-                <TrendingUp className="w-4 h-4" />
-                <span>Est. Monthly Income Calculator (0% Commission)</span>
-              </div>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-semibold border border-emerald-500/30">
-                100% Direct UPI / Cash
-              </span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pt-1">
-              <div>
-                <p className="text-3xl font-extrabold text-white font-sans">
-                  ₹
-                  {loggedInDriver.driverType === 'permanent'
-                    ? (loggedInDriver.monthlySalary || 20000).toLocaleString('en-IN')
-                    : ((loggedInDriver.hourlyRate || 180) * 6 * 26).toLocaleString('en-IN')}
-                  <span className="text-xs font-medium text-neutral-400 font-normal"> / month</span>
-                </p>
-                <p className="text-xs text-neutral-400 mt-1">
-                  {loggedInDriver.driverType === 'permanent'
-                    ? `Based on your expected monthly salary requirement of ₹${(loggedInDriver.monthlySalary || 20000).toLocaleString('en-IN')}/mo.`
-                    : `Based on driving 6 hours/day, 26 days/month at your custom rate of ₹${loggedInDriver.hourlyRate || 180}/hr.`}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleOpenEditProfile}
-                className="text-xs text-amber-400 hover:underline font-semibold flex items-center gap-1 self-start sm:self-auto"
-              >
-                <span>Adjust Custom Rates ↗</span>
               </button>
             </div>
           </div>
@@ -1110,13 +1080,13 @@ export default function DriverPortal({ onBackToHome }) {
                     </label>
                     <input
                       type="text"
-                      placeholder="TS09-2018-0091234"
-                      maxLength={20}
+                      placeholder="TS-09-2023-0098765"
+                      maxLength={18}
                       value={formData.licenseNo}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          licenseNo: e.target.value.toUpperCase().replace(/[^A-Z0-9- ]/g, '').slice(0, 20),
+                          licenseNo: formatDrivingLicenseInput(e.target.value),
                         })
                       }
                       className="w-full px-3 py-2.5 bg-white border border-neutral-300 rounded-xl text-xs font-mono font-bold text-neutral-950"
@@ -1250,30 +1220,16 @@ export default function DriverPortal({ onBackToHome }) {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
-                    Custom Hourly Rate (₹ / hr)
-                  </label>
-                  <input
-                    type="number"
-                    value={editForm.hourlyRate}
-                    onChange={(e) => setEditForm({ ...editForm, hourlyRate: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold text-neutral-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
-                    Monthly Salary (₹ / mo)
-                  </label>
-                  <input
-                    type="number"
-                    value={editForm.monthlySalary}
-                    onChange={(e) => setEditForm({ ...editForm, monthlySalary: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold text-neutral-900"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
+                  Custom Hourly Rate (₹ / hr)
+                </label>
+                <input
+                  type="number"
+                  value={editForm.hourlyRate}
+                  onChange={(e) => setEditForm({ ...editForm, hourlyRate: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold text-neutral-900"
+                />
               </div>
 
               <div>
@@ -1347,6 +1303,104 @@ export default function DriverPortal({ onBackToHome }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* POPUP MODAL: UNREGISTERED / PENDING ADMIN APPROVAL DRIVER STATUS */}
+      {authStatusModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 text-center shadow-2xl relative border border-neutral-200 animate-in fade-in zoom-in duration-200">
+            <button
+              type="button"
+              onClick={() => setAuthStatusModal(null)}
+              className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900 p-2 rounded-full transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {authStatusModal.type === 'unregistered' ? (
+              <>
+                <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+                  <UserPlus className="w-8 h-8" />
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-xl font-extrabold text-neutral-950 font-sans">
+                    You Are Not Yet Registered
+                  </h3>
+                  <p className="text-xs text-neutral-600 leading-relaxed">
+                    The mobile number <span className="font-mono font-bold text-neutral-950">+91 {authStatusModal.phone}</span> is not registered in our driver directory.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-left space-y-2 text-xs">
+                  <div className="font-bold text-amber-900 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Join Mana Drivers (3 Months Free Trial)</span>
+                  </div>
+                  <p className="text-amber-800 leading-normal">
+                    Register your profile with Aadhaar & Driving License to receive direct customer bookings in Hyderabad with ₹0 commission.
+                  </p>
+                </div>
+
+                <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthStatusModal(null);
+                      setMode('register');
+                    }}
+                    className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
+                  >
+                    Register Profile Now (3 Months Free)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAuthStatusModal(null)}
+                    className="w-full sm:w-auto px-5 py-3.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-full text-xs font-semibold transition-all cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+                  <Clock className="w-8 h-8" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold uppercase tracking-wider">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    <span>PENDING ADMIN VERIFICATION</span>
+                  </div>
+                  <h3 className="text-xl font-extrabold text-neutral-950 font-sans">
+                    Application Pending Approval
+                  </h3>
+                  <p className="text-xs text-neutral-600 leading-relaxed">
+                    Welcome back, <span className="font-bold text-neutral-950">{authStatusModal.driverName || 'Driver'}</span> (+91 {authStatusModal.phone}). Your registration documents (Aadhaar & Driving License) are under review by our admin team.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 text-left space-y-2 text-xs">
+                  <div className="font-bold text-neutral-900 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Next Steps</span>
+                  </div>
+                  <p className="text-neutral-600 leading-normal">
+                    Once our admin verifies your KYC documents, your driver portal login will be activated and your profile will be published on the homepage roster.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setAuthStatusModal(null)}
+                  className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
+                >
+                  Understood & Close
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -80,11 +80,22 @@ router.post('/login', async (req, res) => {
   if (!driver) {
     return res.status(404).json({
       success: false,
-      message: 'Driver mobile number is not registered. Please register as a new driver.',
+      code: 'UNREGISTERED',
+      message: 'You are not yet registered. Please submit your driver registration form.',
     });
   }
 
-  // If OTP provided, verify it
+  // Check if driver is pending approval by admin
+  if (!driver.isApproved) {
+    return res.status(200).json({
+      success: false,
+      code: 'PENDING_APPROVAL',
+      message: 'Your driver registration is pending admin approval. You will be able to log in once an admin approves your profile.',
+      driver,
+    });
+  }
+
+  // If OTP provided, verify it (Optional direct login for valid approved drivers)
   if (otp) {
     const otpRes = await verifyOtp({ mobile: phone, otp });
     if (!otpRes.success && otp !== '1234' && otp !== '123456') {
