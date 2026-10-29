@@ -333,26 +333,28 @@ export default function DriverPortal({ onBackToHome }) {
 
     const fee = registrationType === 'hourly' ? 49 : 99;
     const rateDisplay =
-      registrationType === 'hourly'
+      registrationType === 'combined'
+        ? `₹${formData.hourlyRate}/hr & ₹${Number(formData.monthlySalary).toLocaleString('en-IN')}/mo`
+        : registrationType === 'hourly'
         ? `₹${formData.hourlyRate}/hr`
         : `₹${Number(formData.monthlySalary).toLocaleString('en-IN')}/mo`;
 
     const registrationPayload = {
       name: nameRes.cleaned,
       phone: phoneRes.cleaned,
-      driverType: registrationType === 'hourly' ? 'freelance' : 'permanent',
+      driverType: registrationType === 'combined' ? 'combined' : registrationType === 'hourly' ? 'freelance' : 'permanent',
       hourlyRate: Number(formData.hourlyRate) || 180,
-      monthlySalary: registrationType === 'monthly' ? Number(formData.monthlySalary) || 20000 : null,
+      monthlySalary: registrationType === 'hourly' ? null : Number(formData.monthlySalary) || 20000,
       location: formData.location,
       experience: expRes.value,
       languages: formData.languages,
       photo: finalHeadshotUrl,
-      bio: formData.bio ? formData.bio.slice(0, 300) : `${nameRes.cleaned} is a verified private driver in ${formData.location}, Hyderabad. Custom Rate: ${rateDisplay}.`,
+      bio: formData.bio ? formData.bio.slice(0, 300) : `${nameRes.cleaned} is a verified private driver in ${formData.location}, Hyderabad. Rates: ${rateDisplay}.`,
       licenseNo: licenseRes.cleaned,
       licensePhoto: finalLicenseUrl,
       aadhaarNo: aadhaarRes.formatted,
       aadhaarPhoto: finalAadhaarUrl,
-      workingPreference: `${registrationType === 'hourly' ? 'Hourly Freelance' : 'Monthly Permanent'} (${rateDisplay})`,
+      workingPreference: `${registrationType === 'combined' ? 'Combined (Hourly & Monthly)' : registrationType === 'hourly' ? 'Hourly Freelance' : 'Monthly Permanent'} (${rateDisplay})`,
     };
 
     triggerDriverRegistrationRazorpay({
@@ -442,6 +444,19 @@ export default function DriverPortal({ onBackToHome }) {
       {/* MODE 1: LOGGED-IN DRIVER DASHBOARD */}
       {mode === 'dashboard' && loggedInDriver && (
         <div className="space-y-6 animate-fadeIn">
+          {/* PENDING VERIFICATION NOTICE BANNER IF NOT APPROVED */}
+          {!loggedInDriver.isApproved && (
+            <div className="bg-amber-500/15 border-2 border-amber-500/40 rounded-3xl p-5 sm:p-6 text-amber-950 space-y-2 shadow-sm">
+              <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base text-amber-900">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                <span>⏳ Application Under Review - Verification Pending (24 to 48 Hours)</span>
+              </div>
+              <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                Your Aadhaar Card and Driving License documents have been submitted and are currently undergoing background check by Mana Drivers admin. Once approved, your profile will automatically go live on the public directory!
+              </p>
+            </div>
+          )}
+
           {/* Driver Welcome Card */}
           <div className="bg-[#121212] text-white rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
@@ -453,16 +468,24 @@ export default function DriverPortal({ onBackToHome }) {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-bold font-sans text-white">{loggedInDriver.name}</h2>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
-                    ✓ Verified Driver
-                  </span>
+                  {loggedInDriver.isApproved ? (
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                      ✓ Verified Driver
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold">
+                      ⏳ Verification Pending
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-neutral-400 mt-1">
                   {loggedInDriver.phone} · {loggedInDriver.location}
                 </p>
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className="text-xs font-extrabold text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-md border border-amber-400/20">
-                    {loggedInDriver.driverType === 'permanent'
+                    {loggedInDriver.driverType === 'combined'
+                      ? `Hourly: ₹${loggedInDriver.hourlyRate || 180}/hr · Monthly: ₹${(loggedInDriver.monthlySalary || 20000).toLocaleString('en-IN')}/mo`
+                      : loggedInDriver.driverType === 'permanent'
                       ? `Monthly Salary: ₹${(loggedInDriver.monthlySalary || 20000).toLocaleString('en-IN')}/mo`
                       : `Custom Hourly Rate: ₹${loggedInDriver.hourlyRate || 180}/hr`}
                   </span>
@@ -485,14 +508,24 @@ export default function DriverPortal({ onBackToHome }) {
               <button
                 type="button"
                 onClick={handleToggleStatus}
+                disabled={!loggedInDriver.isApproved}
                 className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer ${
-                  loggedInDriver.status === 'Available'
+                  !loggedInDriver.isApproved
+                    ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
+                    : loggedInDriver.status === 'Available'
                     ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
                     : 'bg-neutral-700 hover:bg-neutral-600 text-neutral-200'
                 }`}
+                title={!loggedInDriver.isApproved ? 'Duty toggle available after admin verification' : 'Toggle Duty Status'}
               >
                 <Power className="w-3.5 h-3.5" />
-                <span>{loggedInDriver.status === 'Available' ? 'ONLINE (AVAILABLE)' : 'OFFLINE'}</span>
+                <span>
+                  {!loggedInDriver.isApproved
+                    ? 'VERIFICATION PENDING'
+                    : loggedInDriver.status === 'Available'
+                    ? 'ONLINE (AVAILABLE)'
+                    : 'OFFLINE'}
+                </span>
               </button>
             </div>
           </div>
@@ -786,14 +819,14 @@ export default function DriverPortal({ onBackToHome }) {
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700">
                   Select Working Preference & Custom Pricing
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <button
                     type="button"
                     onClick={() => {
                       setRegistrationType('hourly');
                       setFormData((p) => ({ ...p, workingPreference: 'Work by the hour' }));
                     }}
-                    className={`p-5 rounded-2xl border text-left transition-all ${
+                    className={`p-4 rounded-2xl border text-left transition-all ${
                       registrationType === 'hourly'
                         ? 'border-neutral-950 bg-neutral-950 text-white shadow-xs'
                         : 'border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-900'
@@ -801,13 +834,13 @@ export default function DriverPortal({ onBackToHome }) {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <Clock className="w-5 h-5" />
-                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500 text-white">
-                        3 Months Free
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">
+                        3-Mo Free
                       </span>
                     </div>
-                    <div className="font-bold text-sm">Work by the hour (Freelance)</div>
-                    <p className="text-xs opacity-80 mt-1">
-                      Set custom hourly rates for in-city, shopping & outstation trips.
+                    <div className="font-bold text-xs sm:text-sm">Freelance (Hourly)</div>
+                    <p className="text-[11px] opacity-80 mt-1">
+                      Set custom hourly rates for in-city & outstation trips.
                     </p>
                   </button>
 
@@ -817,7 +850,7 @@ export default function DriverPortal({ onBackToHome }) {
                       setRegistrationType('monthly');
                       setFormData((p) => ({ ...p, workingPreference: 'Work monthly' }));
                     }}
-                    className={`p-5 rounded-2xl border text-left transition-all ${
+                    className={`p-4 rounded-2xl border text-left transition-all ${
                       registrationType === 'monthly'
                         ? 'border-neutral-950 bg-neutral-950 text-white shadow-xs'
                         : 'border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-900'
@@ -825,20 +858,44 @@ export default function DriverPortal({ onBackToHome }) {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <UserPlus className="w-5 h-5" />
-                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500 text-white">
-                        3 Months Free
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">
+                        3-Mo Free
                       </span>
                     </div>
-                    <div className="font-bold text-sm">Work monthly (Permanent)</div>
-                    <p className="text-xs opacity-80 mt-1">
-                      Set expected monthly salary for full-time family or executive duty.
+                    <div className="font-bold text-xs sm:text-sm">Permanent (Monthly)</div>
+                    <p className="text-[11px] opacity-80 mt-1">
+                      Set expected monthly salary for full-time family duty.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegistrationType('combined');
+                      setFormData((p) => ({ ...p, workingPreference: 'Both Hourly & Monthly' }));
+                    }}
+                    className={`p-4 rounded-2xl border text-left transition-all ${
+                      registrationType === 'combined'
+                        ? 'border-neutral-950 bg-neutral-950 text-white shadow-xs'
+                        : 'border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <Sparkles className="w-5 h-5 text-amber-400" />
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">
+                        3-Mo Free
+                      </span>
+                    </div>
+                    <div className="font-bold text-xs sm:text-sm">Combined (Both)</div>
+                    <p className="text-[11px] opacity-80 mt-1">
+                      Available for both freelance hourly rides & monthly permanent jobs!
                     </p>
                   </button>
                 </div>
 
                 {/* DYNAMIC RATE INPUT & ESTIMATED INCOME BADGE */}
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3">
-                  {registrationType === 'hourly' ? (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-4">
+                  {registrationType === 'hourly' && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
@@ -861,10 +918,12 @@ export default function DriverPortal({ onBackToHome }) {
                       />
                       <p className="text-xs font-medium text-emerald-900 mt-2 flex items-center gap-1">
                         💡 <span className="font-bold">Estimated Monthly Income:</span> ₹
-                        {calculatedEstimatedMonthlyIncome.toLocaleString('en-IN')}/mo (driving 6 hrs/day, 26 days/mo with 0% commission!)
+                        {((Number(formData.hourlyRate) || 180) * 6 * 26).toLocaleString('en-IN')}/mo (6 hrs/day, 26 days/mo)
                       </p>
                     </div>
-                  ) : (
+                  )}
+
+                  {registrationType === 'monthly' && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
@@ -886,9 +945,44 @@ export default function DriverPortal({ onBackToHome }) {
                         required
                       />
                       <p className="text-xs font-medium text-emerald-900 mt-2 flex items-center gap-1">
-                        💡 <span className="font-bold">Guaranteed Income:</span> ₹
-                        {Number(formData.monthlySalary || 20000).toLocaleString('en-IN')}/month with 0% commission!
+                        💡 <span className="font-bold">Guaranteed Monthly Income:</span> ₹
+                        {Number(formData.monthlySalary || 20000).toLocaleString('en-IN')}/mo with 0% commission!
                       </p>
+                    </div>
+                  )}
+
+                  {registrationType === 'combined' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-emerald-950 mb-1">
+                          Hourly Freelance Rate (₹/hr) *
+                        </label>
+                        <input
+                          type="number"
+                          min={150}
+                          max={500}
+                          step={10}
+                          value={formData.hourlyRate}
+                          onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-white border border-emerald-300 rounded-xl text-sm font-bold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-emerald-950 mb-1">
+                          Monthly Salary Requirement (₹/mo) *
+                        </label>
+                        <input
+                          type="number"
+                          min={15000}
+                          max={40000}
+                          step={500}
+                          value={formData.monthlySalary}
+                          onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-white border border-emerald-300 rounded-xl text-sm font-bold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                          required
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

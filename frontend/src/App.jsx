@@ -9,6 +9,8 @@ import MyBookingsSheet from './components/MyBookingsSheet';
 import { Phone } from 'lucide-react';
 import { fetchAdminBookingsApi, createBookingApi, fetchPublicDrivers } from './utils/api';
 
+import Footer from './components/Footer';
+
 export default function App() {
   // Active Role: 'customer' | 'driver' | 'admin'
   const [activeRole, setActiveRole] = useState(() => {
@@ -133,38 +135,10 @@ export default function App() {
       </main>
 
       {/* FOOTER */}
-      <footer className="mt-auto py-10 px-4 sm:px-6 lg:px-8 border-t border-neutral-200/80 bg-[#FAF9F6]">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-neutral-500 font-medium">
-          <div className="flex flex-wrap items-center gap-6">
-            <a href="#" className="hover:text-neutral-900 transition-colors">
-              Privacy policy
-            </a>
-            <a href="#" className="hover:text-neutral-900 transition-colors">
-              Terms of service
-            </a>
-            <a href="#drivers" className="hover:text-neutral-900 transition-colors">
-              Drivers
-            </a>
-            <a href="#pricing" className="hover:text-neutral-900 transition-colors">
-              Pricing
-            </a>
-          </div>
-
-          <div className="flex items-center gap-4 text-neutral-500">
-            <a
-              href="tel:+919963254183"
-              className="hover:text-neutral-900 transition-colors flex items-center gap-1 font-semibold text-neutral-800"
-            >
-              <Phone className="w-3.5 h-3.5 text-[#FF5500]" />
-              <span>Helpline: +91 99632 54183</span>
-            </a>
-            <span>·</span>
-            <span>© {new Date().getFullYear()} MANA DRIVERS HYDERABAD</span>
-            <span>·</span>
-            <span>AADHAAR & LICENSE VERIFIED</span>
-          </div>
-        </div>
-      </footer>
+      <Footer
+        onSwitchToDriver={() => handleRoleChange('driver')}
+        onOpenBookings={() => setIsBookingsSheetOpen(true)}
+      />
 
       {/* FLOATING CIRCULAR CONTACT BUTTON */}
       <div className="fixed bottom-6 right-6 z-40">

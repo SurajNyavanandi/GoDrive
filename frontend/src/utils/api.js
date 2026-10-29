@@ -6,19 +6,33 @@ const PRIMARY_API = envApiUrl || RENDER_BACKEND;
 const PRIMARY_BASE = PRIMARY_API.endsWith('/api') ? PRIMARY_API : `${PRIMARY_API.replace(/\/$/, '')}/api`;
 
 async function safeFetch(endpoint, options = {}) {
-  // 1. Try Primary Render API with /api prefix (e.g. https://godrive-293l.onrender.com/api/drivers)
+  // 1. Try local/same-origin relative Express server (/api/drivers) first
   try {
-    const url = `${PRIMARY_BASE}${endpoint}`;
-    const res = await fetch(url, options);
-    if (res.ok) {
-      return await res.json();
+    const localRes = await fetch(`/api${endpoint}`, options);
+    if (localRes.ok) {
+      return await localRes.json();
     }
-  } catch (err) {
-    logger.warn(`Primary API request failed for ${PRIMARY_BASE}${endpoint}:`, err);
+  } catch {
+    // Relative endpoint unavailable, fallback to configured primary backend
   }
 
-  // 2. Try Render API without /api prefix (e.g. https://godrive-293l.onrender.com/drivers)
-  if (PRIMARY_API.includes('onrender.com')) {
+  // 2. Try Primary Render API with /api prefix (e.g. https://godrive-293l.onrender.com/api/drivers)
+  if (PRIMARY_BASE) {
+    try {
+      const url = `${PRIMARY_BASE}${endpoint}`;
+      const res = await fetch(url, options);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        logger.debug(`Primary API request skipped/failed for ${PRIMARY_BASE}${endpoint}:`, err);
+      }
+    }
+  }
+
+  // 3. Try Render API without /api prefix
+  if (PRIMARY_API && PRIMARY_API.includes('onrender.com')) {
     try {
       const directUrl = `${PRIMARY_API.replace(/\/$/, '')}${endpoint}`;
       const directRes = await fetch(directUrl, options);
@@ -28,16 +42,6 @@ async function safeFetch(endpoint, options = {}) {
     } catch {
       // Ignore
     }
-  }
-
-  // 3. Fallback to same-origin relative Express server (/api/drivers)
-  try {
-    const localRes = await fetch(`/api${endpoint}`, options);
-    if (localRes.ok) {
-      return await localRes.json();
-    }
-  } catch {
-    // Ignore local fallback error
   }
 
   return null;

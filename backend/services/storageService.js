@@ -102,6 +102,7 @@ const enrichDriverSubscriptionInfo = (driver) => {
     isTrial: driver.subscriptionPlan === 'free_trial',
     isExpired: driver.isApproved && remainingDays <= 0,
     phoneMasked: driver.phone ? driver.phone.replace(/(\d{3})\d{5}(\d{2})/, '$1 ***** $2') : '+91 90302 *****',
+    premiumActivatedAt: driver.premiumActivatedAt || driver.createdAt || new Date().toISOString(),
   };
 };
 
@@ -140,9 +141,26 @@ const getDriverByPhone = (phone) => {
 const registerNewDriver = (driverData) => {
   const db = initDB();
   const raw = cleanPhone(driverData.phone);
+  const cleanLicense = String(driverData.licenseNo || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const cleanAadhaar = String(driverData.aadhaarNo || '').replace(/[^0-9]/g, '');
   const now = Date.now();
   const DAY_MS = 24 * 60 * 60 * 1000;
   
+  // Strengthen authentication avoiding duplicates (mobile, license, aadhaar)
+  const duplicateLicense = db.drivers.find(
+    (d) => d.isApproved && cleanLicense && String(d.licenseNo || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase() === cleanLicense
+  );
+  if (duplicateLicense) {
+    return { success: false, message: 'A driver with this Driving License is already registered and verified.' };
+  }
+
+  const duplicateAadhaar = db.drivers.find(
+    (d) => d.isApproved && cleanAadhaar && cleanAadhaar.length >= 12 && String(d.aadhaarNo || '').replace(/[^0-9]/g, '') === cleanAadhaar
+  );
+  if (duplicateAadhaar) {
+    return { success: false, message: 'A driver with this Aadhaar Card Number is already registered.' };
+  }
+
   // Check if driver with phone already exists
   const existingIndex = db.drivers.findIndex((d) => cleanPhone(d.rawPhone || d.phone) === raw);
   if (existingIndex !== -1) {
@@ -155,7 +173,9 @@ const registerNewDriver = (driverData) => {
     db.drivers[existingIndex] = {
       ...existing,
       name: driverData.name || existing.name,
-      driverType: driverData.driverType || (driverData.workingPreference?.includes('monthly') ? 'permanent' : 'freelance'),
+      driverType: driverData.driverType || 'freelance',
+      hourlyRate: Number(driverData.hourlyRate) || 180,
+      monthlySalary: driverData.monthlySalary ? Number(driverData.monthlySalary) : (driverData.driverType === 'permanent' || driverData.driverType === 'combined' ? 20000 : null),
       phone: formattedPhone,
       rawPhone: raw,
       location: driverData.location || existing.location,
@@ -171,6 +191,7 @@ const registerNewDriver = (driverData) => {
       isApproved: false,
       listingStatus: 'Pending Admin Verification',
       subscriptionPlan: 'free_trial',
+      premiumActivatedAt: new Date().toISOString(),
       subscriptionExpiry: new Date(now + 90 * DAY_MS).toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -183,12 +204,12 @@ const registerNewDriver = (driverData) => {
   const newDriver = {
     id: `drv-${Date.now()}`,
     name: driverData.name,
-    driverType: driverData.driverType || (driverData.workingPreference?.includes('monthly') ? 'permanent' : 'freelance'),
+    driverType: driverData.driverType || 'freelance',
     vehicle: driverData.vehicle || 'Manual & Automatic Cars',
     rating: 5.0,
     trips: 0,
-    hourlyRate: Number(driverData.hourlyRate) || (driverData.driverType === 'permanent' ? 200 : 180),
-    monthlySalary: Number(driverData.monthlySalary) || (driverData.driverType === 'permanent' ? 20000 : null),
+    hourlyRate: Number(driverData.hourlyRate) || 180,
+    monthlySalary: driverData.monthlySalary ? Number(driverData.monthlySalary) : (driverData.driverType === 'permanent' || driverData.driverType === 'combined' ? 20000 : null),
     location: driverData.location || 'Hyderabad',
     status: 'Available',
     languages: driverData.languages || 'Telugu, Hindi, English',
@@ -205,6 +226,7 @@ const registerNewDriver = (driverData) => {
     isApproved: false, // Pending admin approval
     listingStatus: 'Pending Admin Verification',
     subscriptionPlan: 'free_trial',
+    premiumActivatedAt: new Date().toISOString(),
     subscriptionExpiry: new Date(now + 90 * DAY_MS).toISOString(), // 90 days (3 months) free trial upon registration
     createdAt: new Date().toISOString(),
   };
@@ -330,6 +352,7 @@ const subscribeDriverPlan = (id, plan = 'starter') => {
   driver.subscriptionPlan = plan;
   driver.subscriptionExpiry = new Date(baseTime + 30 * DAY_MS).toISOString(); // 30 days added
   driver.isApproved = true;
+  driver.premiumActivatedAt = new Date().toISOString();
   driver.listingStatus = plan === 'featured' ? 'Featured Chauffeur' : (driver.driverType === 'permanent' ? 'Verified Monthly Chauffeur' : 'Verified Driver');
   
   saveDB(db);
@@ -345,6 +368,7 @@ const updateDriverSelfProfile = (id, profileData) => {
   const updated = {
     ...existing,
     name: profileData.name || existing.name,
+    driverType: profileData.driverType || existing.driverType,
     hourlyRate: profileData.hourlyRate ? Number(profileData.hourlyRate) : existing.hourlyRate,
     monthlySalary: profileData.monthlySalary ? Number(profileData.monthlySalary) : existing.monthlySalary,
     location: profileData.location || existing.location,
@@ -378,6 +402,7 @@ const approveDriver = (id) => {
   const DAY_MS = 24 * 60 * 60 * 1000;
 
   driver.isApproved = true;
+  driver.premiumActivatedAt = new Date().toISOString();
   // Grant 3-month (90 days) free trial if expiry is not set or passed
   if (!driver.subscriptionExpiry || computeRemainingDays(driver.subscriptionExpiry) <= 0) {
     driver.subscriptionPlan = 'free_trial';

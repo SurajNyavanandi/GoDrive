@@ -13,11 +13,11 @@ import { useEffect } from 'react';
  * @param {string} [props.image] - OpenGraph share image URL
  */
 export default function SEO({
-  title = 'VIRAT TOM | Static and Dynamic Website Development',
-  description = 'Ultra-minimalist, high-performance web agency engineering bespoke landing pages and dynamic MERN full-stack applications.',
+  title = 'Mana Drivers - Personal Car Drivers in Hyderabad',
+  description = 'Book verified drivers for your personal car in Hyderabad. Hourly freelance drivers and monthly permanent drivers in Hitec City, Gachibowli, Jubilee Hills, and RGIA Airport.',
   canonical,
   ogType = 'website',
-  image = '/favicon.svg',
+  image = 'https://res.cloudinary.com/dfr0zghtc/image/upload/v1793249726/manadriverslogo1_crn1im.jpg',
 }) {
   useEffect(() => {
     // 1. Update Title

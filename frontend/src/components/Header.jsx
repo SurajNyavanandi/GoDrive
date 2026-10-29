@@ -66,9 +66,9 @@ export default function Header({
               className="flex items-center gap-2.5 group"
             >
               <img
-                src="https://res.cloudinary.com/abjxnpfd/image/upload/v1792134938/manadriverslogo.jpg"
+                src="https://res.cloudinary.com/dfr0zghtc/image/upload/v1793252025/Minimalist_M_Steering_Wheel_Logo_tmb2mo.png"
                 alt="Mana Drivers"
-                className="w-8 h-8 rounded-full object-cover border border-neutral-200 shadow-2xs group-hover:scale-105 transition-transform"
+                className="w-8 h-8 rounded-full object-cover border border-neutral-200 shadow-2xs group-hover:scale-105 transition-transform bg-white"
               />
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-lg sm:text-xl tracking-tight text-neutral-950 font-sans">
@@ -101,14 +101,14 @@ export default function Header({
               <span>HYD · HITEC CITY</span>
             </div>
 
-            {/* 24/7 Helpline Pill */}
+            {/* Official Support Email Pill */}
             <a
-              href="tel:+919963254183"
+              href="mailto:support@manadrivers.in"
               className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-neutral-200 hover:border-neutral-400 text-xs font-semibold text-neutral-800 transition-colors shadow-2xs"
-              title="Call 24/7 Driver Helpline"
+              title="Official Support Email"
             >
-              <Phone className="w-3.5 h-3.5 text-[#FF5500]" />
-              <span>+91 99632 54183</span>
+              <span className="text-[#FF5500] font-bold">✉</span>
+              <span>support@manadrivers.in</span>
             </a>
 
             {/* Trips Button */}
