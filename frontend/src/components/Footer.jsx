@@ -135,12 +135,12 @@ export default function Footer({ onSwitchToDriver, onOpenBookings }) {
           <div className="space-y-3 pt-4 border-t border-neutral-800">
             {/* Physical Address Hub Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="bg-[#111111] p-4 rounded-2xl border border-neutral-800 space-y-1">
+              <div className="bg-[#111111] p-4 rounded-2xl border border-neutral-800 hover:border-neutral-600 transition-colors space-y-1">
                 <span className="font-bold text-white uppercase text-[10px] tracking-wider block">HITEC CITY HUB</span>
                 <p className="text-neutral-400 text-[11px]">Cyber Towers, Hitec City, Hyderabad - 500081</p>
               </div>
 
-              <div className="bg-[#111111] p-4 rounded-2xl border border-neutral-800 space-y-1">
+              <div className="bg-[#111111] p-4 rounded-2xl border border-neutral-800 hover:border-neutral-600 transition-colors space-y-1">
                 <span className="font-bold text-white uppercase text-[10px] tracking-wider block">FINANCIAL DISTRICT HUB</span>
                 <p className="text-neutral-400 text-[11px]">Gachibowli Main Rd, Hyderabad - 500032</p>
               </div>
@@ -148,13 +148,13 @@ export default function Footer({ onSwitchToDriver, onOpenBookings }) {
 
             {/* Rounded Social Icon Badges */}
             <div className="flex items-center gap-2 pt-2">
-              <a href="#" className="w-9 h-9 rounded-full bg-[#111111] border border-neutral-800 hover:border-white text-neutral-300 hover:text-white flex items-center justify-center text-xs transition-all">
+              <a href="#" aria-label="Mana Drivers on X Twitter" className="w-9 h-9 rounded-full bg-[#111111] border border-neutral-800 hover:border-white text-neutral-300 hover:text-white flex items-center justify-center text-xs transition-all">
                 𝕏
               </a>
-              <a href="#" className="w-9 h-9 rounded-full bg-[#111111] border border-neutral-800 hover:border-white text-neutral-300 hover:text-white flex items-center justify-center text-xs transition-all">
+              <a href="#" aria-label="Mana Drivers on Facebook" className="w-9 h-9 rounded-full bg-[#111111] border border-neutral-800 hover:border-white text-neutral-300 hover:text-white flex items-center justify-center text-xs transition-all">
                 f
               </a>
-              <a href="#" className="w-9 h-9 rounded-full bg-[#111111] border border-neutral-800 hover:border-white text-neutral-300 hover:text-white flex items-center justify-center text-xs transition-all">
+              <a href="#" aria-label="Mana Drivers on LinkedIn" className="w-9 h-9 rounded-full bg-[#111111] border border-neutral-800 hover:border-white text-neutral-300 hover:text-white flex items-center justify-center text-xs transition-all">
                 in
               </a>
             </div>

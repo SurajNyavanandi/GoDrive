@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -218,14 +218,16 @@ export default function AdminPortal({ onBackToHome }) {
   const paidDrivers = drivers.filter((d) => d.isApproved && d.subscriptionPlan !== 'free_trial' && d.remainingDays > 0);
   const expiredDrivers = drivers.filter((d) => d.isApproved && d.remainingDays <= 0);
 
-  // Filtered List
-  const displayedDrivers = drivers.filter((d) => {
-    if (activeTab === 'pending') return !d.isApproved;
-    if (activeTab === 'trial') return d.isApproved && d.subscriptionPlan === 'free_trial' && d.remainingDays > 0;
-    if (activeTab === 'paid') return d.isApproved && d.subscriptionPlan !== 'free_trial' && d.remainingDays > 0;
-    if (activeTab === 'expired') return d.isApproved && d.remainingDays <= 0;
-    return true; // 'all'
-  });
+  // Filtered List wrapped in useMemo for performance (P-03)
+  const displayedDrivers = useMemo(() => {
+    return drivers.filter((d) => {
+      if (activeTab === 'pending') return !d.isApproved;
+      if (activeTab === 'trial') return d.isApproved && d.subscriptionPlan === 'free_trial' && d.remainingDays > 0;
+      if (activeTab === 'paid') return d.isApproved && d.subscriptionPlan !== 'free_trial' && d.remainingDays > 0;
+      if (activeTab === 'expired') return d.isApproved && d.remainingDays <= 0;
+      return true; // 'all'
+    });
+  }, [drivers, activeTab]);
 
   if (!adminAuthed) {
     return (
@@ -763,7 +765,8 @@ export default function AdminPortal({ onBackToHome }) {
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-neutral-400 hover:text-neutral-900 p-1 rounded-full"
+                aria-label="Close modal"
+                className="text-neutral-400 hover:text-neutral-950 p-1 rounded-full"
               >
                 ✕
               </button>

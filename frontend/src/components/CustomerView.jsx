@@ -7,12 +7,9 @@ import {
   ArrowUpRight,
   Plus,
   X,
-  Plane,
   Briefcase,
-  Key,
   ShieldCheck,
   Sparkles,
-  Phone,
   Mail,
   Star,
   Clock,
@@ -22,6 +19,27 @@ import {
   Send,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+const HYDERABAD_ALL_LOCALITIES = [
+  'HITEC City',
+  'Gachibowli',
+  'Jubilee Hills',
+  'Banjara Hills',
+  'Kondapur',
+  'Madhapur',
+  'Financial District',
+  'Begumpet',
+  'Secunderabad',
+  'Kukatpally',
+  'Miyapur',
+  'RGIA Airport Shamshabad',
+  'Kompally',
+  'LB Nagar',
+  'Uppal',
+  'Ameerpet',
+  'Mehdipatnam',
+  'Tarnaka',
+];
 
 export default function CustomerView({
   drivers = [],
@@ -45,8 +63,8 @@ export default function CustomerView({
     name: '',
     email: '',
     phone: '',
-    serviceType: 'Hourly City Ride',
-    locality: 'Hitec City',
+    serviceType: 'Hourly In-City Ride',
+    locality: HYDERABAD_ALL_LOCALITIES[0],
     message: '',
   });
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
@@ -93,8 +111,8 @@ export default function CustomerView({
         name: '',
         email: '',
         phone: '',
-        serviceType: 'Hourly City Ride',
-        locality: 'Hitec City',
+        serviceType: 'Hourly In-City Ride',
+        locality: HYDERABAD_ALL_LOCALITIES[0],
         message: '',
       });
     }, 600);
@@ -114,7 +132,7 @@ export default function CustomerView({
     {
       question: 'Do you charge extra for luxury SUVs, automatic transmissions, or EV cars?',
       answer:
-        'No extra fees whatsoever. All our verified chauffeurs drive both manual and automatic cars across all vehicle classes at the exact same transparent rates.',
+        'No extra fees whatsoever. All our verified chauffeurs drive both manual and automatic cars across all vehicle classes at transparent rates set directly by drivers.',
     },
     {
       question: 'How do I pay the driver for the trip?',
@@ -124,47 +142,12 @@ export default function CustomerView({
     {
       question: 'Can I hire a permanent driver on a monthly salary for my family?',
       answer:
-        'Yes. Choose a permanent monthly driver for 8 to 9 hours daily. Typical monthly driver salary ranges from ₹18,000 to ₹22,000.',
+        'Yes. Choose a permanent monthly driver for 8 to 9 hours daily. Drivers set their own custom expected monthly rates.',
     },
     {
       question: 'Are all drivers verified with Aadhaar and driving license checks?',
       answer:
         'Yes. Every driver undergoes mandatory Aadhaar identity verification, address check, and driving license background verification before going live.',
-    },
-  ];
-
-  const services = [
-    {
-      number: '01',
-      title: 'Hourly In-City Ride',
-      rate: '₹160 – ₹180 / hr',
-      min: '3 hr minimum',
-      description:
-        'Doorstep driver arrival for office commutes, shopping trips, doctor appointments, and family dinners in your personal vehicle.',
-    },
-    {
-      number: '02',
-      title: 'RGIA Airport Drop & Pickup',
-      rate: '₹600 – ₹800 flat',
-      min: 'One-way flat fare',
-      description:
-        'Punctual 24/7 transfers to and from Rajiv Gandhi International Airport Shamshabad in your car.',
-    },
-    {
-      number: '03',
-      title: 'Monthly Executive Chauffeur',
-      rate: '₹18,000 – ₹22,000 / mo',
-      min: '8–9 hrs daily · 6 days/wk',
-      description:
-        'Dedicated monthly driver for executive daily commutes, school drops, and personal family travel.',
-    },
-    {
-      number: '04',
-      title: 'Outstation Highway Trip',
-      rate: '₹1,400 – ₹1,800 / day',
-      min: 'Day trip allowance',
-      description:
-        'Experienced highway drivers for weekend family trips to Srisailam, Vijayawada, Nagarjuna Sagar, or Warangal.',
     },
   ];
 
@@ -189,7 +172,7 @@ export default function CustomerView({
       avatar:
         'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
       image:
-        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSG7kH9djSSdt6ljWchCZHMkYwzZzXa5TTAbRasvuhPBw&s',
+        'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=600&q=80',
     },
     {
       quote:
@@ -200,7 +183,7 @@ export default function CustomerView({
       avatar:
         'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
       image:
-        'https://www.deepamcabs.com/images/new-site-images/airport_transfer_hero_image.webp',
+        'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=600&q=80',
     },
   ];
 
@@ -211,7 +194,7 @@ export default function CustomerView({
       {/* =========================================================================
           SECTION 1: HERO SECTION (ULTRA MINIMALIST MODERN)
          ========================================================================= */}
-      <section className="relative w-full overflow-hidden bg-[#0A0A0A] border-b border-neutral-800 text-white min-h-[580px] sm:min-h-[620px] flex flex-col justify-between pt-20">
+      <section className="relative w-full overflow-hidden bg-[#0A0A0A] border-b border-neutral-800 text-white min-h-[580px] sm:min-h-[620px] flex flex-col justify-between pt-24 sm:pt-28">
         {/* Background Overlay & Smooth Fading Car Image */}
         <div className="absolute inset-0 z-0">
           <img
@@ -297,49 +280,258 @@ export default function CustomerView({
       </section>
 
       {/* =========================================================================
-          SECTION 2: STANDALONE HYDERABAD COVERAGE PLACES CAROUSEL SECTION
+          SECTION 2: VERIFIED DRIVER ROSTER & SEARCH (CLEAN STARK WHITE BACKGROUND)
+          Placed directly between Hero Section and Coverage Zones Carousel!
          ========================================================================= */}
-      <section id="localities" className="w-full bg-[#111111] border-b-2 border-neutral-800 py-8 overflow-hidden text-xs text-neutral-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-3">
+      <section id="drivers" className="w-full bg-white py-16 sm:py-24 border-b border-neutral-200/90 text-neutral-950 scroll-mt-24 sm:scroll-mt-28">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-3 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF5500]/10 text-[#FF5500] text-xs font-bold uppercase tracking-wider">
+                <span className="w-2 h-2 rounded-full bg-[#FF5500] animate-pulse" />
+                <span>VERIFIED HYDERABAD CHAUFFEURS</span>
+              </div>
+              <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
+                Browse Active Drivers Near You
+              </h2>
+              <p className="text-sm text-neutral-600">
+                Only active drivers with valid licenses and Aadhaar verification appear below. Select a chauffeur to connect directly.
+              </p>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
+              <button
+                type="button"
+                onClick={() => setSelectedDriverType('all')}
+                className={`px-4.5 py-2.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  selectedDriverType === 'all'
+                    ? 'bg-neutral-950 text-white shadow-md'
+                    : 'bg-neutral-100 text-neutral-700 border border-neutral-200 hover:bg-neutral-200'
+                }`}
+              >
+                All ({drivers.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDriverType('freelance')}
+                className={`px-4.5 py-2.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  selectedDriverType === 'freelance'
+                    ? 'bg-neutral-950 text-white shadow-md'
+                    : 'bg-neutral-100 text-neutral-700 border border-neutral-200 hover:bg-neutral-200'
+                }`}
+              >
+                Hourly Freelance
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDriverType('permanent')}
+                className={`px-4.5 py-2.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  selectedDriverType === 'permanent'
+                    ? 'bg-neutral-950 text-white shadow-md'
+                    : 'bg-neutral-100 text-neutral-700 border border-neutral-200 hover:bg-neutral-200'
+                }`}
+              >
+                Monthly Permanent
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDriverType('combined')}
+                className={`px-4.5 py-2.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  selectedDriverType === 'combined'
+                    ? 'bg-neutral-950 text-white shadow-md'
+                    : 'bg-neutral-100 text-neutral-700 border border-neutral-200 hover:bg-neutral-200'
+                }`}
+              >
+                Combined
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Availability Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#FAF9F6] p-4 rounded-3xl border border-neutral-200/90 shadow-2xs">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-neutral-400" />
+              <input
+                type="text"
+                placeholder="Search driver by name, area, or language..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-neutral-200 rounded-full text-xs font-semibold text-neutral-950 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-950 shadow-2xs"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-xs font-semibold text-neutral-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={onlyAvailable}
+                onChange={(e) => setOnlyAvailable(e.target.checked)}
+                className="w-4 h-4 rounded border-neutral-300 text-neutral-950 focus:ring-neutral-900"
+              />
+              <span>Available Now Only</span>
+            </label>
+          </div>
+
+          {/* Driver Roster Grid */}
+          {filteredDrivers.length === 0 ? (
+            <div className="bg-[#FAF9F6] rounded-3xl p-12 text-center border border-neutral-200 space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-white border border-neutral-200 text-neutral-500 flex items-center justify-center mx-auto text-xl shadow-2xs">
+                🚗
+              </div>
+              <h3 className="text-xl font-bold text-neutral-950 font-sans">No Active Drivers Found</h3>
+              <p className="text-xs text-neutral-500 max-w-md mx-auto">
+                Drivers register and set custom rates to appear on the homepage roster.
+              </p>
+              <button
+                type="button"
+                onClick={onSwitchToDriver}
+                className="px-6 py-3 bg-neutral-950 text-white rounded-full text-xs font-bold hover:bg-neutral-800 transition-all shadow-md cursor-pointer"
+              >
+                Register as a Driver (3 Months Free)
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredDrivers.map((driver) => {
+                const isCombined = driver.driverType === 'combined';
+                const isPermanent = driver.driverType === 'permanent';
+                const isFeatured = driver.subscriptionPlan === 'featured';
+
+                return (
+                  <div
+                    key={driver.id}
+                    className={`bg-[#FAF9F6] rounded-3xl p-6 border ${
+                      isFeatured ? 'border-amber-400 ring-2 ring-amber-400/20 bg-amber-50/20' : 'border-neutral-200/90'
+                    } hover:border-neutral-400 hover:shadow-xl transition-all duration-300 flex flex-col justify-between space-y-6 group relative overflow-hidden`}
+                  >
+                    {isFeatured && (
+                      <div className="absolute top-0 right-0 bg-gradient-to-l from-amber-500 to-amber-600 text-neutral-950 px-3.5 py-1 rounded-bl-2xl text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 shadow-2xs">
+                        <Sparkles className="w-3 h-3 text-neutral-950" />
+                        Featured
+                      </div>
+                    )}
+
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-4">
+                        <div className="relative shrink-0">
+                          <img
+                            src={driver.photo}
+                            alt={driver.name}
+                            className="w-16 h-16 rounded-2xl object-cover bg-white border border-neutral-200/90 shadow-2xs"
+                          />
+                          <span
+                            className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white ${
+                              driver.status === 'Available' ? 'bg-emerald-500' : 'bg-neutral-400'
+                            }`}
+                            title={driver.status}
+                          />
+                        </div>
+
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <h3 className="text-lg font-bold tracking-tight text-neutral-950 font-sans truncate">
+                              {driver.name}
+                            </h3>
+                            <span className="p-0.5 bg-emerald-100 text-emerald-700 rounded-full shrink-0" title="Verified Chauffeur">
+                              <Check className="w-3 h-3 stroke-[3]" />
+                            </span>
+                          </div>
+
+                          {/* Rating & Trips */}
+                          <div className="flex items-center gap-1 mt-1 text-xs font-bold text-amber-500">
+                            <span>⭐⭐⭐⭐⭐</span>
+                            <span className="text-neutral-900 ml-1">{driver.rating || 5.0}</span>
+                            <span className="text-neutral-400 font-normal">({driver.trips || 24} trips)</span>
+                          </div>
+
+                          <p className="text-xs text-neutral-500 mt-1 flex items-center gap-1 truncate font-medium">
+                            <MapPin className="w-3 h-3 text-neutral-400 shrink-0" />
+                            <span className="truncate">{driver.location}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs text-neutral-700">
+                        <span className="px-2.5 py-0.5 rounded-md bg-white text-neutral-800 text-[11px] font-semibold border border-neutral-200">
+                          {driver.experience} Yrs Exp
+                        </span>
+                        <span className="text-neutral-300">·</span>
+                        <span className="text-neutral-500 text-[11px] truncate">{driver.languages}</span>
+                      </div>
+
+                      <p className="text-xs text-neutral-600 leading-relaxed line-clamp-2 font-normal">
+                        {driver.bio}
+                      </p>
+                    </div>
+
+                    <div className="pt-4 border-t border-neutral-200/80 flex items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                          {isCombined ? 'Hourly & Monthly' : isPermanent ? 'Monthly Salary' : 'Driver Choice Rate'}
+                        </span>
+                        <div className="text-base font-bold text-neutral-950 font-sans">
+                          {isCombined
+                            ? `₹${driver.hourlyRate || 180}/hr · Monthly`
+                            : isPermanent
+                            ? `Full-Time Monthly`
+                            : `₹${driver.hourlyRate || 180} / hr`}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleInitiateDriverAction(driver)}
+                          className="px-4 py-2 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer"
+                        >
+                          Book Chauffeur
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleInitiateDriverAction(driver)}
+                          className="w-9 h-9 rounded-full border border-neutral-200 hover:border-neutral-900 flex items-center justify-center text-neutral-900 transition-all shrink-0 bg-white cursor-pointer"
+                          title="Contact"
+                        >
+                          <ArrowUpRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* =========================================================================
+          SECTION 3: STANDALONE HYDERABAD COVERAGE PLACES CAROUSEL SECTION
+          (ULTRA MINIMALIST MODERN INFINITE MARQUEE WITH EDGE GRADIENT MASKS)
+         ========================================================================= */}
+      <section id="localities" className="w-full bg-[#0A0A0A] border-b border-neutral-800 py-10 overflow-hidden text-xs text-neutral-300 relative scroll-mt-24 sm:scroll-mt-28">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <h3 className="text-xs font-bold uppercase tracking-widest text-[#FF5500]">
-              HYDERABAD COVERAGE ZONES & PLACES
+              HYDERABAD COVERAGE ZONES & LOCALITIES
             </h3>
           </div>
 
-          <div className="flex items-center gap-4 pt-1">
-            <div className="inline-flex space-x-6 animate-marquee whitespace-nowrap font-medium text-xs text-neutral-200">
-              {[
-                'HITEC City',
-                'Gachibowli',
-                'Jubilee Hills',
-                'Banjara Hills',
-                'Kondapur',
-                'Madhapur',
-                'Financial District',
-                'Begumpet',
-                'Secunderabad',
-                'Kukatpally',
-                'Miyapur',
-                'RGIA Airport Shamshabad',
-                'Kompally',
-                'LB Nagar',
-                'Uppal',
-                'Ameerpet',
-                'Mehdipatnam',
-                'Tarnaka',
-                'HITEC City',
-                'Gachibowli',
-                'Jubilee Hills',
-                'Banjara Hills',
-              ].map((locality, idx) => (
+          <div
+            className="flex items-center gap-4 pt-1 overflow-hidden relative"
+            style={{
+              maskImage: 'linear-gradient(to right, transparent, black 12%, black 88%, transparent)',
+              WebkitMaskImage: 'linear-gradient(to right, transparent, black 12%, black 88%, transparent)',
+            }}
+          >
+            <div className="inline-flex space-x-6 animate-marquee whitespace-nowrap font-medium text-xs text-neutral-200 py-2">
+              {HYDERABAD_ALL_LOCALITIES.concat(HYDERABAD_ALL_LOCALITIES).map((locality, idx) => (
                 <span
                   key={idx}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10 text-neutral-200 hover:border-amber-400/50 transition-colors shadow-2xs"
+                  className="inline-flex items-center gap-2.5 px-5 py-2.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 hover:border-[#FF5500]/50 text-neutral-200 transition-all shadow-sm group cursor-pointer"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <span>{locality}</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 group-hover:scale-125 transition-transform" />
+                  <span className="font-semibold text-xs text-white">{locality}</span>
                 </span>
               ))}
             </div>
@@ -348,8 +540,7 @@ export default function CustomerView({
       </section>
 
       {/* =========================================================================
-          SECTION 2: ASYMMETRICAL ABOUT & CONCERN SECTION (WARM SLATE #FAF9F6)
-          Inspired by reference screenshot #1
+          SECTION 4: ASYMMETRICAL ABOUT & CONCERN SECTION (WARM SLATE #FAF9F6)
          ========================================================================= */}
       <section className="w-full bg-[#FAF9F6] py-16 sm:py-24 border-b border-neutral-200/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -357,8 +548,8 @@ export default function CustomerView({
             {/* Top Left Floating Offset Photo Card */}
             <div className="hidden lg:block absolute top-8 left-8 w-44 h-44 rounded-3xl overflow-hidden border border-neutral-200 shadow-md transform -rotate-3 hover:rotate-0 transition-transform duration-300">
               <img
-                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMMIWNMK0CiKRChLI_o_DCXR-kYVqQ6El0dkVBmYrQdZlQfydzjfWYCIA7&s=10"
-                alt="Chauffeur holding keys"
+                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80"
+                alt="Verified Driver"
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-2.5">
@@ -371,8 +562,8 @@ export default function CustomerView({
             {/* Bottom Right Floating Offset Photo Card */}
             <div className="hidden lg:block absolute bottom-8 right-8 w-44 h-44 rounded-3xl overflow-hidden border border-neutral-200 shadow-md transform rotate-3 hover:rotate-0 transition-transform duration-300">
               <img
-                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSG7kH9djSSdt6ljWchCZHMkYwzZzXa5TTAbRasvuhPBw&s"
-                alt="Happy customer in luxury car"
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80"
+                alt="Satisfied Car Owner"
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-2.5">
@@ -405,32 +596,19 @@ export default function CustomerView({
                 <Mail className="w-4 h-4 text-[#FF5500]" />
                 <span>supportmanadrivers@gmail.com</span>
               </a>
-
-              <a
-                href={`https://wa.me/919963254183?text=${encodeURIComponent(
-                  'Hello Mana Drivers, I have a query about booking a private driver in Hyderabad.'
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full sm:w-auto px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-full text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-sm min-h-[44px]"
-              >
-                <Phone className="w-4 h-4" />
-                <span>WhatsApp Helpline</span>
-              </a>
             </div>
           </div>
         </div>
       </section>
 
       {/* =========================================================================
-          SECTION 3: ZIGZAG FEATURE SHOWCASE & SERVICES (STARK PURE WHITE)
-          Inspired by reference screenshot #2
+          SECTION 5: SERVICES SHOWCASE (STARK PURE WHITE)
          ========================================================================= */}
-      <section id="services" className="w-full bg-white py-16 sm:py-24 border-b border-neutral-200">
+      <section id="services" className="w-full bg-white py-16 sm:py-24 border-b border-neutral-200 scroll-mt-24 sm:scroll-mt-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
           <div className="max-w-2xl space-y-3">
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500">
-              01 / OUR SERVICES
+              OUR SERVICES
             </p>
             <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
               You Deserve Stress-Free Travel in Your Own Car
@@ -474,12 +652,12 @@ export default function CustomerView({
                     Hourly In-City
                   </h4>
                   <p className="text-xs text-neutral-600 leading-relaxed">
-                    Easy rides for shopping and errands. Pay per hour directly.
+                    Easy rides for shopping and errands in your own vehicle.
                   </p>
                 </div>
                 <div className="pt-3 border-t border-neutral-200">
-                  <span className="text-sm font-bold text-neutral-950 block">₹160 – ₹180 / hr</span>
-                  <span className="text-[10px] text-neutral-500">3 hr min</span>
+                  <span className="text-sm font-bold text-neutral-950 block">Custom Driver Rates</span>
+                  <span className="text-[10px] text-neutral-500">Rates set by drivers</span>
                 </div>
               </div>
 
@@ -487,15 +665,15 @@ export default function CustomerView({
                 <div className="space-y-2">
                   <span className="text-xs font-bold font-mono text-neutral-400">02</span>
                   <h4 className="text-base font-bold text-neutral-950 font-sans">
-                    Airport Flat
+                    Airport Drop & Pickup
                   </h4>
                   <p className="text-xs text-neutral-600 leading-relaxed">
                     24/7 drops & pickups for RGIA Airport Shamshabad.
                   </p>
                 </div>
                 <div className="pt-3 border-t border-neutral-200">
-                  <span className="text-sm font-bold text-neutral-950 block">₹600 – ₹800 flat</span>
-                  <span className="text-[10px] text-emerald-600 font-bold">24/7 Ready</span>
+                  <span className="text-sm font-bold text-neutral-950 block">Flat Airport Transfers</span>
+                  <span className="text-[10px] text-emerald-600 font-bold">24/7 Doorstep Arrival</span>
                 </div>
               </div>
 
@@ -503,15 +681,15 @@ export default function CustomerView({
                 <div className="space-y-2">
                   <span className="text-xs font-bold font-mono text-neutral-400">03</span>
                   <h4 className="text-base font-bold text-neutral-950 font-sans">
-                    Outstation
+                    Outstation Travel
                   </h4>
                   <p className="text-xs text-neutral-600 leading-relaxed">
                     Safe highway travel to temple towns or weekend getaways.
                   </p>
                 </div>
                 <div className="pt-3 border-t border-neutral-200">
-                  <span className="text-sm font-bold text-neutral-950 block">₹1,400 – ₹1,800/day</span>
-                  <span className="text-[10px] text-neutral-500">Day allowance</span>
+                  <span className="text-sm font-bold text-neutral-950 block">Outstation Highway Trips</span>
+                  <span className="text-[10px] text-neutral-500">Day allowance rates</span>
                 </div>
               </div>
             </div>
@@ -525,7 +703,7 @@ export default function CustomerView({
                 <ShieldCheck className="w-6 h-6 text-emerald-600" />
                 <h4 className="text-sm font-bold text-neutral-950 font-sans">Fully Secured</h4>
                 <p className="text-xs text-neutral-600">Aadhaar & License background checked.</p>
-                <div className="pt-2 text-base font-bold text-neutral-950 font-mono">100% Checked</div>
+                <div className="pt-2 text-base font-bold text-neutral-950 font-mono">100% Verified</div>
               </div>
 
               <div className="bg-[#FAF9F6] rounded-3xl p-5 border border-neutral-200/80 space-y-2">
@@ -553,7 +731,7 @@ export default function CustomerView({
             {/* Right Side Executive Chauffeur Feature Card */}
             <div className="lg:col-span-5 relative rounded-3xl overflow-hidden border border-neutral-200 bg-neutral-900 group shadow-sm min-h-[340px] flex flex-col justify-end p-6">
               <img
-                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSG7kH9djSSdt6ljWchCZHMkYwzZzXa5TTAbRasvuhPBw&s"
+                src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=600&q=80"
                 alt="Dedicated Monthly Chauffeur"
                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80"
               />
@@ -571,7 +749,7 @@ export default function CustomerView({
                   8–9 hours daily support for office commutes to Financial District, school drops, and family travel.
                 </p>
                 <div className="pt-1 text-sm font-bold text-amber-400">
-                  ₹18,000 – ₹22,000 / month
+                  Custom Monthly Driver Rates
                 </div>
               </div>
             </div>
@@ -580,237 +758,13 @@ export default function CustomerView({
       </section>
 
       {/* =========================================================================
-          SECTION 4: VERIFIED DRIVER ROSTER & SEARCH (OBSIDIAN DARK #0A0A0A)
-         ========================================================================= */}
-      <section id="drivers" className="w-full bg-[#0A0A0A] py-16 sm:py-24 border-b border-neutral-800 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div className="space-y-3 max-w-2xl">
-              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-400">
-                02 / CHAUFFEURS
-              </p>
-              <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-white font-sans">
-                Meet Our Verified Hyderabad Chauffeurs
-              </h2>
-              <p className="text-sm text-neutral-400">
-                Only active drivers with valid licenses and Aadhaar verification appear below. Contact or book directly.
-              </p>
-            </div>
-
-            {/* Filter Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
-              <button
-                type="button"
-                onClick={() => setSelectedDriverType('all')}
-                className={`px-4 py-2 rounded-full text-xs font-semibold shrink-0 transition-all ${
-                  selectedDriverType === 'all'
-                    ? 'bg-white text-neutral-950 shadow-sm'
-                    : 'bg-neutral-900 text-neutral-300 border border-neutral-800 hover:bg-neutral-800'
-                }`}
-              >
-                All ({drivers.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedDriverType('freelance')}
-                className={`px-4 py-2 rounded-full text-xs font-semibold shrink-0 transition-all ${
-                  selectedDriverType === 'freelance'
-                    ? 'bg-white text-neutral-950 shadow-sm'
-                    : 'bg-neutral-900 text-neutral-300 border border-neutral-800 hover:bg-neutral-800'
-                }`}
-              >
-                Hourly Freelance
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedDriverType('permanent')}
-                className={`px-4 py-2 rounded-full text-xs font-semibold shrink-0 transition-all ${
-                  selectedDriverType === 'permanent'
-                    ? 'bg-white text-neutral-950 shadow-sm'
-                    : 'bg-neutral-900 text-neutral-300 border border-neutral-800 hover:bg-neutral-800'
-                }`}
-              >
-                Monthly Permanent
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedDriverType('combined')}
-                className={`px-4 py-2 rounded-full text-xs font-semibold shrink-0 transition-all ${
-                  selectedDriverType === 'combined'
-                    ? 'bg-white text-neutral-950 shadow-sm'
-                    : 'bg-neutral-900 text-neutral-300 border border-neutral-800 hover:bg-neutral-800'
-                }`}
-              >
-                Combined
-              </button>
-            </div>
-          </div>
-
-          {/* Search & Availability Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#111111] p-4 rounded-3xl border border-neutral-800">
-            <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 absolute left-3.5 top-3 text-neutral-500" />
-              <input
-                type="text"
-                placeholder="Search driver by name, area, or language..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-neutral-900 border border-neutral-800 rounded-full text-xs font-medium text-white placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-white"
-              />
-            </div>
-
-            <label className="flex items-center gap-2 text-xs font-medium text-neutral-300 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={onlyAvailable}
-                onChange={(e) => setOnlyAvailable(e.target.checked)}
-                className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-white focus:ring-white"
-              />
-              <span>Available Now Only</span>
-            </label>
-          </div>
-
-          {/* Bento Driver Grid */}
-          {filteredDrivers.length === 0 ? (
-            <div className="bg-[#111111] rounded-3xl p-12 text-center border border-neutral-800 space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-neutral-900 border border-neutral-800 text-neutral-400 flex items-center justify-center mx-auto text-xl">
-                🚗
-              </div>
-              <h3 className="text-xl font-bold text-white font-sans">No Active Drivers Found</h3>
-              <p className="text-xs text-neutral-400 max-w-md mx-auto">
-                Drivers must register and maintain an active listing or 3-month free trial to appear on the homepage roster.
-              </p>
-              <button
-                type="button"
-                onClick={onSwitchToDriver}
-                className="px-6 py-3 bg-white text-neutral-950 rounded-full text-xs font-bold hover:bg-neutral-200 transition-all"
-              >
-                Register as a Driver (3 Months Free)
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDrivers.map((driver) => {
-                const isCombined = driver.driverType === 'combined';
-                const isPermanent = driver.driverType === 'permanent';
-                const isFeatured = driver.subscriptionPlan === 'featured';
-
-                return (
-                  <div
-                    key={driver.id}
-                    className={`bg-[#111111] rounded-3xl p-6 border ${
-                      isFeatured ? 'border-amber-400 ring-1 ring-amber-400/30' : 'border-neutral-800'
-                    } hover:border-neutral-600 transition-all duration-300 flex flex-col justify-between space-y-6 group relative overflow-hidden`}
-                  >
-                    {isFeatured && (
-                      <div className="absolute top-0 right-0 bg-gradient-to-l from-amber-500 to-amber-600 text-neutral-950 px-3.5 py-1 rounded-bl-2xl text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-neutral-950" />
-                        Featured
-                      </div>
-                    )}
-
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-4">
-                        <div className="relative shrink-0">
-                          <img
-                            src={driver.photo}
-                            alt={driver.name}
-                            className="w-16 h-16 rounded-2xl object-cover bg-neutral-900 border border-neutral-800"
-                          />
-                          <span
-                            className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-[#111111] ${
-                              driver.status === 'Available' ? 'bg-emerald-500' : 'bg-neutral-500'
-                            }`}
-                            title={driver.status}
-                          />
-                        </div>
-
-                        <div className="flex-1 min-w-0 pt-0.5">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <h3 className="text-lg font-bold tracking-tight text-white font-sans truncate">
-                              {driver.name}
-                            </h3>
-                            <span className="p-0.5 bg-emerald-500/20 text-emerald-400 rounded-full shrink-0" title="Verified Chauffeur">
-                              <Check className="w-3 h-3 stroke-[3]" />
-                            </span>
-                          </div>
-
-                          {/* Rating & Trips */}
-                          <div className="flex items-center gap-1 mt-1 text-xs font-bold text-amber-400">
-                            <span>⭐⭐⭐⭐⭐</span>
-                            <span className="text-white ml-1">{driver.rating || 5.0}</span>
-                            <span className="text-neutral-500 font-normal">({driver.trips || 24} trips)</span>
-                          </div>
-
-                          <p className="text-xs text-neutral-400 mt-1 flex items-center gap-1 truncate">
-                            <MapPin className="w-3 h-3 text-neutral-500 shrink-0" />
-                            <span className="truncate">{driver.location}</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-xs text-neutral-300">
-                        <span className="px-2.5 py-0.5 rounded-md bg-neutral-900 text-neutral-300 text-[11px] border border-neutral-800">
-                          {driver.experience} Yrs Exp
-                        </span>
-                        <span className="text-neutral-600">·</span>
-                        <span className="text-neutral-400 text-[11px] truncate">{driver.languages}</span>
-                      </div>
-
-                      <p className="text-xs text-neutral-400 leading-relaxed line-clamp-2">
-                        {driver.bio}
-                      </p>
-                    </div>
-
-                    <div className="pt-4 border-t border-neutral-800/80 flex items-center justify-between gap-3">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
-                          {isCombined ? 'Hourly & Monthly' : isPermanent ? 'Monthly Salary' : 'Hourly Fare'}
-                        </span>
-                        <div className="text-base font-bold text-white font-sans">
-                          {isCombined
-                            ? `₹${driver.hourlyRate || 180}/hr · Monthly`
-                            : isPermanent
-                            ? `Full-Time Monthly`
-                            : `₹${driver.hourlyRate || 180} / hr`}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleInitiateDriverAction(driver)}
-                          className="px-4 py-2 bg-white hover:bg-neutral-200 text-neutral-950 rounded-full text-xs font-bold transition-all"
-                        >
-                          Book Chauffeur
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleInitiateDriverAction(driver)}
-                          className="w-9 h-9 rounded-full border border-neutral-800 hover:border-white flex items-center justify-center text-white transition-all shrink-0"
-                          title="Contact"
-                        >
-                          <ArrowUpRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* =========================================================================
-          SECTION 5: BLOG / CLIENT TESTIMONIAL SHOWCASE (WARM SLATE #FAF9F6)
-          Inspired by reference screenshot #3
+          SECTION 6: CLIENT TESTIMONIAL SHOWCASE (WARM SLATE #FAF9F6)
          ========================================================================= */}
       <section className="w-full bg-[#FAF9F6] py-16 sm:py-24 border-b border-neutral-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           <div className="max-w-2xl space-y-3">
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500">
-              03 / REVIEWS & STORIES
+              REVIEWS & STORIES
             </p>
             <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
               Read Stories Written By Hyderabad Car Owners
@@ -820,7 +774,7 @@ export default function CustomerView({
           {/* Split Story Card Showcase */}
           <div className="bg-white rounded-3xl border border-neutral-200/90 p-6 sm:p-10 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             {/* Left Column: Story Photo */}
-            <div className="lg:col-span-5 h-72 sm:h-96 rounded-2xl overflow-hidden border border-neutral-200 relative">
+            <div className="lg:col-span-5 h-56 sm:h-96 rounded-2xl overflow-hidden border border-neutral-200 relative">
               <img
                 src={currentStory.image}
                 alt={currentStory.author}
@@ -834,7 +788,6 @@ export default function CustomerView({
             {/* Right Column: Story Excerpt & Pagination Controls */}
             <div className="lg:col-span-7 space-y-6 flex flex-col justify-between h-full">
               <div className="space-y-4">
-                <span className="text-xs font-bold text-neutral-400">09, October 2026</span>
                 <blockquote className="text-lg sm:text-2xl font-medium text-neutral-900 leading-relaxed font-sans italic">
                   "{currentStory.quote}"
                 </blockquote>
@@ -883,14 +836,13 @@ export default function CustomerView({
       </section>
 
       {/* =========================================================================
-          SECTION 6: INTERACTIVE LEAD FORM & FAQ (STARK PURE WHITE)
-          Inspired by reference screenshot #3
+          SECTION 7: INTERACTIVE LEAD FORM & FAQ (STARK PURE WHITE)
          ========================================================================= */}
-      <section className="w-full bg-white py-16 sm:py-24 border-b border-neutral-200">
+      <section id="faq" className="w-full bg-white py-16 sm:py-24 border-b border-neutral-200 scroll-mt-24 sm:scroll-mt-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
           <div className="max-w-2xl space-y-3">
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-neutral-500">
-              04 / CONTACT & FAQ
+              CONTACT & FAQ
             </p>
             <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-neutral-950 font-sans">
               Ready To Begin Your Mana Drivers Journey?
@@ -923,7 +875,7 @@ export default function CustomerView({
                     <input
                       type="tel"
                       required
-                      placeholder="+91 98765 43210"
+                      placeholder="Enter 10-digit mobile"
                       value={leadForm.phone}
                       onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
                       className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-2xl text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-950"
@@ -954,9 +906,9 @@ export default function CustomerView({
                       onChange={(e) => setLeadForm({ ...leadForm, serviceType: e.target.value })}
                       className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-2xl text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-950"
                     >
-                      <option value="Hourly City Ride">Hourly In-City Ride (₹160/hr)</option>
-                      <option value="RGIA Airport Drop">RGIA Airport Transfer (Flat ₹600-800)</option>
-                      <option value="Monthly Family Driver">Monthly Family Chauffeur (₹18k-22k/mo)</option>
+                      <option value="Hourly In-City Ride">Hourly In-City Ride</option>
+                      <option value="RGIA Airport Drop">RGIA Airport Transfer</option>
+                      <option value="Monthly Family Driver">Monthly Family Chauffeur</option>
                       <option value="Outstation Trip">Outstation Highway Trip</option>
                     </select>
                   </div>
@@ -965,13 +917,17 @@ export default function CustomerView({
                     <label className="block text-xs font-bold text-neutral-900 mb-1">
                       Hyderabad Locality
                     </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Hitec City, Jubilee Hills"
+                    <select
                       value={leadForm.locality}
                       onChange={(e) => setLeadForm({ ...leadForm, locality: e.target.value })}
-                      className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-2xl text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-950"
-                    />
+                      className="w-full px-4 py-3 bg-white border border-neutral-200 rounded-2xl text-xs font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-950"
+                    >
+                      {HYDERABAD_ALL_LOCALITIES.map((loc) => (
+                        <option key={loc} value={loc}>
+                          {loc}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -1003,7 +959,7 @@ export default function CustomerView({
             <div className="lg:col-span-5 space-y-6">
               <div className="relative rounded-3xl overflow-hidden border border-neutral-200 h-[420px] bg-neutral-900 shadow-sm">
                 <img
-                  src="https://www.deepamcabs.com/images/new-site-images/airport_transfer_hero_image.webp"
+                  src="https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=600&q=80"
                   alt="Mana Drivers Chauffeur Service"
                   className="w-full h-full object-cover"
                 />

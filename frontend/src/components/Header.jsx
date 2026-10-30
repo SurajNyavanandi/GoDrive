@@ -21,9 +21,6 @@ export default function Header({
   const navLinks = [
     { name: 'Services', href: '#services' },
     { name: 'Drivers', href: '#drivers' },
-    { name: 'Pricing', href: '#pricing' },
-    { name: 'Coverage', href: '#localities' },
-    { name: 'FAQ', href: '#faq' },
   ];
 
   const handleNavClick = (e, href) => {
@@ -147,6 +144,7 @@ export default function Header({
                   : 'bg-white/10 hover:bg-white/20 border-white/20 text-white'
               }`}
               aria-label="Toggle navigation menu"
+              aria-expanded={mobileMenuOpen}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -155,7 +153,7 @@ export default function Header({
 
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className={`md:hidden py-4 border-t backdrop-blur-xl animate-scale-up duration-200 shadow-xl rounded-b-2xl ${
+          <div className={`md:hidden py-4 border-t backdrop-blur-xl animate-scale-up duration-200 shadow-xl rounded-b-2xl max-h-[80vh] overflow-y-auto z-50 ${
             isLightHeader
               ? 'bg-white/98 border-neutral-200 text-neutral-950'
               : 'bg-[#0A0A0A]/95 border-neutral-800 text-white'

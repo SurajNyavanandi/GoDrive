@@ -133,20 +133,32 @@ export default function DriverPortal({ onBackToHome }) {
     setLoginLoading(true);
     try {
       const res = await loginDriverApi(clean);
-      if (res && res.success && res.driver && res.driver.isApproved) {
+      if (res && res.success && res.driver && res.driver.isApproved && !res.driver.isRejected) {
         setLoggedInDriver(res.driver);
         setMode('dashboard');
         toast.success(`Welcome back, ${res.driver.name}! Logged into Driver Portal.`);
+      } else if (res && (res.code === 'REJECTED' || res.driver?.isRejected)) {
+        setAuthStatusModal({
+          type: 'rejected',
+          phone: clean,
+          driverName: res.driver?.name || 'Driver',
+        });
       } else if (res && res.code === 'PENDING_APPROVAL') {
         setAuthStatusModal({
           type: 'pending',
           phone: clean,
           driverName: res.driver?.name || 'Driver',
         });
-      } else if (res && (res.code === 'UNREGISTERED' || !res.driver)) {
+      } else if (res && res.code === 'UNREGISTERED') {
         setAuthStatusModal({
           type: 'unregistered',
           phone: clean,
+        });
+      } else if (res && res.driver && res.driver.isRejected) {
+        setAuthStatusModal({
+          type: 'rejected',
+          phone: clean,
+          driverName: res.driver.name,
         });
       } else if (res && res.driver && !res.driver.isApproved) {
         setAuthStatusModal({
@@ -404,7 +416,7 @@ export default function DriverPortal({ onBackToHome }) {
   const isExpired = remainingDays <= 0;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-8 pb-16">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 space-y-8 pb-16">
       {/* Navigation Header */}
       <div className="flex items-center justify-between bg-white rounded-3xl p-4 sm:p-6 border border-neutral-200 shadow-xs">
         <div>
@@ -866,7 +878,7 @@ export default function DriverPortal({ onBackToHome }) {
                 </div>
 
                 {/* DYNAMIC RATE INPUT & ESTIMATED INCOME BADGE */}
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-4">
+                <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl space-y-4">
                   {registrationType === 'hourly' && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
@@ -1194,6 +1206,7 @@ export default function DriverPortal({ onBackToHome }) {
               <button
                 type="button"
                 onClick={() => setIsEditProfileOpen(false)}
+                aria-label="Close modal"
                 className="text-neutral-400 hover:text-neutral-900 p-1 rounded-full"
               >
                 ✕
@@ -1307,6 +1320,7 @@ export default function DriverPortal({ onBackToHome }) {
             <button
               type="button"
               onClick={() => setAuthStatusModal(null)}
+              aria-label="Close modal"
               className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900 p-2 rounded-full transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -1356,6 +1370,32 @@ export default function DriverPortal({ onBackToHome }) {
                     Close
                   </button>
                 </div>
+              </>
+            ) : authStatusModal.type === 'rejected' ? (
+              <>
+                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 border border-red-200 text-[11px] font-bold uppercase tracking-wider">
+                    <span>APPLICATION REJECTED</span>
+                  </div>
+                  <h3 className="text-xl font-extrabold text-neutral-950 font-sans">
+                    Profile Application Status
+                  </h3>
+                  <p className="text-sm font-bold text-red-700 leading-relaxed bg-red-50 p-4 rounded-2xl border border-red-200">
+                    Your profile is rejected. Retry after 3 days with real valid details.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setAuthStatusModal(null)}
+                  className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
+                >
+                  Understood & Close
+                </button>
               </>
             ) : (
               <>

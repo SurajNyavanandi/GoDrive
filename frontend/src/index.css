@@ -88,6 +88,7 @@ body {
 .animate-marquee {
   display: inline-flex;
   animation: marquee 25s linear infinite;
+  will-change: transform;
 }
 
 .animate-marquee:hover {
@@ -194,6 +195,9 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
   .animate-fade-in-up,
   .animate-fade-in,
   .animate-slide-in-left,

@@ -167,6 +167,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setFloatingContactOpen(false)}
+                aria-label="Close modal"
                 className="text-neutral-400 hover:text-neutral-900 p-1 rounded-full"
               >
                 ✕
@@ -175,15 +176,14 @@ export default function App() {
 
             <div className="space-y-2">
               <a
-                href="tel:+919963254183"
+                href="mailto:supportmanadrivers@gmail.com"
                 className="w-full py-2.5 px-4 bg-[#111111] hover:bg-neutral-800 text-white rounded-full text-xs font-medium flex items-center justify-center gap-2 transition-colors"
               >
-                <Phone className="w-3.5 h-3.5" />
-                <span>Call Helpline: +91 99632 54183</span>
+                <span>Email: supportmanadrivers@gmail.com</span>
               </a>
 
               <a
-                href={`https://wa.me/919963254183?text=${encodeURIComponent(
+                href={`https://wa.me/?text=${encodeURIComponent(
                   'Hello Mana Drivers, I need a verified private driver for my car in Hyderabad.'
                 )}`}
                 target="_blank"

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { validateAddress, validateIndianMobile } from '../utils/helpers';
 
 export default function BookingModal({ driver, isOpen, onClose, onBookingConfirmed }) {
+  const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [date, setDate] = useState(() => {
     const d = new Date();
@@ -24,6 +25,11 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (!customerName.trim()) {
+      toast.error('Please enter your full name');
+      return;
+    }
 
     // Validate Customer Phone Number
     const phoneRes = validateIndianMobile(customerPhone);
@@ -57,6 +63,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
       driverId: driver.id,
       driverName: driver.name,
       driverType: driver.driverType || 'freelance',
+      customerName: customerName.trim(),
       customerPhone: `+91 ${cleanCustomerMobile.slice(0, 5)} ${cleanCustomerMobile.slice(5)}`,
       date,
       time,
@@ -73,7 +80,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
 
     // 2. Direct Instant WhatsApp Dispatch to Driver
     const rawDriverPhone = (driver.rawPhone || driver.phone || '').replace(/[^0-9]/g, '').replace(/^91/, '');
-    const messageText = `Hello ${driver.name},\n\nI want to book you as my personal car driver in Hyderabad via Mana Drivers.\n\n📱 Customer Mobile: +91 ${cleanCustomerMobile}\n📍 Pickup Address: ${addrRes.cleaned}\n📅 Pickup Date: ${date}\n⏰ Pickup Time: ${time}\n⏳ Duration: ${isPermanent ? 'Monthly Chauffeur' : `${hours} Hours`}\n💰 Total Fare: ₹${totalCost.toLocaleString('en-IN')}\n${passengerNotes ? `📝 Notes: ${passengerNotes}\n` : ''}\nPlease confirm availability!`;
+    const messageText = `Hello ${driver.name},\n\nI want to book you as my personal car driver in Hyderabad via Mana Drivers.\n\n👤 Customer Name: ${customerName.trim()}\n📱 Customer Mobile: +91 ${cleanCustomerMobile}\n📍 Pickup Address: ${addrRes.cleaned}\n📅 Pickup Date: ${date}\n⏰ Pickup Time: ${time}\n⏳ Duration: ${isPermanent ? 'Monthly Chauffeur' : `${hours} Hours`}\n💰 Total Fare: ₹${totalCost.toLocaleString('en-IN')}\n${passengerNotes ? `📝 Notes: ${passengerNotes}\n` : ''}\nPlease confirm availability!`;
 
     const targetPhone = rawDriverPhone || '9963254183';
     const waUrl = `https://wa.me/91${targetPhone}?text=${encodeURIComponent(messageText)}`;
@@ -149,11 +156,27 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
             </div>
           </div>
 
+          {/* Customer Full Name */}
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 mb-1.5 flex items-center gap-1.5">
+              <span>Your Full Name *</span>
+            </label>
+            <input
+              type="text"
+              required
+              maxLength={60}
+              placeholder="e.g. Vikram Reddy"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs sm:text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+            />
+          </div>
+
           {/* Customer Mobile Number */}
           <div>
             <label className="block text-xs font-semibold text-neutral-700 mb-1.5 flex items-center gap-1.5">
               <Phone className="w-3.5 h-3.5 text-neutral-400" />
-              <span>Your Mobile Number</span>
+              <span>Your Mobile Number *</span>
             </label>
             <div className="relative">
               <span className="absolute left-3.5 top-2.5 text-xs font-bold text-neutral-400">
