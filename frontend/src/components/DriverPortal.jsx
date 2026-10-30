@@ -888,10 +888,6 @@ export default function DriverPortal({ onBackToHome }) {
                         className="w-full px-4 py-2.5 bg-white border border-emerald-300 rounded-xl text-sm font-bold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
                         required
                       />
-                      <p className="text-xs font-medium text-emerald-900 mt-2 flex items-center gap-1">
-                        💡 <span className="font-bold">Estimated Monthly Income:</span> ₹
-                        {((Number(formData.hourlyRate) || 180) * 6 * 26).toLocaleString('en-IN')}/mo (6 hrs/day, 26 days/mo)
-                      </p>
                     </div>
                   )}
 
@@ -916,10 +912,6 @@ export default function DriverPortal({ onBackToHome }) {
                         className="w-full px-4 py-2.5 bg-white border border-emerald-300 rounded-xl text-sm font-bold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
                         required
                       />
-                      <p className="text-xs font-medium text-emerald-900 mt-2 flex items-center gap-1">
-                        💡 <span className="font-bold">Guaranteed Monthly Income:</span> ₹
-                        {Number(formData.monthlySalary || 20000).toLocaleString('en-IN')}/mo with 0% commission!
-                      </p>
                     </div>
                   )}
 

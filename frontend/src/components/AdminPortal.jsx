@@ -229,7 +229,7 @@ export default function AdminPortal({ onBackToHome }) {
 
   if (!adminAuthed) {
     return (
-      <div className="max-w-md mx-auto px-4 pt-16 pb-20 font-sans">
+      <div className="max-w-md mx-auto px-4 pt-28 pb-20 font-sans">
         <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-xl text-center space-y-6">
           <div className="w-14 h-14 bg-neutral-950 text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
             <Lock className="w-7 h-7" />
@@ -251,11 +251,11 @@ export default function AdminPortal({ onBackToHome }) {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (adminPinInput === '2026' || adminPinInput.toLowerCase() === 'admin' || adminPinInput === '1234') {
+              if (adminPinInput === '261125' || adminPinInput === '2026' || adminPinInput.toLowerCase() === 'admin') {
                 setAdminAuthed(true);
                 toast.success('Admin authorization granted');
               } else {
-                toast.error('Invalid Admin Security PIN');
+                toast.error('Invalid Admin Password');
               }
             }}
             className="space-y-4 pt-2"
@@ -263,7 +263,7 @@ export default function AdminPortal({ onBackToHome }) {
             <div>
               <input
                 type="password"
-                placeholder="Enter Admin Security PIN"
+                placeholder="Enter Admin Password"
                 value={adminPinInput}
                 onChange={(e) => setAdminPinInput(e.target.value)}
                 className="w-full px-4 py-3 bg-neutral-50 border border-neutral-300 rounded-2xl text-center text-sm font-bold tracking-widest text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
@@ -294,7 +294,7 @@ export default function AdminPortal({ onBackToHome }) {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-8 pb-16">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 space-y-8 pb-16">
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-neutral-200">
         <div>
@@ -563,7 +563,7 @@ export default function AdminPortal({ onBackToHome }) {
                                 {driver.licensePhoto ? (
                                   <button
                                     type="button"
-                                    onClick={() => setSelectedDocModal({ title: `${driver.name} - Driving License (${driver.licenseNo || 'Verified'})`, url: driver.licensePhoto, type: 'Driving License' })}
+                                    onClick={() => setSelectedDocModal({ title: `${driver.name} - Driving License Verification`, url: driver.licensePhoto, type: 'Driving License', driver })}
                                     className="px-2 py-0.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded text-[9px] font-bold border border-neutral-200 cursor-pointer"
                                   >
                                     🪪 License
@@ -574,7 +574,7 @@ export default function AdminPortal({ onBackToHome }) {
                                 {driver.aadhaarPhoto ? (
                                   <button
                                     type="button"
-                                    onClick={() => setSelectedDocModal({ title: `${driver.name} - Aadhaar Card (${driver.aadhaarNo || 'Verified'})`, url: driver.aadhaarPhoto, type: 'Aadhaar Card' })}
+                                    onClick={() => setSelectedDocModal({ title: `${driver.name} - Aadhaar Card Verification`, url: driver.aadhaarPhoto, type: 'Aadhaar Card', driver })}
                                     className="px-2 py-0.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded text-[9px] font-bold border border-neutral-200 cursor-pointer"
                                   >
                                     🆔 Aadhaar
@@ -1031,10 +1031,10 @@ export default function AdminPortal({ onBackToHome }) {
         </div>
       )}
 
-      {/* HIGH-RES DOCUMENT INSPECTION MODAL */}
+      {/* HIGH-RES DOCUMENT INSPECTION MODAL WITH SIDE-BY-SIDE VERIFICATION DETAILS */}
       {selectedDocModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-white rounded-3xl p-6 max-w-2xl w-full space-y-4 shadow-2xl relative max-h-[90vh] flex flex-col justify-between">
+          <div className="bg-white rounded-3xl p-6 max-w-4xl w-full space-y-4 shadow-2xl relative max-h-[90vh] flex flex-col justify-between">
             <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
               <div className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-neutral-900" />
@@ -1049,12 +1049,66 @@ export default function AdminPortal({ onBackToHome }) {
               </button>
             </div>
 
-            <div className="flex-1 overflow-auto max-h-[60vh] flex items-center justify-center bg-neutral-900 rounded-2xl p-4 border border-neutral-800">
-              <img
-                src={selectedDocModal.url}
-                alt={selectedDocModal.title}
-                className="max-w-full max-h-[55vh] object-contain rounded-xl shadow-lg border border-neutral-700"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center flex-1 overflow-auto max-h-[60vh]">
+              {/* Document Image Display */}
+              <div className="md:col-span-7 bg-neutral-900 rounded-2xl p-4 border border-neutral-800 flex items-center justify-center h-full min-h-[260px]">
+                <img
+                  src={selectedDocModal.url}
+                  alt={selectedDocModal.title}
+                  className="max-w-full max-h-[50vh] object-contain rounded-xl shadow-lg border border-neutral-700"
+                />
+              </div>
+
+              {/* Side-by-Side Entered Details Panel for Instant Verification */}
+              <div className="md:col-span-5 bg-neutral-50 rounded-2xl p-5 border border-neutral-200 space-y-4 text-xs">
+                <div className="border-b border-neutral-200 pb-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 block">
+                    VERIFICATION COMPARISON
+                  </span>
+                  <p className="text-sm font-bold text-neutral-950 font-sans mt-0.5">
+                    {selectedDocModal.driver?.name || 'Driver Document'}
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="bg-white p-3 rounded-xl border border-neutral-200/80 shadow-2xs">
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+                      Entered Phone Number
+                    </span>
+                    <span className="text-sm font-bold text-neutral-900 font-mono flex items-center gap-1.5 mt-0.5">
+                      <Phone className="w-3.5 h-3.5 text-neutral-500" />
+                      {selectedDocModal.driver?.phone || selectedDocModal.driver?.rawPhone || 'Not provided'}
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-neutral-200/80 shadow-2xs">
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+                      Entered Aadhaar Card Number
+                    </span>
+                    <span className="text-sm font-bold text-neutral-900 font-mono mt-0.5 block">
+                      {selectedDocModal.driver?.aadhaarNo || 'Verified Aadhaar ID'}
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-neutral-200/80 shadow-2xs">
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+                      Entered Driving License Number
+                    </span>
+                    <span className="text-sm font-bold text-neutral-900 font-mono mt-0.5 block">
+                      {selectedDocModal.driver?.licenseNo || 'Verified License ID'}
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-neutral-200/80 shadow-2xs">
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+                      Operating Area & Status
+                    </span>
+                    <span className="text-xs font-semibold text-neutral-800 mt-0.5 block">
+                      {selectedDocModal.driver?.location || 'Hyderabad'} · {selectedDocModal.driver?.isApproved ? 'Approved' : 'Pending Approval'}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs">
@@ -1065,7 +1119,7 @@ export default function AdminPortal({ onBackToHome }) {
                 rel="noreferrer"
                 className="px-4 py-2 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full font-bold transition-all text-xs"
               >
-                Open Original High-Res Image ↗
+                Open Original Image ↗
               </a>
             </div>
           </div>
