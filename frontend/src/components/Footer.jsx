@@ -1,4 +1,4 @@
-import { Mail } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react';
 
 export default function Footer({ onSwitchToDriver }) {
   return (
@@ -29,8 +29,8 @@ export default function Footer({ onSwitchToDriver }) {
           <a href="#drivers" className="hover:text-white transition-colors">
             Drivers
           </a>
-          <a href="#localities" className="hover:text-white transition-colors">
-            Coverage
+          <a href="#reviews" className="hover:text-white transition-colors">
+            Reviews
           </a>
           <a href="#faq" className="hover:text-white transition-colors">
             FAQ
@@ -44,8 +44,16 @@ export default function Footer({ onSwitchToDriver }) {
           </button>
         </div>
 
-        {/* Right: Email & Copyright */}
-        <div className="flex items-center gap-4 text-xs text-neutral-500">
+        {/* Right: Phone, Email & Copyright (Matches Google Business Profile) */}
+        <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-400">
+          <a
+            href="tel:+919963254183"
+            className="inline-flex items-center gap-1.5 text-neutral-300 hover:text-white transition-colors font-medium"
+          >
+            <Phone className="w-3.5 h-3.5 text-emerald-400" />
+            <span>099632 54183</span>
+          </a>
+          <span>·</span>
           <a
             href="mailto:supportmanadrivers@gmail.com"
             className="inline-flex items-center gap-1.5 text-neutral-400 hover:text-white transition-colors"
@@ -54,7 +62,7 @@ export default function Footer({ onSwitchToDriver }) {
             <span>supportmanadrivers@gmail.com</span>
           </a>
           <span>·</span>
-          <span>© {new Date().getFullYear()} Mana Drivers</span>
+          <span className="text-neutral-500">© {new Date().getFullYear()} manadrivers.com</span>
         </div>
       </div>
     </footer>

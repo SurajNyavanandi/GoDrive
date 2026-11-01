@@ -589,14 +589,14 @@ export default function AdminPortal({ onBackToHome }) {
                           </div>
                         </td>
 
-                        {/* Type & Rate (Welfare Association Standard) */}
+                        {/* Type & Rate (Standard Rates) */}
                         <td className="py-4 px-4 font-medium text-neutral-800">
                           <div className="font-bold text-neutral-900">
                             {driver.driverType === 'combined'
                               ? '₹700 / 4h · ₹25k - ₹30k/mo'
                               : driver.driverType === 'permanent'
                               ? '₹25,000 – ₹30,000 / mo'
-                              : '₹700 / 4h (Welfare Rate)'}
+                              : '₹700 / 4h (Standard Rate)'}
                           </div>
                           <div className="text-[10px] text-neutral-400 uppercase font-semibold">
                             {driver.driverType === 'combined' ? 'Combined Mode' : driver.driverType === 'permanent' ? 'Monthly Driver' : 'Freelance (Hourly)'}
@@ -831,10 +831,10 @@ export default function AdminPortal({ onBackToHome }) {
                 </div>
               </div>
 
-              {/* Welfare Association Official Rate Card Note */}
+              {/* Official Standard Rate Card Note */}
               <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl space-y-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
-                  Association Approved Standard Pricing Model
+                  Official Fixed Pricing Model
                 </span>
                 <p className="text-[11px] text-neutral-600 leading-relaxed">
                   {driverForm.driverType === 'permanent'
@@ -958,10 +958,10 @@ export default function AdminPortal({ onBackToHome }) {
                 </div>
               </div>
 
-              {/* Welfare Association Official Rate Card Note */}
+              {/* Official Standard Rate Card Note */}
               <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl space-y-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
-                  Association Approved Standard Pricing Model
+                  Official Fixed Pricing Model
                 </span>
                 <p className="text-[11px] text-neutral-600 leading-relaxed">
                   {driverForm.driverType === 'permanent'

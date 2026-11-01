@@ -3,6 +3,7 @@ const { successResponse, errorResponse } = require('../utils/apiResponse');
 const { asyncHandler } = require('../utils/errorHandler');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const env = require('../config/env');
 
 // In-memory fallback user store when MongoDB is offline
 const mockUsers = new Map();
@@ -18,10 +19,13 @@ const register = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Please provide name, email, and password', 400);
   }
 
+  const cleanEmail = email.toLowerCase().trim();
+  const configuredAdminEmail = (process.env.ADMIN_EMAIL || env.ADMIN_EMAIL || '').toLowerCase().trim();
+  const isAdmin = cleanEmail === configuredAdminEmail;
+
   const isDbConnected = mongoose.connection.readyState === 1;
 
   if (!isDbConnected) {
-    const cleanEmail = email.toLowerCase().trim();
     if (mockUsers.has(cleanEmail)) {
       return errorResponse(res, 'An account with this email already exists', 400);
     }
@@ -30,13 +34,13 @@ const register = asyncHandler(async (req, res) => {
       _id: `user_mock_${Date.now()}`,
       name: name.trim(),
       email: cleanEmail,
-      role: 'user',
+      role: isAdmin ? 'admin' : 'user',
     };
     mockUsers.set(cleanEmail, { ...mockUser, password });
 
     const token = jwt.sign(
       { id: mockUser._id, email: mockUser.email, role: mockUser.role },
-      process.env.JWT_SECRET || 'your_jwt_secret',
+      process.env.JWT_SECRET || env.JWT_SECRET || 'your_jwt_secret',
       { expiresIn: '30d' }
     );
 
@@ -92,10 +96,13 @@ const login = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Please provide email and password', 400);
   }
 
+  const cleanEmail = email.toLowerCase().trim();
+  const configuredAdminEmail = (process.env.ADMIN_EMAIL || env.ADMIN_EMAIL || '').toLowerCase().trim();
+  const isAdmin = cleanEmail === configuredAdminEmail;
+
   const isDbConnected = mongoose.connection.readyState === 1;
 
   if (!isDbConnected) {
-    const cleanEmail = email.toLowerCase().trim();
     let existing = mockUsers.get(cleanEmail);
 
     // If not found, create or accept demo user
@@ -105,14 +112,16 @@ const login = asyncHandler(async (req, res) => {
         name: cleanEmail.split('@')[0] || 'Demo User',
         email: cleanEmail,
         password,
-        role: 'user',
+        role: isAdmin ? 'admin' : 'user',
       };
       mockUsers.set(cleanEmail, existing);
+    } else if (isAdmin) {
+      existing.role = 'admin';
     }
 
     const token = jwt.sign(
       { id: existing._id, email: existing.email, role: existing.role },
-      process.env.JWT_SECRET || 'your_jwt_secret',
+      process.env.JWT_SECRET || env.JWT_SECRET || 'your_jwt_secret',
       { expiresIn: '30d' }
     );
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Compass, Briefcase } from 'lucide-react';
+import { Menu, X, Compass, Briefcase, Phone } from 'lucide-react';
 
 export default function Header({
   activeRole,
@@ -21,6 +21,8 @@ export default function Header({
   const navLinks = [
     { name: 'Services', href: '#services' },
     { name: 'Drivers', href: '#drivers' },
+    { name: 'Reviews', href: '#reviews' },
+    { name: 'FAQ', href: '#faq' },
   ];
 
   const handleNavClick = (e, href) => {
@@ -93,8 +95,22 @@ export default function Header({
             ))}
           </nav>
 
-          {/* Right Action: Clean Single CTA Button */}
+          {/* Right Action: Clean CTAs */}
           <div className="flex items-center gap-3 shrink-0">
+            {/* Direct Call Link (Matches Google Business Profile) */}
+            <a
+              href="tel:+919963254183"
+              className={`hidden xl:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all border ${
+                isLightHeader
+                  ? 'border-neutral-200 text-neutral-800 hover:bg-neutral-100'
+                  : 'border-white/20 text-neutral-200 hover:bg-white/10'
+              }`}
+              title="Call 099632 54183"
+            >
+              <Phone className="w-3.5 h-3.5 text-emerald-500" />
+              <span>099632 54183</span>
+            </a>
+
             {activeRole === 'customer' ? (
               <a
                 href="#drivers"

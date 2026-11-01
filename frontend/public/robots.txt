@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+# Sitemap for Mana Drivers Hyderabad
+Sitemap: https://manadrivers.com/sitemap.xml

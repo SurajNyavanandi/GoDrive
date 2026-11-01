@@ -386,7 +386,7 @@ export default function DriverPortal({ onBackToHome }) {
       aadhaarNo: aadhaarRes.formatted,
       aadhaarPhoto: finalAadhaarUrl,
       isApproved: false,
-      workingPreference: `${registrationType === 'combined' ? 'Combined (Hourly & Monthly)' : registrationType === 'hourly' ? 'Hourly Freelance' : 'Monthly Permanent'} (Welfare Assoc. Rates)`,
+      workingPreference: `${registrationType === 'combined' ? 'Combined (Hourly & Monthly)' : registrationType === 'hourly' ? 'Hourly Freelance' : 'Monthly Permanent'} (Standard Rates)`,
     };
 
     triggerDriverRegistrationRazorpay({
@@ -509,7 +509,7 @@ export default function DriverPortal({ onBackToHome }) {
                 </p>
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className="text-xs font-extrabold text-emerald-400 bg-emerald-400/10 px-2.5 py-0.5 rounded-md border border-emerald-400/20">
-                    Welfare Association Fixed Rates Standard
+                    Standard Duty Rates
                   </span>
                 </div>
               </div>
@@ -798,10 +798,10 @@ export default function DriverPortal({ onBackToHome }) {
 
           {!registerSuccessBanner && (
             <form onSubmit={handleRegisterSubmit} className="space-y-6">
-              {/* Working Preference & Official Welfare Association Fixed Rates */}
+              {/* Working Preference & Standard Rates */}
               <div className="space-y-4">
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700">
-                  Select Working Preference (Fixed Association Rates)
+                  Select Working Preference (Fixed Standard Rates)
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <button
@@ -877,15 +877,15 @@ export default function DriverPortal({ onBackToHome }) {
                   </button>
                 </div>
 
-                {/* ASSOCIATION FIXED PRICE BREAKDOWN CARD */}
+                {/* STANDARD FIXED PRICE BREAKDOWN CARD */}
                 <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
                       <IndianRupee className="w-4 h-4 text-emerald-700" />
-                      ALL CITY DRIVERS WELFARE ASSOCIATION Mandated Fare Card
+                      Standard Duty Fare Card
                     </span>
                     <span className="text-[10px] font-mono font-bold text-emerald-900 bg-emerald-200/80 px-2 py-0.5 rounded-md">
-                      Regd. No: 637 of 2018
+                      Official Rates
                     </span>
                   </div>
 
@@ -917,7 +917,7 @@ export default function DriverPortal({ onBackToHome }) {
                         • Combined Profile: You will receive direct customer requests for both Hourly City Duty (₹700/4h) and Monthly Permanent Duties (₹25k–₹30k/mo).
                       </p>
                       <p className="text-emerald-800">
-                        • All trips adhere strictly to Welfare Association standard pricing. Zero commission fee is charged by Mana Drivers.
+                        • All trips adhere strictly to transparent standard pricing. Zero commission fee is charged by Mana Drivers.
                       </p>
                     </div>
                   )}
@@ -1190,14 +1190,14 @@ export default function DriverPortal({ onBackToHome }) {
               <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-bold text-neutral-800">
-                    Association Regulated Fare Card
+                    Direct Driver Fixed Rate Card
                   </span>
                   <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
-                    Regd. No: 637 of 2018
+                    Official Rates
                   </span>
                 </div>
                 <p className="text-[11px] text-neutral-500 leading-normal">
-                  Fares are automatically applied per Welfare Association guidelines (₹700 for 4 hrs round-trip; ₹25,000–₹30,000 monthly). No custom manual rates.
+                  Fares are automatically applied per standard pricing guidelines (₹700 for 4 hrs round-trip; ₹25,000–₹30,000 monthly). No custom manual rates.
                 </p>
               </div>
 

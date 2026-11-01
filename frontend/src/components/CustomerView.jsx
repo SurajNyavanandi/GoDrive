@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   MapPin,
@@ -25,14 +25,29 @@ const HYDERABAD_ALL_LOCALITIES = HYDERABAD_LOCALITIES;
 
 export default function CustomerView({
   drivers = [],
+  initialService = 'all',
   onOpenBooking,
   onSwitchToDriver,
 }) {
   // Driver Type filter: 'all' | 'freelance' | 'permanent' | 'combined'
-  const [selectedDriverType, setSelectedDriverType] = useState('all');
+  const [selectedDriverType, setSelectedDriverType] = useState(() => {
+    if (initialService === 'hourly' || initialService === 'city') return 'freelance';
+    if (initialService === 'monthly' || initialService === 'permanent') return 'permanent';
+    return 'all';
+  });
   const [selectedLocality] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [onlyAvailable, setOnlyAvailable] = useState(false);
+
+  // Sync initialService when URL changes
+  useEffect(() => {
+    if (!initialService || initialService === 'all') return;
+    if (initialService === 'hourly' || initialService === 'city') {
+      setSelectedDriverType('freelance');
+    } else if (initialService === 'monthly' || initialService === 'permanent') {
+      setSelectedDriverType('permanent');
+    }
+  }, [initialService]);
 
   // FAQ Accordion State
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
@@ -113,7 +128,7 @@ export default function CustomerView({
     {
       question: 'Do you charge extra for luxury SUVs, automatic transmissions, or EV cars?',
       answer:
-        'No extra fees whatsoever. All our verified drivers drive both manual and automatic cars across all vehicle classes at fixed rates approved by the Drivers Welfare Association.',
+        'No extra fees whatsoever. All our verified drivers drive both manual and automatic cars across all vehicle classes at transparent fixed rates with direct driver payments.',
     },
     {
       question: 'How do I pay the driver for the trip?',
@@ -284,7 +299,7 @@ export default function CustomerView({
               About our platform
             </h2>
             <p className="mt-4 text-base sm:text-lg text-neutral-600 leading-relaxed max-w-xl mx-auto">
-              Simple, verified car driver service in Hyderabad. Book directly with zero extra commission and fair association rates.
+              Simple, verified car driver service in Hyderabad. Book directly with zero extra commission and fair transparent rates.
             </p>
           </div>
 
@@ -525,14 +540,14 @@ export default function CustomerView({
                             ? 'Hourly & Monthly'
                             : isPermanent
                             ? 'Monthly Driver'
-                            : 'Welfare Association Rate'}
+                            : 'Standard Duty Rate'}
                         </span>
                         <div className="text-base sm:text-lg font-bold tracking-tight text-neutral-950 font-sans">
                           {isCombined
                             ? 'Hourly & Monthly Duties'
                             : isPermanent
                             ? '₹25,000 – ₹30,000 / mo'
-                            : '₹700 / 4h (Association Rate)'}
+                            : '₹700 / 4h (Standard Rate)'}
                         </div>
                       </div>
 
@@ -630,7 +645,7 @@ export default function CustomerView({
                 Discover the convenient way to travel across Hyderabad stress-free, allowing you to relax, attend meetings, or enjoy family journeys in the comfort of your own car.
               </h3>
               <p className="mb-8 lg:mb-10 text-base sm:text-lg text-neutral-500 font-medium leading-relaxed">
-                The safe way to travel: Verified Car Drivers for Every Journey. Avoid traffic fatigue and parking hassles while retaining total control over your schedule. Experience professional driving tailored to Hyderabad roads with transparent Welfare Association rates and zero platform commission.
+                The safe way to travel: Verified Car Drivers for Every Journey. Avoid traffic fatigue and parking hassles while retaining total control over your schedule. Experience professional driving tailored to Hyderabad roads with transparent fixed duty rates and zero platform commission.
               </p>
               <div className="flex flex-wrap items-center gap-4">
                 <a
@@ -669,7 +684,7 @@ export default function CustomerView({
                     <rect width="20" height="20" rx="10" fill="#EAEAEA" />
                     <path d="M14.6666 6.5L8.24992 12.9167L5.33325 10" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span className="ml-3">Official Welfare Association Fixed Fares</span>
+                  <span className="ml-3">Transparent Fixed Driver Fares</span>
                 </li>
                 <li className="flex items-center text-base sm:text-lg font-medium text-neutral-800">
                   <svg className="shrink-0" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -863,104 +878,11 @@ export default function CustomerView({
         </div>
       </section>
 
-      {/* =========================================================================
-          SECTION: OFFICIAL ALL CITY DRIVERS WELFARE ASSOCIATION NOTICE CARD
-         ========================================================================= */}
-      <section className="w-full bg-white py-16 sm:py-20 border-b border-neutral-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-[#FAF9F6] rounded-3xl p-6 sm:p-10 border-2 border-neutral-900 shadow-xl space-y-6 relative overflow-hidden">
-            {/* Header / Stamp Badge */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b-2 border-neutral-900">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 text-xs font-semibold border border-emerald-300">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Official Revised Wages & Regulations</span>
-                </div>
-                <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-950 font-sans">
-                  ALL CITY DRIVERS WELFARE ASSOCIATION
-                </h3>
-                <p className="text-xs sm:text-sm font-medium text-neutral-600">
-                  (Regd. No: 637 of 2018) · Flat No. G1, Radha Krishna Towers, Begumpet, Hyderabad
-                </p>
-              </div>
-              <div className="shrink-0 p-3 bg-neutral-950 text-white rounded-2xl text-center shadow-md">
-                <div className="text-xs font-medium text-neutral-400">Official Notice</div>
-                <div className="text-sm font-bold tracking-tight text-amber-400 font-sans">Wages Revised</div>
-              </div>
-            </div>
-
-            {/* Announcement Subject & Guidelines */}
-            <div className="space-y-4 text-sm text-neutral-800 leading-relaxed font-normal">
-              <p className="font-semibold text-neutral-950 text-base sm:text-lg tracking-tight">
-                Subject: Announcement of revised driver duty rates and regulations across Hyderabad
-              </p>
-              <p className="leading-relaxed">
-                Keeping in view the welfare of all city drivers and the current cost of living, our association has revised the drivers' wages as follows. We request consumers and drivers to adhere strictly to the following mandatory rates:
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                <div className="p-4 bg-white rounded-2xl border border-neutral-300 space-y-2">
-                  <div className="font-bold tracking-tight text-neutral-950 flex items-center justify-between font-sans">
-                    <span>1. Temporary Duties</span>
-                    <span className="text-xs text-emerald-700 font-semibold">City</span>
-                  </div>
-                  <ul className="text-xs sm:text-sm text-neutral-600 space-y-1.5 list-disc list-inside leading-relaxed">
-                    <li><strong className="text-neutral-950 font-semibold">First 4 Hours:</strong> ₹700/- (Round trip)</li>
-                    <li><strong className="text-neutral-950 font-semibold">Extra Hours:</strong> ₹100/- per hour</li>
-                    <li><strong className="text-neutral-950 font-semibold">Timings:</strong> 6:00 AM to 10:00 PM</li>
-                    <li><strong className="text-neutral-950 font-semibold">Night Surcharge:</strong> ₹150/- per hr after 10 PM</li>
-                  </ul>
-                </div>
-
-                <div className="p-4 bg-white rounded-2xl border border-neutral-300 space-y-2">
-                  <div className="font-bold tracking-tight text-neutral-950 flex items-center justify-between font-sans">
-                    <span>2. Outstation Duties</span>
-                    <span className="text-xs text-emerald-700 font-semibold">Outside City</span>
-                  </div>
-                  <ul className="text-xs sm:text-sm text-neutral-600 space-y-1.5 list-disc list-inside leading-relaxed">
-                    <li><strong className="text-neutral-950 font-semibold">Up to 200 km:</strong> ₹2,000/- + food expenses</li>
-                    <li><strong className="text-neutral-950 font-semibold">Traveling to Other States:</strong> ₹2,500/- per day + food &amp; room</li>
-                    <li className="text-amber-900 font-medium bg-amber-50 p-2.5 rounded-xl border border-amber-200 mt-2 leading-relaxed">
-                      ⚠️ Note: It is not good for drivers' health and safety to sleep in the car, therefore accommodation must be provided without fail.
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="p-4 bg-white rounded-2xl border border-neutral-300 space-y-2">
-                  <div className="font-bold tracking-tight text-neutral-950 flex items-center justify-between font-sans">
-                    <span>3. Permanent Duties</span>
-                    <span className="text-xs text-emerald-700 font-semibold">Monthly Salaries</span>
-                  </div>
-                  <ul className="text-xs sm:text-sm text-neutral-600 space-y-1.5 list-disc list-inside leading-relaxed">
-                    <li><strong className="text-neutral-950 font-semibold">8 Hours Duty:</strong> ₹25,000/- (1 day off per week)</li>
-                    <li><strong className="text-neutral-950 font-semibold">10 Hours Duty:</strong> ₹28,000/- (1 day off per week)</li>
-                    <li><strong className="text-neutral-950 font-semibold">12 Hours Duty:</strong> ₹30,000/- (1 day off per week)</li>
-                    <li><strong className="text-neutral-950 font-semibold">Overtime:</strong> ₹35,000 – ₹40,000 with mutual consent</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Official Signature / Association Seal */}
-            <div className="pt-4 border-t border-neutral-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs sm:text-sm">
-              <div>
-                <p className="text-neutral-500 font-normal">Verified Official Announcement</p>
-                <p className="text-neutral-950 font-bold tracking-tight font-sans">ALL CITY DRIVERS WELFARE ASSOCIATION</p>
-                <p className="text-neutral-600 text-xs">Kalla Yesu, President · Contact: 8008859934</p>
-              </div>
-              <div className="text-left sm:text-right">
-                <p className="font-extrabold text-neutral-950 text-xs">REGD. NO: 637 OF 2018</p>
-                <p className="text-emerald-700 font-bold text-[11px]">Flat No. G1, Radha Krishna Towers, Begumpet, Hyderabad</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* =========================================================================
           SECTION 6: REVIEWS & STORIES (HYDERABAD CAR OWNERS · NO IMAGES · REAL-TIME DATE)
          ========================================================================= */}
-      <section className="relative w-full bg-[#FAF9F6] py-20 sm:py-28 border-b border-neutral-200 overflow-hidden">
+      <section id="reviews" className="relative w-full bg-[#FAF9F6] py-20 sm:py-28 border-b border-neutral-200 overflow-hidden scroll-mt-24 sm:scroll-mt-28">
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap -m-4 sm:-m-6">
             
@@ -979,7 +901,7 @@ export default function CustomerView({
                   Read Stories Written By Hyderabad Car Owners
                 </h2>
                 <p className="text-base sm:text-lg text-neutral-600 leading-relaxed max-w-md font-normal">
-                  Real experiences from verified car owners across Jubilee Hills, Hitec City, Gachibowli, Banjara Hills, and Begumpet. Transparent Welfare Association fixed rates with zero commission.
+                  Real experiences from verified car owners across Jubilee Hills, Hitec City, Gachibowli, Banjara Hills, and Begumpet. Transparent fixed duty rates with zero commission.
                 </p>
               </div>
 
@@ -1080,7 +1002,7 @@ export default function CustomerView({
               Got Questions? We Have Answers
             </h2>
             <p className="mt-3 text-base sm:text-lg text-neutral-600 max-w-xl mx-auto leading-relaxed font-normal">
-              Everything you need to know about booking private drivers in Hyderabad under official Welfare Association guidelines.
+              Everything you need to know about booking private drivers in Hyderabad under transparent fixed duty rates.
             </p>
           </div>
 

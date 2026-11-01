@@ -14,7 +14,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
   });
   const [time, setTime] = useState('10:00');
   
-  // Booking parameters according to Welfare Association guidelines
+  // Booking duty parameters
   const [dutyCategory, setDutyCategory] = useState(() => {
     if (driver?.driverType === 'permanent') return 'monthly';
     return 'city';
@@ -59,7 +59,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
   const [passengerNotes, setPassengerNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Dynamic Fare Calculation based on Welfare Association Rules
+  // Dynamic Fare Calculation based on Standard Duty Rates
   const fareBreakdown = useMemo(() => {
     if (dutyCategory === 'city') {
       return calculateCityFare({
@@ -167,7 +167,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
     // 1. Save to backend database
     onBookingConfirmed(newBooking);
 
-    // 2. Direct Instant WhatsApp Dispatch to Driver with Welfare Association Rates
+    // 2. Direct Instant WhatsApp Dispatch to Driver with Transparent Fixed Rates
     const rawDriverPhone = (driver.rawPhone || driver.phone || '').replace(/[^0-9]/g, '').replace(/^91/, '');
     const messageText = 
 `Hello ${driver.name},
@@ -179,9 +179,9 @@ I want to book you for driver duty via Mana Drivers:
 • Pickup Address: ${addrRes.cleaned}
 • Pickup Date & Time: ${date} at ${time}
 • Duty Type: ${dutyLabel}
-• Welfare Fixed Fare: ₹${finalFare.toLocaleString('en-IN')}
+• Direct Fixed Fare: ₹${finalFare.toLocaleString('en-IN')}
 ${dutyCategory === 'outstation' ? '• Rules: Food & room accommodation policy accepted\n' : ''}${passengerNotes ? `• Notes: ${passengerNotes}\n` : ''}
-Rates based on ALL CITY DRIVERS WELFARE ASSOCIATION guidelines.
+Transparent direct rates with zero platform commission.
 Please confirm if you are available!`;
 
     const targetPhone = rawDriverPhone || '9963254183';
@@ -207,7 +207,7 @@ Please confirm if you are available!`;
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <p className="text-xs font-semibold text-emerald-700">
-                Welfare Association Fixed Fare Booking
+                Transparent Fixed Fare Booking
               </p>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-950 font-sans">
@@ -504,11 +504,11 @@ Please confirm if you are available!`;
                 </div>
               )}
 
-              {/* Mandatory Outstation Welfare Warning & Required Agreement */}
+              {/* Mandatory Outstation Accommodation & Food Policy */}
               <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-2xl space-y-2 text-xs text-amber-950">
                 <div className="flex items-center gap-1.5 font-bold">
                   <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Welfare Association Accommodation &amp; Food Policy</span>
+                  <span>Outstation Accommodation &amp; Food Policy</span>
                 </div>
                 <p className="text-[11px] leading-relaxed text-amber-900">
                   Customer must provide driver food expenses. For multi-day and interstate trips, customer MUST arrange decent room accommodation. Sleeping inside vehicles is strictly prohibited.
@@ -521,7 +521,7 @@ Please confirm if you are available!`;
                     className="w-4.5 h-4.5 mt-0.5 accent-emerald-600 rounded cursor-pointer shrink-0"
                   />
                   <span className="text-xs font-bold text-amber-950 leading-tight">
-                    I agree to provide driver food expenses and arrange room accommodation as required by Welfare Association rules *
+                    I agree to provide driver food expenses and arrange room accommodation for driver safety *
                   </span>
                 </label>
               </div>
@@ -709,11 +709,11 @@ Please confirm if you are available!`;
             />
           </div>
 
-          {/* Welfare Association Official Rate Summary */}
+          {/* Direct Driver Fixed Rate Summary */}
           <div className="p-4 bg-emerald-50/90 rounded-2xl border border-emerald-200 space-y-2">
             <div className="text-xs font-semibold text-emerald-800 flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>All City Drivers Welfare Association Fixed Fare</span>
+              <span>Transparent Direct Driver Fixed Fare</span>
             </div>
             <div className="text-sm text-emerald-950 leading-relaxed font-normal">
               {fareBreakdown.ruleNotice}

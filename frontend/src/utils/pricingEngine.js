@@ -1,6 +1,5 @@
 /**
- * ALL CITY DRIVERS WELFARE ASSOCIATION
- * Official Fixed Pricing Engine Parameters
+ * Transparent Direct Driver Fixed Pricing Parameters
  */
 
 // 1. Temporary / City Duties (In-City & Round Trip)
@@ -29,7 +28,7 @@ export function calculateCityFare({ hours = 4, isNightDuty = false, nightHours =
     numNightHours,
     nightSurchargeFare,
     totalCost,
-    ruleNotice: 'Welfare Association Fixed Fare: ₹700 for 4 hrs + ₹100/extra hr (+ ₹150/hr night surcharge after 10 PM).',
+    ruleNotice: 'Standard City Fare: ₹700 for 4 hrs + ₹100/extra hr (+ ₹150/hr night surcharge after 10 PM).',
   };
 }
 

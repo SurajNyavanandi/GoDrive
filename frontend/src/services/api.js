@@ -3,7 +3,11 @@ import axios from 'axios';
 /**
  * Pre-configured Axios instance for full-stack API requests
  */
-const rawApiUrl = import.meta.env.VITE_API_URL || '/api';
+const rawApiUrl =
+  import.meta.env.VITE_BACKEND_API_URL ||
+  import.meta.env.BACKEND_API_URL ||
+  import.meta.env.VITE_API_URL ||
+  '/api';
 const isLegacyUrl = rawApiUrl.includes('onrender.com') || rawApiUrl.includes('godrive');
 const baseURL = isLegacyUrl || !rawApiUrl || rawApiUrl === '/api'
   ? '/api'

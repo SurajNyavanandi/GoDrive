@@ -11,12 +11,13 @@ const fs = require('fs');
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
+const env = require('./config/env');
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes');
 const { errorHandler, notFoundHandler } = require('./utils/errorHandler');
 const logger = require('./utils/logger');
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || env.PORT || 3000;
 
 async function startServer() {
   const app = express();
@@ -51,7 +52,8 @@ async function startServer() {
   });
   app.use('/api', limiter);
 
-  // CORS Configuration (Includes manadrivers.com production domain + preview URLs)
+  // CORS Configuration: Loaded dynamically from .env (CORS_ORIGIN) with default domains
+  const configuredCors = (process.env.CORS_ORIGIN || env.CORS_ORIGIN || '*').trim();
   const allowedOrigins = [
     'https://manadrivers.com',
     'https://www.manadrivers.com',
@@ -61,13 +63,22 @@ async function startServer() {
     'http://localhost:5173',
   ];
 
+  if (configuredCors && configuredCors !== '*') {
+    configuredCors.split(',').map((o) => o.trim()).forEach((orig) => {
+      if (orig && !allowedOrigins.includes(orig)) {
+        allowedOrigins.push(orig);
+      }
+    });
+  }
+
   app.use(
     cors({
       origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or same-origin)
+        // Allow requests with no origin (like mobile apps or server-to-server)
         if (!origin) return callback(null, true);
 
         if (
+          configuredCors === '*' ||
           allowedOrigins.includes(origin) ||
           origin.endsWith('.manadrivers.com') ||
           origin.includes('run.app') ||

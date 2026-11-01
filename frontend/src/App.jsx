@@ -6,7 +6,7 @@ import DriverPortal from './components/DriverPortal';
 import AdminPortal from './components/AdminPortal';
 import BookingModal from './components/BookingModal';
 import MyBookingsSheet from './components/MyBookingsSheet';
-import { Mail, Copy, Check } from 'lucide-react';
+import { Mail, Phone, Copy, Check } from 'lucide-react';
 import { fetchAdminBookingsApi, createBookingApi, fetchPublicDrivers } from './utils/api';
 import { initialDrivers } from './data/mockDrivers';
 
@@ -15,6 +15,16 @@ import Footer from './components/Footer';
 export default function App() {
   // Active Role: 'customer' | 'driver' | 'admin'
   const [activeRole, setActiveRole] = useState(() => {
+    // Check URL param first (?role=driver or ?role=admin)
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlRole = params.get('role');
+      if (urlRole === 'driver' || urlRole === 'admin') return urlRole;
+      if (params.get('action') === 'apply') return 'driver';
+      if (window.location.hash === '#driver-portal' || window.location.hash === '#apply') return 'driver';
+    } catch {
+      // fallback
+    }
     return localStorage.getItem('godrive_role') || 'customer';
   });
 
@@ -23,6 +33,7 @@ export default function App() {
   const [bookings, setBookings] = useState([]);
   const [selectedDriverForBooking, setSelectedDriverForBooking] = useState(null);
   const [isBookingsSheetOpen, setIsBookingsSheetOpen] = useState(false);
+  const [initialService, setInitialService] = useState('all');
 
   // Load live dynamic drivers & bookings from backend database on mount
   useEffect(() => {
@@ -50,6 +61,81 @@ export default function App() {
       isMounted = false;
     };
   }, [activeRole]);
+
+  // URL Path, Query Parameters & Hash Deep Linking for Google Ads & Meta Ads:
+  // e.g. https://manadrivers.com/book OR https://manadrivers.com/?action=book
+  //      https://manadrivers.com/hourly OR https://manadrivers.com/?service=hourly
+  //      https://manadrivers.com/outstation OR https://manadrivers.com/?service=outstation
+  //      https://manadrivers.com/monthly OR https://manadrivers.com/?service=monthly
+  //      https://manadrivers.com/apply OR https://manadrivers.com/?role=driver
+  //      https://manadrivers.com/?utm_source=google&utm_medium=cpc&utm_campaign=hyderabad_drivers&gclid=...
+  useEffect(() => {
+    try {
+      const pathname = window.location.pathname.toLowerCase();
+      const urlParams = new URLSearchParams(window.location.search);
+      const hash = window.location.hash;
+
+      // 1. Capture UTM & Ad Click IDs for Google Ads (gclid, gbraid, wbraid) & Meta Ads (fbclid)
+      const utmSource = urlParams.get('utm_source');
+      const utmMedium = urlParams.get('utm_medium');
+      const utmCampaign = urlParams.get('utm_campaign');
+      const gclid = urlParams.get('gclid');
+      const fbclid = urlParams.get('fbclid');
+
+      if (utmSource || gclid || fbclid) {
+        const attribution = {
+          utm_source: utmSource || '',
+          utm_medium: utmMedium || '',
+          utm_campaign: utmCampaign || '',
+          utm_term: urlParams.get('utm_term') || '',
+          utm_content: urlParams.get('utm_content') || '',
+          gclid: gclid || '',
+          fbclid: fbclid || '',
+          timestamp: new Date().toISOString(),
+          landingUrl: window.location.href,
+        };
+        sessionStorage.setItem('mana_ad_attribution', JSON.stringify(attribution));
+      }
+
+      // 2. Direct Role Deep Links via path, query param or hash
+      const roleParam = urlParams.get('role');
+      const actionParam = urlParams.get('action');
+      if (
+        roleParam === 'driver' ||
+        actionParam === 'apply' ||
+        pathname === '/apply' ||
+        pathname === '/driver' ||
+        pathname === '/drivers/join' ||
+        hash === '#driver-portal' ||
+        hash === '#apply'
+      ) {
+        setActiveRole('driver');
+      } else if (roleParam === 'admin' || pathname === '/admin' || hash === '#admin') {
+        setActiveRole('admin');
+      }
+
+      // 3. Service Deep Links via path or query param
+      const serviceParam = urlParams.get('service');
+      if (serviceParam) {
+        setInitialService(serviceParam.toLowerCase());
+      } else if (pathname === '/hourly' || pathname === '/city') {
+        setInitialService('hourly');
+      } else if (pathname === '/outstation') {
+        setInitialService('outstation');
+      } else if (pathname === '/monthly' || pathname === '/permanent') {
+        setInitialService('monthly');
+      }
+
+      // 4. Instant Booking Trigger via path, param or hash
+      if (actionParam === 'book' || pathname === '/book' || hash === '#book') {
+        setTimeout(() => {
+          setSelectedDriverForBooking(drivers[0] || initialDrivers[0]);
+        }, 400);
+      }
+    } catch (e) {
+      console.warn('URL param parse error:', e);
+    }
+  }, [drivers]);
 
   // Global Keyboard Shortcut: Ctrl + Shift + S or Cmd + Shift + S to toggle Admin Console
   useEffect(() => {
@@ -88,8 +174,38 @@ export default function App() {
 
   const handleBookingConfirmed = async (newBooking) => {
     try {
-      const res = await createBookingApi(newBooking);
-      const savedBooking = res.booking || newBooking;
+      // Attach ad attribution if present
+      let bookingWithAttribution = { ...newBooking };
+      try {
+        const storedAttribution = sessionStorage.getItem('mana_ad_attribution');
+        if (storedAttribution) {
+          bookingWithAttribution.adAttribution = JSON.parse(storedAttribution);
+        }
+      } catch {
+        // ignore
+      }
+
+      // Safe trigger for Google Ads & Meta Pixel conversion tracking if configured
+      if (typeof window !== 'undefined') {
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', 'conversion', {
+            event_category: 'DriverBooking',
+            event_label: newBooking.tripType || 'Driver Booking',
+            value: newBooking.estimatedFare || 700,
+            currency: 'INR',
+          });
+        }
+        if (typeof window.fbq === 'function') {
+          window.fbq('track', 'Purchase', {
+            content_name: newBooking.tripType || 'Driver Booking',
+            currency: 'INR',
+            value: newBooking.estimatedFare || 700,
+          });
+        }
+      }
+
+      const res = await createBookingApi(bookingWithAttribution);
+      const savedBooking = res.booking || bookingWithAttribution;
       setBookings((prev) => [savedBooking, ...prev]);
     } catch (err) {
       console.error('Failed to save booking to backend:', err);
@@ -104,12 +220,20 @@ export default function App() {
 
   const [floatingContactOpen, setFloatingContactOpen] = useState(false);
   const [emailCopied, setEmailCopied] = useState(false);
+  const [phoneCopied, setPhoneCopied] = useState(false);
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText('supportmanadrivers@gmail.com');
     setEmailCopied(true);
     toast.success('Support email copied to clipboard!');
     setTimeout(() => setEmailCopied(false), 2000);
+  };
+
+  const handleCopyPhone = () => {
+    navigator.clipboard.writeText('099632 54183');
+    setPhoneCopied(true);
+    toast.success('Phone number copied to clipboard!');
+    setTimeout(() => setPhoneCopied(false), 2000);
   };
 
   return (
@@ -130,6 +254,7 @@ export default function App() {
         {activeRole === 'customer' && (
           <CustomerView
             drivers={drivers}
+            initialService={initialService}
             onOpenBooking={handleOpenBooking}
             onSwitchToDriver={() => handleRoleChange('driver')}
           />
@@ -149,28 +274,28 @@ export default function App() {
         onSwitchToDriver={() => handleRoleChange('driver')}
       />
 
-      {/* FLOATING CIRCULAR EMAIL SUPPORT BUTTON */}
+      {/* FLOATING CIRCULAR SUPPORT BUTTON (EMAIL & PHONE) */}
       <div className="fixed bottom-6 right-6 z-40">
         <button
           type="button"
           onClick={() => setFloatingContactOpen(!floatingContactOpen)}
           className="w-13 h-13 rounded-full bg-white border border-neutral-200 shadow-xl hover:shadow-2xl flex items-center justify-center text-neutral-900 hover:scale-105 transition-all focus:outline-none cursor-pointer"
-          title="Email Support (supportmanadrivers@gmail.com)"
-          aria-label="Email Support"
+          title="Direct Support (Phone & Email)"
+          aria-label="Direct Support"
         >
           <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-2 right-2 ring-2 ring-white animate-pulse" />
-          <Mail className="w-5 h-5 text-neutral-800" />
+          <Phone className="w-5 h-5 text-neutral-800" />
         </button>
 
-        {/* Quick Email Support Modal */}
+        {/* Quick Contact & Verification Modal (Matches Google Business Profile) */}
         {floatingContactOpen && (
           <div className="absolute bottom-16 right-0 w-80 bg-white rounded-3xl p-5 border border-neutral-200 shadow-2xl text-neutral-900 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <div>
-                <p className="font-bold text-sm tracking-tight text-neutral-950">Mana Drivers Support</p>
+                <p className="font-bold text-sm tracking-tight text-neutral-950 font-sans">Mana Drivers Support</p>
                 <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Official Email Helpdesk
+                  Hyderabad Dispatch & Helpdesk
                 </p>
               </div>
               <button
@@ -184,35 +309,71 @@ export default function App() {
             </div>
 
             <div className="space-y-2.5">
+              {/* Direct Call Link (Matches Google Business Profile Phone: 099632 54183) */}
               <a
-                href="mailto:supportmanadrivers@gmail.com"
-                className="w-full py-3 px-4 bg-neutral-950 hover:bg-neutral-800 text-white rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer tracking-tight"
+                href="tel:+919963254183"
+                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-between gap-2 transition-all shadow-xs cursor-pointer tracking-tight"
               >
-                <Mail className="w-4 h-4 text-[#FF5500]" />
-                <span>supportmanadrivers@gmail.com</span>
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-emerald-100" />
+                  <span>Call: 099632 54183</span>
+                </div>
+                <span className="text-[10px] bg-emerald-800/40 px-2 py-0.5 rounded-md font-mono">24/7</span>
               </a>
 
-              <button
-                type="button"
-                onClick={handleCopyEmail}
-                className="w-full py-2.5 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-2xl text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+              {/* Direct Email Link */}
+              <a
+                href="mailto:supportmanadrivers@gmail.com"
+                className="w-full py-2.5 px-4 bg-neutral-950 hover:bg-neutral-800 text-white rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-between gap-2 transition-all shadow-xs cursor-pointer tracking-tight"
               >
-                {emailCopied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-emerald-700 font-semibold">Email Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 text-neutral-500" />
-                    <span>Copy Email Address</span>
-                  </>
-                )}
-              </button>
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-[#FF5500]" />
+                  <span>supportmanadrivers@gmail.com</span>
+                </div>
+              </a>
+
+              {/* Copy Phone / Email Row */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleCopyPhone}
+                  className="py-2 px-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-[11px] font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  {phoneCopied ? (
+                    <>
+                      <Check className="w-3 h-3 text-emerald-600" />
+                      <span className="text-emerald-700 font-semibold">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3 text-neutral-500" />
+                      <span>Copy Phone</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopyEmail}
+                  className="py-2 px-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-[11px] font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  {emailCopied ? (
+                    <>
+                      <Check className="w-3 h-3 text-emerald-600" />
+                      <span className="text-emerald-700 font-semibold">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3 text-neutral-500" />
+                      <span>Copy Email</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             <p className="text-[10px] text-neutral-400 text-center leading-tight">
-              Have questions or feedback? Drop us an email and we will respond promptly.
+              Service Area: Hyderabad, Telangana · Available 24 Hours
             </p>
           </div>
         )}
