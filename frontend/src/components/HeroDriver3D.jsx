@@ -377,7 +377,7 @@ export default function HeroDriver3D() {
     <div
       ref={mountRef}
       className="w-full h-full min-h-[220px] max-h-[300px] flex items-center justify-center select-none"
-      aria-label="3D Interactive Chauffeur Character"
+      aria-label="3D Interactive Driver Character"
     />
   );
 }

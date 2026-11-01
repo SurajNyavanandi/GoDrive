@@ -190,7 +190,7 @@ export default function HeroDriverR3F() {
   return (
     <div
       className="w-full h-full min-h-[220px] max-h-[300px] flex items-center justify-center select-none"
-      aria-label="Interactive 3D Chauffeur Character"
+      aria-label="Interactive 3D Driver Character"
     >
       <Canvas
         shadows={{ type: THREE.PCFShadowMap }}

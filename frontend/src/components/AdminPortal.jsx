@@ -231,7 +231,7 @@ export default function AdminPortal({ onBackToHome }) {
 
   if (!adminAuthed) {
     return (
-      <div className="max-w-md mx-auto px-4 pt-28 pb-20 font-sans">
+      <div className="max-w-md mx-auto px-4 pt-36 pb-20 font-sans">
         <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-xl text-center space-y-6">
           <div className="w-14 h-14 bg-neutral-950 text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
             <Lock className="w-7 h-7" />
@@ -296,7 +296,7 @@ export default function AdminPortal({ onBackToHome }) {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 space-y-8 pb-16">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 sm:pt-36 space-y-8 pb-16">
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-neutral-200">
         <div>
@@ -353,56 +353,56 @@ export default function AdminPortal({ onBackToHome }) {
           onClick={() => setActiveTab('all')}
           className="bg-white p-5 rounded-2xl border border-neutral-200 shadow-xs cursor-pointer hover:border-neutral-400 transition-all"
         >
-          <div className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">
+          <div className="text-xs font-semibold text-neutral-600 mb-1">
             All Drivers
           </div>
-          <div className="text-3xl font-bold text-neutral-950 font-sans">{drivers.length}</div>
-          <div className="text-[11px] text-neutral-400 mt-1">Total in database</div>
+          <div className="text-3xl font-bold tracking-tight text-neutral-950 font-sans">{drivers.length}</div>
+          <div className="text-xs text-neutral-400 mt-1">Total in roster</div>
         </div>
 
         <div
           onClick={() => setActiveTab('trial')}
           className="bg-white p-5 rounded-2xl border border-emerald-200 bg-emerald-50/30 shadow-xs cursor-pointer hover:border-emerald-400 transition-all"
         >
-          <div className="text-xs font-semibold uppercase tracking-wider text-emerald-700 mb-1 flex items-center justify-between">
+          <div className="text-xs font-semibold text-emerald-700 mb-1 flex items-center justify-between">
             <span>Free Trial Active</span>
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           </div>
-          <div className="text-3xl font-bold text-emerald-950 font-sans">{trialDrivers.length}</div>
-          <div className="text-[11px] text-emerald-600 font-medium mt-1">3-Mo Trial (+ Days)</div>
+          <div className="text-3xl font-bold tracking-tight text-emerald-950 font-sans">{trialDrivers.length}</div>
+          <div className="text-xs text-emerald-600 font-medium mt-1">3-Month Trial</div>
         </div>
 
         <div
           onClick={() => setActiveTab('paid')}
           className="bg-white p-5 rounded-2xl border border-indigo-200 bg-indigo-50/30 shadow-xs cursor-pointer hover:border-indigo-400 transition-all"
         >
-          <div className="text-xs font-semibold uppercase tracking-wider text-indigo-700 mb-1">
+          <div className="text-xs font-semibold text-indigo-700 mb-1">
             Paid Plan Active
           </div>
-          <div className="text-3xl font-bold text-indigo-950 font-sans">{paidDrivers.length}</div>
-          <div className="text-[11px] text-indigo-600 font-medium mt-1">₹49 & ₹99 Plans</div>
+          <div className="text-3xl font-bold tracking-tight text-indigo-950 font-sans">{paidDrivers.length}</div>
+          <div className="text-xs text-indigo-600 font-medium mt-1">₹49 & ₹99 Plans</div>
         </div>
 
         <div
           onClick={() => setActiveTab('expired')}
           className="bg-white p-5 rounded-2xl border border-red-200 bg-red-50/30 shadow-xs cursor-pointer hover:border-red-400 transition-all"
         >
-          <div className="text-xs font-semibold uppercase tracking-wider text-red-600 mb-1">
+          <div className="text-xs font-semibold text-red-600 mb-1">
             Expired Listing
           </div>
-          <div className="text-3xl font-bold text-red-950 font-sans">{expiredDrivers.length}</div>
-          <div className="text-[11px] text-red-600 font-medium mt-1">Overdue (- Days)</div>
+          <div className="text-3xl font-bold tracking-tight text-red-950 font-sans">{expiredDrivers.length}</div>
+          <div className="text-xs text-red-600 font-medium mt-1">Overdue</div>
         </div>
 
         <div
           onClick={() => setActiveTab('pending')}
           className="bg-white p-5 rounded-2xl border border-amber-200 bg-amber-50/30 shadow-xs cursor-pointer hover:border-amber-400 transition-all"
         >
-          <div className="text-xs font-semibold uppercase tracking-wider text-amber-700 mb-1">
+          <div className="text-xs font-semibold text-amber-700 mb-1">
             Pending KYC
           </div>
-          <div className="text-3xl font-bold text-amber-950 font-sans">{pendingDrivers.length}</div>
-          <div className="text-[11px] text-amber-600 font-medium mt-1">Needs Approval</div>
+          <div className="text-3xl font-bold tracking-tight text-amber-950 font-sans">{pendingDrivers.length}</div>
+          <div className="text-xs text-amber-600 font-medium mt-1">Needs Approval</div>
         </div>
       </div>
 
@@ -422,6 +422,23 @@ export default function AdminPortal({ onBackToHome }) {
 
         <button
           type="button"
+          onClick={() => setActiveTab('pending')}
+          className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            activeTab === 'pending'
+              ? 'bg-amber-600 text-white shadow-xs'
+              : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
+          }`}
+        >
+          <span>Pending Approval</span>
+          {pendingDrivers.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold animate-pulse">
+              {pendingDrivers.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('trial')}
           className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
             activeTab === 'trial'
@@ -429,7 +446,7 @@ export default function AdminPortal({ onBackToHome }) {
               : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
           }`}
         >
-          <span>Free Trial (+ Days)</span>
+          <span>Free Trial (90 Days)</span>
           <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold">
             {trialDrivers.length}
           </span>
@@ -444,7 +461,7 @@ export default function AdminPortal({ onBackToHome }) {
               : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
           }`}
         >
-          <span>Paid Active (+ Days)</span>
+          <span>Paid Active</span>
           <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold">
             {paidDrivers.length}
           </span>
@@ -459,27 +476,10 @@ export default function AdminPortal({ onBackToHome }) {
               : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
           }`}
         >
-          <span>Expired (- Days)</span>
+          <span>Listing Expired</span>
           {expiredDrivers.length > 0 && (
             <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold">
               {expiredDrivers.length}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('pending')}
-          className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
-            activeTab === 'pending'
-              ? 'bg-amber-600 text-white shadow-xs'
-              : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
-          }`}
-        >
-          <span>Pending KYC</span>
-          {pendingDrivers.length > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
-              {pendingDrivers.length}
             </span>
           )}
         </button>
@@ -589,17 +589,17 @@ export default function AdminPortal({ onBackToHome }) {
                           </div>
                         </td>
 
-                        {/* Type & Rate */}
+                        {/* Type & Rate (Welfare Association Standard) */}
                         <td className="py-4 px-4 font-medium text-neutral-800">
                           <div className="font-bold text-neutral-900">
                             {driver.driverType === 'combined'
-                              ? `₹${driver.hourlyRate || 180}/hr · ₹${(driver.monthlySalary || 20000).toLocaleString('en-IN')}/mo`
+                              ? '₹700 / 4h · ₹25k - ₹30k/mo'
                               : driver.driverType === 'permanent'
-                              ? `₹${(driver.monthlySalary || 20000).toLocaleString('en-IN')}/mo`
-                              : `₹${driver.hourlyRate || 180}/hr`}
+                              ? '₹25,000 – ₹30,000 / mo'
+                              : '₹700 / 4h (Welfare Rate)'}
                           </div>
                           <div className="text-[10px] text-neutral-400 uppercase font-semibold">
-                            {driver.driverType === 'combined' ? 'Combined Mode' : driver.driverType === 'permanent' ? 'Monthly Chauffeur' : 'Hourly Freelance'}
+                            {driver.driverType === 'combined' ? 'Combined Mode' : driver.driverType === 'permanent' ? 'Monthly Driver' : 'Freelance (Hourly)'}
                           </div>
                         </td>
 
@@ -624,15 +624,15 @@ export default function AdminPortal({ onBackToHome }) {
                             ) : driver.subscriptionPlan === 'featured' ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-extrabold uppercase">
                                 <Sparkles className="w-3 h-3 text-amber-600" />
-                                Featured (₹99/mo)
+                                Featured (Active)
                               </span>
                             ) : driver.subscriptionPlan === 'starter' ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-800 text-[10px] font-bold uppercase">
-                                Starter Plan (₹49/mo)
+                                Paid Active Plan
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold uppercase">
-                                3-Month Free Trial
+                                Active 90-Day Free Trial
                               </span>
                             )}
                             {driver.premiumActivatedAt && (
@@ -649,11 +649,11 @@ export default function AdminPortal({ onBackToHome }) {
                             <span className="text-neutral-400 font-mono italic">--</span>
                           ) : remaining > 0 ? (
                             <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 font-mono font-extrabold text-xs">
-                              <span>+{remaining} days left</span>
+                              <span>{remaining} days remaining</span>
                             </div>
                           ) : (
                             <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-red-100 text-red-900 font-mono font-extrabold text-xs">
-                              <span>{remaining} days expired</span>
+                              <span>{Math.abs(remaining)} days expired</span>
                             </div>
                           )}
                         </td>
@@ -672,15 +672,23 @@ export default function AdminPortal({ onBackToHome }) {
                                 Approve
                               </button>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleExtendDays(driver.id, driver.name)}
-                                className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-full text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
-                                title="Add +30 Bonus Days to Driver Subscription"
+                              <span
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                  isExpired
+                                    ? 'bg-red-50 text-red-700 border border-red-200'
+                                    : driver.subscriptionPlan === 'featured' || driver.subscriptionPlan === 'starter'
+                                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                    : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                }`}
                               >
-                                <Calendar className="w-3 h-3" />
-                                +30 Days
-                              </button>
+                                {isExpired
+                                  ? 'Expired'
+                                  : driver.subscriptionPlan === 'featured'
+                                  ? 'Featured'
+                                  : driver.subscriptionPlan === 'starter'
+                                  ? 'Paid Plan'
+                                  : 'Free Trial'}
+                              </span>
                             )}
 
                             {/* Edit Driver */}
@@ -804,8 +812,9 @@ export default function AdminPortal({ onBackToHome }) {
                     onChange={(e) => setDriverForm({ ...driverForm, driverType: e.target.value })}
                     className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
                   >
-                    <option value="freelance">Freelance (Hourly)</option>
-                    <option value="permanent">Permanent (Monthly)</option>
+                    <option value="freelance">Freelance (Hourly & Outstation)</option>
+                    <option value="permanent">Permanent (Monthly Driver)</option>
+                    <option value="combined">Combined (Both Duties)</option>
                   </select>
                 </div>
                 <div>
@@ -822,14 +831,18 @@ export default function AdminPortal({ onBackToHome }) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Hourly Rate (₹)</label>
-                <input
-                  type="number"
-                  value={driverForm.hourlyRate}
-                  onChange={(e) => setDriverForm({ ...driverForm, hourlyRate: e.target.value })}
-                  className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                />
+              {/* Welfare Association Official Rate Card Note */}
+              <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
+                  Association Approved Standard Pricing Model
+                </span>
+                <p className="text-[11px] text-neutral-600 leading-relaxed">
+                  {driverForm.driverType === 'permanent'
+                    ? 'Monthly Duty: ₹25,000 (8h) · ₹28,000 (10h) · ₹30,000 (12h) per month + 1 weekly off.'
+                    : driverForm.driverType === 'combined'
+                    ? 'Hourly: ₹700 (4h) + ₹100/hr · Outstation: ₹2,000 (200km) · Monthly: ₹25k - ₹30k/mo.'
+                    : 'City Duty: ₹700 flat for first 4 hrs + ₹100/add\'l hr + ₹150 night charge (10 PM to 6 AM). Outstation: ₹2,000 flat up to 200 km.'}
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -842,7 +855,7 @@ export default function AdminPortal({ onBackToHome }) {
                   >
                     <option value="free_trial">3-Month Free Trial</option>
                     <option value="starter">Starter Plan (₹49/mo)</option>
-                    <option value="featured">Featured Chauffeur (₹99/mo)</option>
+                    <option value="featured">Featured Driver (₹99/mo)</option>
                   </select>
                 </div>
                 <div>
@@ -926,8 +939,9 @@ export default function AdminPortal({ onBackToHome }) {
                     onChange={(e) => setDriverForm({ ...driverForm, driverType: e.target.value })}
                     className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
                   >
-                    <option value="freelance">Freelance (Hourly)</option>
-                    <option value="permanent">Permanent (Monthly)</option>
+                    <option value="freelance">Freelance (Hourly & Outstation)</option>
+                    <option value="permanent">Permanent (Monthly Driver)</option>
+                    <option value="combined">Combined (Both Duties)</option>
                   </select>
                 </div>
                 <div>
@@ -944,14 +958,18 @@ export default function AdminPortal({ onBackToHome }) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Hourly Rate (₹)</label>
-                <input
-                  type="number"
-                  value={driverForm.hourlyRate}
-                  onChange={(e) => setDriverForm({ ...driverForm, hourlyRate: e.target.value })}
-                  className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                />
+              {/* Welfare Association Official Rate Card Note */}
+              <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
+                  Association Approved Standard Pricing Model
+                </span>
+                <p className="text-[11px] text-neutral-600 leading-relaxed">
+                  {driverForm.driverType === 'permanent'
+                    ? 'Monthly Duty: ₹25,000 (8h) · ₹28,000 (10h) · ₹30,000 (12h) per month + 1 weekly off.'
+                    : driverForm.driverType === 'combined'
+                    ? 'Hourly: ₹700 (4h) + ₹100/hr · Outstation: ₹2,000 (200km) · Monthly: ₹25k - ₹30k/mo.'
+                    : 'City Duty: ₹700 flat for first 4 hrs + ₹100/add\'l hr + ₹150 night charge (10 PM to 6 AM). Outstation: ₹2,000 flat up to 200 km.'}
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -964,7 +982,7 @@ export default function AdminPortal({ onBackToHome }) {
                   >
                     <option value="free_trial">3-Month Free Trial</option>
                     <option value="starter">Starter Plan (₹49/mo)</option>
-                    <option value="featured">Featured Chauffeur (₹99/mo)</option>
+                    <option value="featured">Featured Driver (₹99/mo)</option>
                   </select>
                 </div>
                 <div>

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
   --accent-orange: #ff5500;
   --accent-orange-hover: #e04b00;
@@ -75,7 +75,39 @@ body {
   scrollbar-width: none; /* Firefox */
 }
 
-/* Infinite Smooth Auto-scrolling Marquee for Hyderabad Localities */
+/* Cruip Ultra-Smooth Slow Infinite Horizontal Scroll */
+@keyframes infinite-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-infinite-scroll {
+  display: flex;
+  animation: infinite-scroll 240s linear infinite;
+  will-change: transform;
+}
+
+.animate-infinite-scroll:hover {
+  animation-play-state: paused;
+}
+
+.mask-gradient-x {
+  mask-image: linear-gradient(to right, transparent 0, black 96px, black calc(100% - 96px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 96px, black calc(100% - 96px), transparent 100%);
+}
+
+@media (min-width: 640px) {
+  .mask-gradient-x {
+    mask-image: linear-gradient(to right, transparent 0, black 160px, black calc(100% - 160px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, black 160px, black calc(100% - 160px), transparent 100%);
+  }
+}
+
+/* Backward-compatible Marquee */
 @keyframes marquee {
   0% {
     transform: translateX(0%);
@@ -87,7 +119,7 @@ body {
 
 .animate-marquee {
   display: inline-flex;
-  animation: marquee 25s linear infinite;
+  animation: marquee 240s linear infinite;
   will-change: transform;
 }
 
@@ -203,7 +235,8 @@ body {
   .animate-slide-in-left,
   .animate-slide-in-right,
   .animate-scale-up,
-  .animate-marquee {
+  .animate-marquee,
+  .animate-infinite-scroll {
     animation: none !important;
     transform: none !important;
     opacity: 1 !important;

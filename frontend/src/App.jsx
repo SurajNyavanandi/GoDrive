@@ -6,8 +6,9 @@ import DriverPortal from './components/DriverPortal';
 import AdminPortal from './components/AdminPortal';
 import BookingModal from './components/BookingModal';
 import MyBookingsSheet from './components/MyBookingsSheet';
-import { Phone } from 'lucide-react';
+import { Mail, Copy, Check } from 'lucide-react';
 import { fetchAdminBookingsApi, createBookingApi, fetchPublicDrivers } from './utils/api';
+import { initialDrivers } from './data/mockDrivers';
 
 import Footer from './components/Footer';
 
@@ -17,7 +18,8 @@ export default function App() {
     return localStorage.getItem('godrive_role') || 'customer';
   });
 
-  const [drivers, setDrivers] = useState([]);
+  // Pure in-memory array state for testing mode (resets on refresh)
+  const [drivers, setDrivers] = useState(() => initialDrivers.filter((d) => d.isApproved !== false));
   const [bookings, setBookings] = useState([]);
   const [selectedDriverForBooking, setSelectedDriverForBooking] = useState(null);
   const [isBookingsSheetOpen, setIsBookingsSheetOpen] = useState(false);
@@ -101,6 +103,14 @@ export default function App() {
   };
 
   const [floatingContactOpen, setFloatingContactOpen] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
+
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText('supportmanadrivers@gmail.com');
+    setEmailCopied(true);
+    toast.success('Support email copied to clipboard!');
+    setTimeout(() => setEmailCopied(false), 2000);
+  };
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] text-[#111111] flex flex-col selection:bg-neutral-900 selection:text-white font-sans">
@@ -137,65 +147,72 @@ export default function App() {
       {/* FOOTER */}
       <Footer
         onSwitchToDriver={() => handleRoleChange('driver')}
-        onOpenBookings={() => setIsBookingsSheetOpen(true)}
       />
 
-      {/* FLOATING CIRCULAR CONTACT BUTTON */}
+      {/* FLOATING CIRCULAR EMAIL SUPPORT BUTTON */}
       <div className="fixed bottom-6 right-6 z-40">
         <button
           type="button"
           onClick={() => setFloatingContactOpen(!floatingContactOpen)}
-          className="w-13 h-13 rounded-full bg-white border border-neutral-200 shadow-xl hover:shadow-2xl flex items-center justify-center text-neutral-900 hover:scale-105 transition-all focus:outline-none"
-          title="Instant Driver Helpline"
-          aria-label="Instant Driver Helpline"
+          className="w-13 h-13 rounded-full bg-white border border-neutral-200 shadow-xl hover:shadow-2xl flex items-center justify-center text-neutral-900 hover:scale-105 transition-all focus:outline-none cursor-pointer"
+          title="Email Support (supportmanadrivers@gmail.com)"
+          aria-label="Email Support"
         >
           <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-2 right-2 ring-2 ring-white animate-pulse" />
-          <Phone className="w-5 h-5 text-neutral-800" />
+          <Mail className="w-5 h-5 text-neutral-800" />
         </button>
 
-        {/* Quick Contact Modal */}
+        {/* Quick Email Support Modal */}
         {floatingContactOpen && (
           <div className="absolute bottom-16 right-0 w-80 bg-white rounded-3xl p-5 border border-neutral-200 shadow-2xl text-neutral-900 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <div>
-                <p className="font-bold text-sm">Mana Drivers Hyderabad</p>
+                <p className="font-bold text-sm tracking-tight text-neutral-950">Mana Drivers Support</p>
                 <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Available 24/7 for Pickups
+                  Official Email Helpdesk
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setFloatingContactOpen(false)}
                 aria-label="Close modal"
-                className="text-neutral-400 hover:text-neutral-900 p-1 rounded-full"
+                className="text-neutral-400 hover:text-neutral-900 p-1 rounded-full cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <a
                 href="mailto:supportmanadrivers@gmail.com"
-                className="w-full py-2.5 px-4 bg-[#111111] hover:bg-neutral-800 text-white rounded-full text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                className="w-full py-3 px-4 bg-neutral-950 hover:bg-neutral-800 text-white rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer tracking-tight"
               >
-                <span>Email: supportmanadrivers@gmail.com</span>
+                <Mail className="w-4 h-4 text-[#FF5500]" />
+                <span>supportmanadrivers@gmail.com</span>
               </a>
 
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(
-                  'Hello Mana Drivers, I need a verified private driver for my car in Hyderabad.'
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+              <button
+                type="button"
+                onClick={handleCopyEmail}
+                className="w-full py-2.5 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-2xl text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <span>WhatsApp Instant Dispatch</span>
-              </a>
+                {emailCopied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700 font-semibold">Email Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-neutral-500" />
+                    <span>Copy Email Address</span>
+                  </>
+                )}
+              </button>
             </div>
 
-            <p className="text-[10px] text-neutral-400 text-center">
-              Cyber Towers · Gachibowli · Jubilee Hills · Banjara Hills
+            <p className="text-[10px] text-neutral-400 text-center leading-tight">
+              Have questions or feedback? Drop us an email and we will respond promptly.
             </p>
           </div>
         )}

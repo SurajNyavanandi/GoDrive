@@ -1,246 +1,197 @@
-import logger from './logger';
+import { initialDrivers } from '../data/mockDrivers';
 
-const RENDER_BACKEND = 'https://godrive-293l.onrender.com';
-const envApiUrl = import.meta.env.VITE_API_URL;
-const PRIMARY_API = envApiUrl || RENDER_BACKEND;
-const PRIMARY_BASE = PRIMARY_API.endsWith('/api') ? PRIMARY_API : `${PRIMARY_API.replace(/\/$/, '')}/api`;
-
-let relativeApiAvailable = null;
-
-async function safeFetch(endpoint, options = {}) {
-  const renderUrl = `${PRIMARY_BASE}${endpoint}`;
-
-  // If we already know relative /api is unavailable (e.g. static domain like manadrivers.com), hit Render directly
-  if (relativeApiAvailable === false && PRIMARY_BASE) {
-    try {
-      const res = await fetch(renderUrl, options);
-      if (res.ok) return await res.json();
-    } catch {
-      // Fall through to retry strategy below
-    }
-  }
-
-  // 1. Try local/same-origin relative Express server (/api/drivers)
-  try {
-    const localRes = await fetch(`/api${endpoint}`, options);
-    if (localRes.ok) {
-      relativeApiAvailable = true;
-      return await localRes.json();
-    }
-    if (localRes.status === 404) {
-      relativeApiAvailable = false;
-    }
-  } catch {
-    relativeApiAvailable = false;
-  }
-
-  // 2. Try Primary Render API with /api prefix (e.g. https://godrive-293l.onrender.com/api/drivers)
-  if (PRIMARY_BASE) {
-    try {
-      const res = await fetch(renderUrl, options);
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch (err) {
-      if (import.meta.env.DEV) {
-        logger.debug(`Primary API request failed for ${renderUrl}:`, err);
-      }
-    }
-  }
-
-  // 3. Try Render API without /api prefix
-  if (PRIMARY_API && PRIMARY_API.includes('onrender.com')) {
-    try {
-      const directUrl = `${PRIMARY_API.replace(/\/$/, '')}${endpoint}`;
-      const directRes = await fetch(directUrl, options);
-      if (directRes.ok) {
-        return await directRes.json();
-      }
-    } catch {
-      // Ignore
-    }
-  }
-
-  return null;
-}
+// IN-MEMORY TESTING REPOSITORY (Resets completely on page refresh)
+let memoryDrivers = JSON.parse(JSON.stringify(initialDrivers));
+let memoryBookings = [];
 
 export async function fetchPublicDrivers() {
-  const json = await safeFetch('/drivers');
-  if (json && json.success && Array.isArray(json.data)) {
-    return json.data;
-  }
-  return [];
+  // Public roster only returns approved drivers
+  return memoryDrivers.filter((d) => d.isApproved !== false);
 }
 
 export async function loginDriverApi(phone, otp) {
-  const json = await safeFetch('/drivers/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone, otp }),
-  });
-  if (json) return json;
+  const cleanPhone = String(phone).replace(/\D/g, '');
+  const cleanOtp = String(otp).trim();
 
-  return { success: false, message: 'Driver mobile number is not registered. Please register as a new driver.' };
+  const driver = memoryDrivers.find(
+    (d) => String(d.phone).replace(/\D/g, '').endsWith(cleanPhone.slice(-10))
+  );
+
+  if (!driver) {
+    return {
+      success: false,
+      code: 'UNREGISTERED',
+      message: 'Mobile number not registered. Please register as a driver.',
+    };
+  }
+
+  if (driver.isApproved === false) {
+    return {
+      success: false,
+      code: 'PENDING_APPROVAL',
+      driver,
+      message: 'Your profile is pending admin approval.',
+    };
+  }
+
+  // Any 4+ digit OTP passes in testing mode
+  if (cleanOtp.length >= 4) {
+    return {
+      success: true,
+      driver,
+      message: 'Login successful',
+    };
+  }
+
+  return {
+    success: false,
+    message: 'Invalid OTP. Enter any 4-digit code (e.g., 1234).',
+  };
 }
 
 export async function registerDriverApi(data) {
-  const json = await safeFetch('/drivers/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (json) return json;
+  const newDriver = {
+    ...data,
+    id: `drv-test-${Date.now()}`,
+    rating: 5.0,
+    trips: 0,
+    status: 'Available',
+    subscriptionPlan: 'free_trial',
+    remainingDays: 90,
+    isApproved: false, // requires admin approval
+    createdAt: new Date().toISOString(),
+  };
+
+  memoryDrivers.unshift(newDriver);
 
   return {
     success: true,
     message: 'Application Submitted Successfully! Included 90 days Free Trial.',
-    driver: { ...data, id: `drv_local_${Date.now()}` },
+    driver: newDriver,
   };
 }
 
 export async function subscribeDriverPlanApi(driverId, plan) {
-  const json = await safeFetch(`/drivers/${driverId}/subscribe`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plan }),
-  });
-  if (json) return json;
-  return { success: true, message: 'Subscription updated (offline mode)' };
+  const driver = memoryDrivers.find((d) => d.id === driverId);
+  if (driver) {
+    driver.subscriptionPlan = plan;
+    driver.remainingDays = (driver.remainingDays || 0) + (plan === 'featured' ? 60 : 30);
+  }
+  return { success: true, message: 'Subscription updated in testing mode' };
 }
 
 export async function updateDriverSelfProfileApi(driverId, profileData) {
-  const json = await safeFetch(`/drivers/${driverId}/profile`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(profileData),
-  });
-  if (json) return json;
-  return { success: true, message: 'Profile updated locally' };
+  const index = memoryDrivers.findIndex((d) => d.id === driverId);
+  if (index !== -1) {
+    memoryDrivers[index] = { ...memoryDrivers[index], ...profileData };
+    return { success: true, driver: memoryDrivers[index] };
+  }
+  return { success: false, message: 'Driver not found' };
 }
 
-export async function uploadDriverDocsApi(formData) {
-  const json = await safeFetch('/drivers/upload-docs', {
-    method: 'POST',
-    body: formData,
-  });
-  if (json) return json;
-
+export async function uploadDriverDocsApi() {
   return {
     success: true,
-    message: 'Documents uploaded successfully',
-    urls: {},
+    message: 'Documents uploaded (testing mode)',
+    urls: {
+      licensePhoto: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=400&q=80',
+      aadhaarPhoto: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=400&q=80',
+      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+    },
     isCloudinary: false,
   };
 }
 
 export async function updateDriverStatusApi(driverId, status) {
-  const json = await safeFetch(`/drivers/${driverId}/status`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
-  });
-  if (json) return json;
-
-  return { success: true, message: 'Status updated successfully (offline mode)' };
+  const driver = memoryDrivers.find((d) => d.id === driverId);
+  if (driver) {
+    driver.status = status;
+    return { success: true, driver };
+  }
+  return { success: false, message: 'Driver not found' };
 }
 
-export async function sendOtpApi(mobile) {
-  const json = await safeFetch('/otp/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mobile }),
-  });
-  if (json) return json;
-
-  return { success: true, message: 'OTP sent successfully (Demo OTP: 1234)' };
+export async function sendOtpApi() {
+  return { success: true, message: 'OTP sent (Demo OTP: 1234)' };
 }
 
 export async function verifyOtpApi(mobile, otp) {
-  const json = await safeFetch('/otp/verify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mobile, otp }),
-  });
-  if (json) return json;
-
   const cleanOtp = String(otp).trim();
-  const isValid = cleanOtp === '1234' || cleanOtp === '123456';
+  const isValid = cleanOtp === '1234' || cleanOtp === '123456' || cleanOtp.length >= 4;
   return {
     success: isValid,
-    message: isValid ? 'OTP verified successfully' : 'Invalid OTP code entered (Use 1234)',
+    message: isValid ? 'OTP verified' : 'Invalid OTP. Enter 1234',
   };
 }
 
 export async function createBookingApi(bookingData) {
-  const json = await safeFetch('/bookings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(bookingData),
-  });
-  if (json) return json;
-
-  return { success: true, booking: bookingData, simulated: true };
+  const newBooking = {
+    ...bookingData,
+    id: `BK-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    status: 'Confirmed',
+  };
+  memoryBookings.unshift(newBooking);
+  return { success: true, booking: newBooking };
 }
 
-// ADMIN APIS (Full CRUD + Subscription Extension)
+// ADMIN APIS (Full In-Memory CRUD)
 export async function fetchAdminDriversApi() {
-  const json = await safeFetch('/admin/drivers');
-  if (json && Array.isArray(json.data)) return json;
-  return { success: true, data: [] };
+  return { success: true, data: [...memoryDrivers] };
 }
 
 export async function createDriverApi(driverData) {
-  const json = await safeFetch('/admin/drivers', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(driverData),
-  });
-  if (json) return json;
-  return { success: true, driver: driverData };
+  const newDriver = {
+    ...driverData,
+    id: `drv-admin-${Date.now()}`,
+    rating: 5.0,
+    trips: 0,
+    isApproved: true,
+    remainingDays: 90,
+    createdAt: new Date().toISOString(),
+  };
+  memoryDrivers.unshift(newDriver);
+  return { success: true, driver: newDriver };
 }
 
 export async function updateDriverApi(driverId, driverData) {
-  const json = await safeFetch(`/admin/drivers/${driverId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(driverData),
-  });
-  if (json) return json;
-  return { success: true, driver: driverData };
+  const index = memoryDrivers.findIndex((d) => d.id === driverId);
+  if (index !== -1) {
+    memoryDrivers[index] = { ...memoryDrivers[index], ...driverData };
+    return { success: true, driver: memoryDrivers[index] };
+  }
+  return { success: false, message: 'Driver not found' };
 }
 
 export async function deleteDriverApi(driverId) {
-  const json = await safeFetch(`/admin/drivers/${driverId}`, {
-    method: 'DELETE',
-  });
-  if (json) return json;
-  return { success: true, message: 'Driver deleted' };
+  memoryDrivers = memoryDrivers.filter((d) => d.id !== driverId);
+  return { success: true, message: 'Driver removed from testing array' };
 }
 
 export async function extendSubscriptionApi(driverId, days = 30) {
-  const json = await safeFetch(`/admin/drivers/${driverId}/subscription`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ days }),
-  });
-  if (json) return json;
-  return { success: true, message: `Added ${days} bonus days` };
+  const driver = memoryDrivers.find((d) => d.id === driverId);
+  if (driver) {
+    driver.remainingDays = (driver.remainingDays || 0) + days;
+    return { success: true, message: `Added ${days} days to driver trial` };
+  }
+  return { success: false, message: 'Driver not found' };
 }
 
 export async function approveDriverApi(id) {
-  const json = await safeFetch(`/admin/drivers/${id}/approve`, { method: 'PUT' });
-  if (json) return json;
-  return { success: true, message: 'Driver approved successfully' };
+  const driver = memoryDrivers.find((d) => d.id === id);
+  if (driver) {
+    driver.isApproved = true;
+    return { success: true, message: 'Driver approved and activated on homepage' };
+  }
+  return { success: false, message: 'Driver not found' };
 }
 
 export async function rejectDriverApi(id) {
-  const json = await safeFetch(`/admin/drivers/${id}`, { method: 'DELETE' });
-  if (json) return json;
-  return { success: true, message: 'Driver rejected successfully' };
+  memoryDrivers = memoryDrivers.filter((d) => d.id !== id);
+  return { success: true, message: 'Driver application rejected' };
 }
 
 export async function fetchAdminBookingsApi() {
-  const json = (await safeFetch('/admin/bookings')) || (await safeFetch('/bookings'));
-  if (json && Array.isArray(json.data)) return json;
-  return { success: true, data: [] };
+  return { success: true, data: [...memoryBookings] };
 }
+

@@ -15,7 +15,6 @@ import {
   User,
   X,
   Lock,
-  DollarSign,
   IndianRupee,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -376,7 +375,7 @@ export default function DriverPortal({ onBackToHome }) {
       name: nameRes.cleaned,
       phone: phoneRes.cleaned,
       driverType: registrationType === 'combined' ? 'combined' : registrationType === 'hourly' ? 'freelance' : 'permanent',
-      hourlyRate: Number(formData.hourlyRate) || 180,
+      hourlyRate: Number(formData.hourlyRate) || 175,
       location: formData.location,
       experience: expRes.value,
       languages: formData.languages,
@@ -386,7 +385,8 @@ export default function DriverPortal({ onBackToHome }) {
       licensePhoto: finalLicenseUrl,
       aadhaarNo: aadhaarRes.formatted,
       aadhaarPhoto: finalAadhaarUrl,
-      workingPreference: `${registrationType === 'combined' ? 'Combined (Hourly & Monthly)' : registrationType === 'hourly' ? 'Hourly Freelance' : 'Monthly Permanent'} (₹${formData.hourlyRate}/hr)`,
+      isApproved: false,
+      workingPreference: `${registrationType === 'combined' ? 'Combined (Hourly & Monthly)' : registrationType === 'hourly' ? 'Hourly Freelance' : 'Monthly Permanent'} (Welfare Assoc. Rates)`,
     };
 
     triggerDriverRegistrationRazorpay({
@@ -416,12 +416,12 @@ export default function DriverPortal({ onBackToHome }) {
   const isExpired = remainingDays <= 0;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 space-y-8 pb-16">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 sm:pt-36 space-y-8 pb-16">
       {/* Navigation Header */}
       <div className="flex items-center justify-between bg-white rounded-3xl p-4 sm:p-6 border border-neutral-200 shadow-xs">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
-            HYDERABAD CHAUFFEURS
+            HYDERABAD DRIVERS
           </p>
           <h1 className="text-xl sm:text-2xl font-bold text-neutral-950 font-sans">
             Driver Portal
@@ -508,8 +508,8 @@ export default function DriverPortal({ onBackToHome }) {
                   {loggedInDriver.phone} · {loggedInDriver.location}
                 </p>
                 <div className="flex items-center gap-2 mt-1.5">
-                  <span className="text-xs font-extrabold text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-md border border-amber-400/20">
-                    Custom Hourly Rate: ₹{loggedInDriver.hourlyRate || 180}/hr
+                  <span className="text-xs font-extrabold text-emerald-400 bg-emerald-400/10 px-2.5 py-0.5 rounded-md border border-emerald-400/20">
+                    Welfare Association Fixed Rates Standard
                   </span>
                 </div>
               </div>
@@ -523,7 +523,7 @@ export default function DriverPortal({ onBackToHome }) {
                 className="px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                <span>Edit Profile & Rates</span>
+                <span>Edit Profile Info</span>
               </button>
 
               {/* Duty Status Toggle */}
@@ -607,7 +607,7 @@ export default function DriverPortal({ onBackToHome }) {
                       </span>
                     </div>
                     <div className="text-base font-bold text-neutral-950 font-sans mt-2">
-                      Starter Chauffeur Plan
+                      Starter Driver Plan
                     </div>
                     <p className="text-xs text-neutral-600 mt-1">
                       Standard homepage profile listing in your primary area for 30 days.
@@ -640,7 +640,7 @@ export default function DriverPortal({ onBackToHome }) {
                     </div>
                     <div className="text-base font-bold text-neutral-950 font-sans mt-2 flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-amber-600" />
-                      Featured Chauffeur Plan
+                      Featured Driver Plan
                     </div>
                     <p className="text-xs text-neutral-700 mt-1">
                       Gold "Featured" badge + Top placement in homepage driver searches.
@@ -798,17 +798,17 @@ export default function DriverPortal({ onBackToHome }) {
 
           {!registerSuccessBanner && (
             <form onSubmit={handleRegisterSubmit} className="space-y-6">
-              {/* Working Preference & Custom Rate Calculator */}
+              {/* Working Preference & Official Welfare Association Fixed Rates */}
               <div className="space-y-4">
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700">
-                  Select Working Preference & Custom Pricing
+                  Select Working Preference (Fixed Association Rates)
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <button
                     type="button"
                     onClick={() => {
                       setRegistrationType('hourly');
-                      setFormData((p) => ({ ...p, workingPreference: 'Work by the hour' }));
+                      setFormData((p) => ({ ...p, workingPreference: 'Work by the hour', hourlyRate: 175 }));
                     }}
                     className={`p-4 rounded-2xl border text-left transition-all ${
                       registrationType === 'hourly'
@@ -822,9 +822,9 @@ export default function DriverPortal({ onBackToHome }) {
                         3-Mo Free
                       </span>
                     </div>
-                    <div className="font-bold text-xs sm:text-sm">Freelance (Hourly)</div>
+                    <div className="font-bold text-xs sm:text-sm">Freelance (Temporary)</div>
                     <p className="text-[11px] opacity-80 mt-1">
-                      Set custom hourly rates for in-city & outstation trips.
+                      In-city hourly rides (₹700 for 4 hrs) & outstation trips (₹2,000).
                     </p>
                   </button>
 
@@ -832,7 +832,7 @@ export default function DriverPortal({ onBackToHome }) {
                     type="button"
                     onClick={() => {
                       setRegistrationType('monthly');
-                      setFormData((p) => ({ ...p, workingPreference: 'Work monthly' }));
+                      setFormData((p) => ({ ...p, workingPreference: 'Work monthly', monthlySalary: 25000 }));
                     }}
                     className={`p-4 rounded-2xl border text-left transition-all ${
                       registrationType === 'monthly'
@@ -848,7 +848,7 @@ export default function DriverPortal({ onBackToHome }) {
                     </div>
                     <div className="font-bold text-xs sm:text-sm">Permanent (Monthly)</div>
                     <p className="text-[11px] opacity-80 mt-1">
-                      Set expected monthly salary for full-time family duty.
+                      Full-time driver duties (₹25,000 – ₹30,000/mo + 1 day off).
                     </p>
                   </button>
 
@@ -856,7 +856,7 @@ export default function DriverPortal({ onBackToHome }) {
                     type="button"
                     onClick={() => {
                       setRegistrationType('combined');
-                      setFormData((p) => ({ ...p, workingPreference: 'Both Hourly & Monthly' }));
+                      setFormData((p) => ({ ...p, workingPreference: 'Both Hourly & Monthly', hourlyRate: 175, monthlySalary: 25000 }));
                     }}
                     className={`p-4 rounded-2xl border text-left transition-all ${
                       registrationType === 'combined'
@@ -872,93 +872,53 @@ export default function DriverPortal({ onBackToHome }) {
                     </div>
                     <div className="font-bold text-xs sm:text-sm">Combined (Both)</div>
                     <p className="text-[11px] opacity-80 mt-1">
-                      Available for both freelance hourly rides & monthly permanent jobs!
+                      Accept both freelance hourly rides & monthly permanent jobs!
                     </p>
                   </button>
                 </div>
 
-                {/* DYNAMIC RATE INPUT & ESTIMATED INCOME BADGE */}
-                <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl space-y-4">
+                {/* ASSOCIATION FIXED PRICE BREAKDOWN CARD */}
+                <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                      <IndianRupee className="w-4 h-4 text-emerald-700" />
+                      ALL CITY DRIVERS WELFARE ASSOCIATION Mandated Fare Card
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-900 bg-emerald-200/80 px-2 py-0.5 rounded-md">
+                      Regd. No: 637 of 2018
+                    </span>
+                  </div>
+
                   {registrationType === 'hourly' && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-                          <DollarSign className="w-4 h-4 text-emerald-600" />
-                          Set Custom Hourly Rate (₹ / hr) *
-                        </label>
-                        <span className="text-xs font-mono font-extrabold text-emerald-900 bg-emerald-200/80 px-2.5 py-0.5 rounded-md">
-                          ₹{formData.hourlyRate} / hr
-                        </span>
-                      </div>
-                      <input
-                        type="number"
-                        min={150}
-                        max={500}
-                        step={10}
-                        value={formData.hourlyRate}
-                        onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
-                        className="w-full px-4 py-2.5 bg-white border border-emerald-300 rounded-xl text-sm font-bold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                        required
-                      />
+                    <div className="text-xs text-emerald-950 space-y-1 pt-1">
+                      <p className="font-semibold">
+                        • City Temporary Duty: <span className="font-bold">₹700 flat for first 4 hours</span> (Round trip) + ₹100/add'l hr (6:00 AM – 10:00 PM).
+                      </p>
+                      <p className="text-emerald-800">
+                        • Night Charge: After 10:00 PM, additional ₹150/hour. Outstation: ₹2,000 flat up to 200 km (+ food expenses).
+                      </p>
                     </div>
                   )}
 
                   {registrationType === 'monthly' && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-                          <DollarSign className="w-4 h-4 text-emerald-600" />
-                          Set Expected Monthly Salary (₹ / month) *
-                        </label>
-                        <span className="text-xs font-mono font-extrabold text-emerald-900 bg-emerald-200/80 px-2.5 py-0.5 rounded-md">
-                          ₹{Number(formData.monthlySalary || 20000).toLocaleString('en-IN')} / mo
-                        </span>
-                      </div>
-                      <input
-                        type="number"
-                        min={15000}
-                        max={40000}
-                        step={500}
-                        value={formData.monthlySalary}
-                        onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
-                        className="w-full px-4 py-2.5 bg-white border border-emerald-300 rounded-xl text-sm font-bold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                        required
-                      />
+                    <div className="text-xs text-emerald-950 space-y-1 pt-1">
+                      <p className="font-semibold">
+                        • Monthly Driver Salary: <span className="font-bold">8 hrs: ₹25,000/mo</span> · 10 hrs: ₹28,000/mo · 12 hrs: ₹30,000/mo.
+                      </p>
+                      <p className="text-emerald-800">
+                        • All monthly duty tiers mandate 1 day off per week.
+                      </p>
                     </div>
                   )}
 
                   {registrationType === 'combined' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-emerald-950 mb-1">
-                          Hourly Freelance Rate (₹/hr) *
-                        </label>
-                        <input
-                          type="number"
-                          min={150}
-                          max={500}
-                          step={10}
-                          value={formData.hourlyRate}
-                          onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
-                          className="w-full px-4 py-2.5 bg-white border border-emerald-300 rounded-xl text-sm font-bold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-emerald-950 mb-1">
-                          Monthly Salary Requirement (₹/mo) *
-                        </label>
-                        <input
-                          type="number"
-                          min={15000}
-                          max={40000}
-                          step={500}
-                          value={formData.monthlySalary}
-                          onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
-                          className="w-full px-4 py-2.5 bg-white border border-emerald-300 rounded-xl text-sm font-bold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                          required
-                        />
-                      </div>
+                    <div className="text-xs text-emerald-950 space-y-1 pt-1">
+                      <p className="font-semibold">
+                        • Combined Profile: You will receive direct customer requests for both Hourly City Duty (₹700/4h) and Monthly Permanent Duties (₹25k–₹30k/mo).
+                      </p>
+                      <p className="text-emerald-800">
+                        • All trips adhere strictly to Welfare Association standard pricing. Zero commission fee is charged by Mana Drivers.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1227,16 +1187,18 @@ export default function DriverPortal({ onBackToHome }) {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
-                  Custom Hourly Rate (₹ / hr)
-                </label>
-                <input
-                  type="number"
-                  value={editForm.hourlyRate}
-                  onChange={(e) => setEditForm({ ...editForm, hourlyRate: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold text-neutral-900"
-                />
+              <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-neutral-800">
+                    Association Regulated Fare Card
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                    Regd. No: 637 of 2018
+                  </span>
+                </div>
+                <p className="text-[11px] text-neutral-500 leading-normal">
+                  Fares are automatically applied per Welfare Association guidelines (₹700 for 4 hrs round-trip; ₹25,000–₹30,000 monthly). No custom manual rates.
+                </p>
               </div>
 
               <div>
