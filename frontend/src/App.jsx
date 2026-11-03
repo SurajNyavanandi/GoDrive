@@ -33,7 +33,20 @@ export default function App() {
   const [bookings, setBookings] = useState([]);
   const [selectedDriverForBooking, setSelectedDriverForBooking] = useState(null);
   const [isBookingsSheetOpen, setIsBookingsSheetOpen] = useState(false);
-  const [initialService, setInitialService] = useState('all');
+  const [initialService] = useState(() => {
+    try {
+      const pathname = window.location.pathname.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      const serviceParam = params.get('service');
+      if (serviceParam) return serviceParam.toLowerCase();
+      if (pathname === '/hourly' || pathname === '/city') return 'hourly';
+      if (pathname === '/outstation') return 'outstation';
+      if (pathname === '/monthly' || pathname === '/permanent') return 'monthly';
+    } catch (err) {
+      console.warn('Error reading service URL param:', err);
+    }
+    return 'all';
+  });
 
   // Load live dynamic drivers & bookings from backend database on mount
   useEffect(() => {
@@ -97,36 +110,8 @@ export default function App() {
         sessionStorage.setItem('mana_ad_attribution', JSON.stringify(attribution));
       }
 
-      // 2. Direct Role Deep Links via path, query param or hash
-      const roleParam = urlParams.get('role');
+      // 2. Instant Booking Trigger via path, param or hash
       const actionParam = urlParams.get('action');
-      if (
-        roleParam === 'driver' ||
-        actionParam === 'apply' ||
-        pathname === '/apply' ||
-        pathname === '/driver' ||
-        pathname === '/drivers/join' ||
-        hash === '#driver-portal' ||
-        hash === '#apply'
-      ) {
-        setActiveRole('driver');
-      } else if (roleParam === 'admin' || pathname === '/admin' || hash === '#admin') {
-        setActiveRole('admin');
-      }
-
-      // 3. Service Deep Links via path or query param
-      const serviceParam = urlParams.get('service');
-      if (serviceParam) {
-        setInitialService(serviceParam.toLowerCase());
-      } else if (pathname === '/hourly' || pathname === '/city') {
-        setInitialService('hourly');
-      } else if (pathname === '/outstation') {
-        setInitialService('outstation');
-      } else if (pathname === '/monthly' || pathname === '/permanent') {
-        setInitialService('monthly');
-      }
-
-      // 4. Instant Booking Trigger via path, param or hash
       if (actionParam === 'book' || pathname === '/book' || hash === '#book') {
         setTimeout(() => {
           setSelectedDriverForBooking(drivers[0] || initialDrivers[0]);

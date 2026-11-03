@@ -14,11 +14,10 @@ import {
   Star,
   Clock,
   Car,
-  Send,
-  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
+import { fetchReviewsApi, submitReviewApi } from '../utils/api';
 
 const HYDERABAD_ALL_LOCALITIES = HYDERABAD_LOCALITIES;
 
@@ -29,39 +28,51 @@ export default function CustomerView({
   onOpenBooking,
   onSwitchToDriver,
 }) {
-  // Driver Type filter: 'all' | 'freelance' | 'permanent' | 'combined'
-  const [selectedDriverType, setSelectedDriverType] = useState(() => {
+  // Live Reviews State
+  const [reviewsList, setReviewsList] = useState([]);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewForm, setReviewForm] = useState({
+    author: '',
+    carAndArea: '',
+    tripType: 'City Duty',
+    rating: 5,
+    title: '',
+    quote: '',
+  });
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadReviews() {
+      const data = await fetchReviewsApi();
+      if (mounted && Array.isArray(data) && data.length > 0) {
+        setReviewsList(data);
+      }
+    }
+    loadReviews();
+    return () => { mounted = false; };
+  }, []);
+  // Sync selectedDriverType based on initialService
+  const initialDriverType = useMemo(() => {
     if (initialService === 'hourly' || initialService === 'city') return 'freelance';
     if (initialService === 'monthly' || initialService === 'permanent') return 'permanent';
     return 'all';
-  });
+  }, [initialService]);
+
+  const [selectedDriverType, setSelectedDriverType] = useState(initialDriverType);
   const [selectedLocality] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [onlyAvailable, setOnlyAvailable] = useState(false);
 
-  // Sync initialService when URL changes
-  useEffect(() => {
-    if (!initialService || initialService === 'all') return;
-    if (initialService === 'hourly' || initialService === 'city') {
-      setSelectedDriverType('freelance');
-    } else if (initialService === 'monthly' || initialService === 'permanent') {
-      setSelectedDriverType('permanent');
-    }
-  }, [initialService]);
+  // Sync state if initialService prop changes
+  const [prevService, setPrevService] = useState(initialService);
+  if (initialService !== prevService) {
+    setPrevService(initialService);
+    setSelectedDriverType(initialDriverType);
+  }
 
   // FAQ Accordion State
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
-
-  // Contact / Lead Form State
-  const [leadForm, setLeadForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    serviceType: 'Hourly In-City Ride',
-    locality: HYDERABAD_ALL_LOCALITIES[0],
-    message: '',
-  });
-  const [isSubmittingLead, setIsSubmittingLead] = useState(false);
 
   // Filtered drivers based on approval, active plan, driverType, locality, availability, and search query
   const filteredDrivers = useMemo(() => {
@@ -93,27 +104,6 @@ export default function CustomerView({
     onOpenBooking(driver);
   };
 
-  const handleLeadSubmit = (e) => {
-    e.preventDefault();
-    if (!leadForm.name || !leadForm.phone) {
-      toast.error('Please enter your name and phone number.');
-      return;
-    }
-    setIsSubmittingLead(true);
-    setTimeout(() => {
-      setIsSubmittingLead(false);
-      toast.success('Thank you! Our Hyderabad dispatch team will contact you shortly.');
-      setLeadForm({
-        name: '',
-        email: '',
-        phone: '',
-        serviceType: 'Hourly In-City Ride',
-        locality: HYDERABAD_ALL_LOCALITIES[0],
-        message: '',
-      });
-    }, 600);
-  };
-
   const faqs = [
     {
       question: 'How fast will the driver reach my doorstep in Hyderabad?',
@@ -123,7 +113,7 @@ export default function CustomerView({
     {
       question: 'Do newly registered drivers get a 3-month free trial on Mana Drivers?',
       answer:
-        'Yes! All newly approved verified drivers receive an automatic 90-day (3-month) free trial listing on our public driver roster.',
+        'Yes! All newly approved verified drivers receive an automatic 90-day (3-month) free trial listing. After 3 months, subscription prices are ₹49/month for Freelance drivers, ₹99/month for Permanent drivers, and ₹149/month for Combination (Freelance + Permanent) drivers.',
     },
     {
       question: 'Do you charge extra for luxury SUVs, automatic transmissions, or EV cars?',
@@ -228,6 +218,50 @@ export default function CustomerView({
       rating: 5,
     },
   ];
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!reviewForm.author || !reviewForm.title || !reviewForm.quote) {
+      toast.error('Please fill in your name, review title, and comments.');
+      return;
+    }
+
+    setReviewSubmitting(true);
+    try {
+      const nameClean = reviewForm.author.trim();
+      const initials = nameClean.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'CU';
+      const payload = {
+        ...reviewForm,
+        author: nameClean,
+        initials,
+        carAndArea: reviewForm.carAndArea ? reviewForm.carAndArea.trim() : 'Hyderabad Car Owner',
+        date: 'Just now',
+      };
+
+      const res = await submitReviewApi(payload);
+      if (res && res.success) {
+        toast.success('Thank you! Your rating and review have been published.');
+        setReviewsList((prev) => [res.data, ...prev]);
+        setIsReviewModalOpen(false);
+        setReviewForm({
+          author: '',
+          carAndArea: '',
+          tripType: 'City Duty',
+          rating: 5,
+          title: '',
+          quote: '',
+        });
+      } else {
+        toast.error('Could not submit review');
+      }
+    } catch {
+      toast.error('Error submitting review');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const activeReviews = reviewsList.length > 0 ? reviewsList : reviews;
 
   return (
     <div className="w-full text-neutral-900 bg-[#FAF9F6]">
@@ -906,53 +940,67 @@ export default function CustomerView({
               </div>
 
               {/* Featured Review Card (No Images) */}
-              <div className="p-8 sm:p-10 bg-white rounded-3xl border border-neutral-200/90 shadow-sm space-y-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-amber-500 text-sm">
-                    <span>★★★★★</span>
-                  </div>
-                  <span className="text-xs font-medium text-neutral-400">
-                    {reviews[0].date}
-                  </span>
-                </div>
-
-                <h3 className="font-sans font-bold text-xl sm:text-2xl text-neutral-950 tracking-tight leading-snug">
-                  “{reviews[0].title}”
-                </h3>
-
-                <p className="text-sm sm:text-base text-neutral-700 leading-relaxed font-normal">
-                  “{reviews[0].quote}”
-                </p>
-
-                <div className="pt-5 border-t border-neutral-100 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-neutral-950 text-white font-bold text-xs flex items-center justify-center font-sans shrink-0 shadow-xs">
-                      {reviews[0].initials}
+              {activeReviews[0] && (
+                <div className="p-8 sm:p-10 bg-white rounded-3xl border border-neutral-200/90 shadow-sm space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-amber-500 text-sm">
+                      <span>{'★'.repeat(activeReviews[0].rating || 5)}</span>
                     </div>
-                    <div>
-                      <h4 className="font-bold tracking-tight text-neutral-950 text-sm sm:text-base font-sans">{reviews[0].author}</h4>
-                      <p className="text-xs sm:text-sm text-neutral-500 font-normal">{reviews[0].carAndArea}</p>
-                    </div>
+                    <span className="text-xs font-medium text-neutral-400">
+                      {activeReviews[0].date}
+                    </span>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-medium">
-                    {reviews[0].tripType}
-                  </span>
+
+                  <h3 className="font-sans font-bold text-xl sm:text-2xl text-neutral-950 tracking-tight leading-snug">
+                    “{activeReviews[0].title}”
+                  </h3>
+
+                  <p className="text-sm sm:text-base text-neutral-700 leading-relaxed font-normal">
+                    “{activeReviews[0].quote}”
+                  </p>
+
+                  <div className="pt-5 border-t border-neutral-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-neutral-950 text-white font-bold text-xs flex items-center justify-center font-sans shrink-0 shadow-xs">
+                        {activeReviews[0].initials || 'CU'}
+                      </div>
+                      <div>
+                        <h4 className="font-bold tracking-tight text-neutral-950 text-sm sm:text-base font-sans">{activeReviews[0].author}</h4>
+                        <p className="text-xs sm:text-sm text-neutral-500 font-normal">{activeReviews[0].carAndArea}</p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-medium">
+                      {activeReviews[0].tripType}
+                    </span>
+                  </div>
                 </div>
+              )}
+
+              {/* Submit Review CTA button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsReviewModalOpen(true)}
+                  className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white font-bold rounded-full text-xs sm:text-sm transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <span>Write a Driver Review & Rating</span>
+                </button>
               </div>
             </div>
 
-            {/* Right Column: 5 Additional Hyderabad Car Owner Review Cards (No Images) */}
+            {/* Right Column: Additional Hyderabad Car Owner Review Cards */}
             <div className="w-full lg:w-7/12 p-4 sm:p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                {reviews.slice(1).map((rev) => (
+                {activeReviews.slice(1).map((rev, idx) => (
                   <div
-                    key={rev.id}
+                    key={rev.id || `rev-card-${idx}`}
                     className="p-6 sm:p-7 bg-white rounded-3xl border border-neutral-200/90 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
                   >
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-0.5 text-amber-500 text-xs">
-                          <span>★★★★★</span>
+                          <span>{'★'.repeat(rev.rating || 5)}</span>
                         </div>
                         <span className="text-xs font-medium text-neutral-400">
                           {rev.date}
@@ -969,7 +1017,7 @@ export default function CustomerView({
                     <div className="pt-4 border-t border-neutral-100 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-xl bg-neutral-100 text-neutral-800 font-bold text-xs flex items-center justify-center font-sans shrink-0 border border-neutral-200">
-                          {rev.initials}
+                          {rev.initials || 'CU'}
                         </div>
                         <div>
                           <h4 className="font-bold tracking-tight text-neutral-950 text-xs sm:text-sm font-sans">{rev.author}</h4>
@@ -988,6 +1036,122 @@ export default function CustomerView({
           </div>
         </div>
       </section>
+
+      {/* SUBMIT REVIEW MODAL */}
+      {isReviewModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 space-y-5 border border-neutral-200 shadow-2xl animate-scale-up">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+              <h3 className="font-bold text-lg text-neutral-950 font-sans flex items-center gap-2">
+                <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                Write Rating & Comment for Driver
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsReviewModalOpen(false)}
+                className="p-1 rounded-full text-neutral-400 hover:text-neutral-900"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleReviewSubmit} className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-neutral-700 block mb-1">Your Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={reviewForm.author}
+                    onChange={(e) => setReviewForm({ ...reviewForm, author: e.target.value })}
+                    placeholder="e.g. Vikram Reddy"
+                    className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-neutral-700 block mb-1">Star Rating *</label>
+                  <select
+                    value={reviewForm.rating}
+                    onChange={(e) => setReviewForm({ ...reviewForm, rating: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-medium"
+                  >
+                    <option value={5}>★★★★★ (5/5 Exceptional)</option>
+                    <option value={4}>★★★★☆ (4/5 Good)</option>
+                    <option value={3}>★★★☆☆ (3/5 Average)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-neutral-700 block mb-1">Car Model & Locality</label>
+                  <input
+                    type="text"
+                    value={reviewForm.carAndArea}
+                    onChange={(e) => setReviewForm({ ...reviewForm, carAndArea: e.target.value })}
+                    placeholder="e.g. Hitec City · Toyota Fortuner"
+                    className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-neutral-700 block mb-1">Trip Type</label>
+                  <select
+                    value={reviewForm.tripType}
+                    onChange={(e) => setReviewForm({ ...reviewForm, tripType: e.target.value })}
+                    className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-medium"
+                  >
+                    <option value="City Duty">City Duty</option>
+                    <option value="Outstation Duty">Outstation Duty</option>
+                    <option value="Monthly Driver">Monthly Permanent Driver</option>
+                    <option value="Airport Pickup">Airport Pickup</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">Review Headline *</label>
+                <input
+                  type="text"
+                  required
+                  value={reviewForm.title}
+                  onChange={(e) => setReviewForm({ ...reviewForm, title: e.target.value })}
+                  placeholder="e.g. Arrived on time and drove very smoothly"
+                  className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">Your Detailed Review & Comments *</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={reviewForm.quote}
+                  onChange={(e) => setReviewForm({ ...reviewForm, quote: e.target.value })}
+                  placeholder="Share your experience with the driver..."
+                  className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-medium"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+                <button
+                  type="button"
+                  onClick={() => setIsReviewModalOpen(false)}
+                  className="px-4 py-2 font-semibold text-neutral-600 hover:bg-neutral-100 rounded-full"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={reviewSubmitting}
+                  className="px-6 py-2.5 font-bold text-white bg-neutral-950 hover:bg-neutral-800 rounded-full shadow-xs cursor-pointer"
+                >
+                  {reviewSubmitting ? 'Submitting...' : 'Post Rating & Review'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* =========================================================================
           SECTION 7: FAQ SECTION (STARK PURE WHITE)

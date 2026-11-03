@@ -94,6 +94,49 @@ router.put('/drivers/:id/approve', (req, res) => {
 });
 
 /**
+ * PUT /api/admin/drivers/:id/reject
+ * Admin rejects pending driver application with reason
+ */
+router.put('/drivers/:id/reject', (req, res) => {
+  try {
+    const { reason } = req.body;
+    const rejected = storage.rejectDriver(req.params.id, reason);
+    if (!rejected) {
+      return res.status(404).json({ success: false, message: 'Driver not found' });
+    }
+    res.json({ success: true, message: 'Driver application rejected. Driver can reapply after 3 days.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * GET /api/admin/pricing
+ * Retrieve current dynamic driver duty rates
+ */
+router.get('/pricing', (req, res) => {
+  try {
+    const pricing = storage.getPricingSettings();
+    res.json({ success: true, data: pricing });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * PUT /api/admin/pricing
+ * Admin updates driver duty rates
+ */
+router.put('/pricing', (req, res) => {
+  try {
+    const updated = storage.updatePricingSettings(req.body);
+    res.json({ success: true, message: 'Pricing rates updated successfully', data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
  * GET /api/admin/bookings
  * Returns all customer bookings
  */

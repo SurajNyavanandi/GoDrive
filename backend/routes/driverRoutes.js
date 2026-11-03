@@ -207,4 +207,34 @@ router.put('/:id/status', (req, res) => {
   res.json({ success: true, message: 'Status updated successfully', driver: updated });
 });
 
+/**
+ * GET /api/drivers/reviews
+ * Returns customer reviews & ratings
+ */
+router.get('/reviews', (req, res) => {
+  try {
+    const reviews = storage.getReviews(req.query.driverId);
+    res.json({ success: true, count: reviews.length, data: reviews });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/drivers/reviews
+ * Submit customer review & rating for a driver
+ */
+router.post('/reviews', (req, res) => {
+  try {
+    const { author, rating, title, quote } = req.body;
+    if (!author || !title || !quote) {
+      return res.status(400).json({ success: false, message: 'Name, review title, and comment are required.' });
+    }
+    const newReview = storage.createReview(req.body);
+    res.status(201).json({ success: true, message: 'Review submitted successfully', data: newReview });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

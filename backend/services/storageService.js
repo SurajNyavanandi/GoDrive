@@ -24,10 +24,57 @@ function initDB() {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 
+  const defaultPricing = {
+    cityBaseHours: 4,
+    cityBaseFare: 700,
+    cityExtraHourlyRate: 100,
+    nightSurchargePerHour: 150,
+    outstationFlatRate: 2000,
+    outstationInterstateRate: 2500,
+    monthly8hSalary: 25000,
+    monthly10hSalary: 28000,
+    monthly12hSalary: 30000,
+  };
+
+  const initialReviews = [
+    {
+      id: 'rev-1',
+      driverId: 'drv-1',
+      driverName: 'Suresh Kumar',
+      title: 'Punctual & Very Skilled Fortuner Driver',
+      quote: 'Booked Suresh for 6 hours across Hitec City and Jubilee Hills. Very polite and knows all shortcuts. Fixed ₹900 fare was completely transparent.',
+      author: 'Vikram Reddy',
+      initials: 'VR',
+      carAndArea: 'Hitec City · Toyota Fortuner Owner',
+      date: 'Today',
+      tripType: '6-Hr City Duty',
+      rating: 5,
+      comment: 'Driver arrived 15 mins early and drove smoothly in heavy traffic.',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'rev-2',
+      driverId: 'drv-2',
+      driverName: 'Ramesh Babu',
+      title: 'Safe Highway Driving to Srisailam',
+      quote: 'Handed over keys for my Kia Seltos for an outstation trip. Maintained safe speed on ghat roads and took good care of my vehicle.',
+      author: 'Ananya Rao',
+      initials: 'AR',
+      carAndArea: 'Gachibowli · Kia Seltos Owner',
+      date: 'Yesterday',
+      tripType: 'Outstation Duty',
+      rating: 5,
+      comment: 'Courteous and reliable driver. Will book Ramesh again.',
+      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    },
+  ];
+
   if (!fs.existsSync(DB_FILE)) {
     const defaultData = {
       drivers: [],
       bookings: [],
+      pricingSettings: defaultPricing,
+      reviews: initialReviews,
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(defaultData, null, 2), 'utf8');
     return defaultData;
@@ -48,6 +95,16 @@ function initDB() {
       modified = true;
     }
 
+    if (!data.pricingSettings) {
+      data.pricingSettings = defaultPricing;
+      modified = true;
+    }
+
+    if (!data.reviews || !Array.isArray(data.reviews)) {
+      data.reviews = initialReviews;
+      modified = true;
+    }
+
     if (modified) {
       fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
     }
@@ -58,6 +115,8 @@ function initDB() {
     const defaultData = {
       drivers: [],
       bookings: [],
+      pricingSettings: defaultPricing,
+      reviews: initialReviews,
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(defaultData, null, 2), 'utf8');
     return defaultData;
@@ -412,14 +471,67 @@ const approveDriver = (id) => {
   return enrichDriverSubscriptionInfo(driver);
 };
 
-const rejectDriver = (id) => {
+const rejectDriver = (id, reason = 'Application details verification incomplete') => {
   const db = initDB();
   const driver = db.drivers.find((d) => d.id === id);
   if (!driver) return false;
 
-  db.drivers = db.drivers.filter((d) => d.id !== id);
+  const now = Date.now();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  driver.isApproved = false;
+  driver.listingStatus = 'Rejected';
+  driver.rejectionReason = reason;
+  driver.rejectedAt = new Date(now).toISOString();
+  driver.reapplyAllowedAt = new Date(now + 3 * DAY_MS).toISOString(); // Reapply allowed after 3 days
+
   saveDB(db);
   return true;
+};
+
+const getPricingSettings = () => {
+  const db = initDB();
+  return db.pricingSettings || {
+    cityBaseHours: 4,
+    cityBaseFare: 700,
+    cityExtraHourlyRate: 100,
+    nightSurchargePerHour: 150,
+    outstationFlatRate: 2000,
+    outstationInterstateRate: 2500,
+    monthly8hSalary: 25000,
+    monthly10hSalary: 28000,
+    monthly12hSalary: 30000,
+  };
+};
+
+const updatePricingSettings = (newSettings) => {
+  const db = initDB();
+  db.pricingSettings = {
+    ...(db.pricingSettings || {}),
+    ...newSettings,
+  };
+  saveDB(db);
+  return db.pricingSettings;
+};
+
+const getReviews = (driverId) => {
+  const db = initDB();
+  if (!driverId) return db.reviews || [];
+  return (db.reviews || []).filter((r) => r.driverId === driverId);
+};
+
+const createReview = (reviewData) => {
+  const db = initDB();
+  const newReview = {
+    id: `rev-${Date.now()}`,
+    ...reviewData,
+    rating: Number(reviewData.rating) || 5,
+    createdAt: new Date().toISOString(),
+  };
+  if (!db.reviews) db.reviews = [];
+  db.reviews.unshift(newReview);
+  saveDB(db);
+  return newReview;
 };
 
 const createBooking = (bookingData) => {
@@ -454,6 +566,10 @@ module.exports = {
   updateDriverStatus,
   approveDriver,
   rejectDriver,
+  getPricingSettings,
+  updatePricingSettings,
+  getReviews,
+  createReview,
   createBooking,
   getAllBookings,
   cleanPhone,

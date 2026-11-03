@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -10,7 +10,6 @@ import {
   Plus,
   Edit,
   Trash2,
-  Calendar,
   Sparkles,
   AlertTriangle,
   Clock,
@@ -28,9 +27,10 @@ import {
   updateDriverApi,
   deleteDriverApi,
   extendSubscriptionApi,
+  fetchPricingSettingsApi,
+  updatePricingSettingsApi,
 } from '../utils/api';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
-import { formatDrivingLicenseInput, formatAadhaarInput } from '../utils/helpers';
 
 export default function AdminPortal({ onBackToHome }) {
   // Admin PIN Auth Security State
@@ -65,7 +65,7 @@ export default function AdminPortal({ onBackToHome }) {
     subscriptionPlan: 'free_trial',
   });
 
-  const loadAdminData = async () => {
+  const loadAdminData = useCallback(async () => {
     setLoading(true);
     try {
       const driversRes = await fetchAdminDriversApi();
@@ -81,10 +81,25 @@ export default function AdminPortal({ onBackToHome }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadAdminData();
+    let mounted = true;
+    const fetchInitial = async () => {
+      setLoading(true);
+      try {
+        const driversRes = await fetchAdminDriversApi();
+        if (mounted && driversRes.success) setDrivers(driversRes.data);
+        const bookingsRes = await fetchAdminBookingsApi();
+        if (mounted && bookingsRes.success) setBookings(bookingsRes.data);
+      } catch {
+        if (mounted) toast.error('Failed to connect to backend admin API');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    fetchInitial();
+    return () => { mounted = false; };
   }, []);
 
   const handleApprove = async (driverId, name) => {
@@ -101,12 +116,65 @@ export default function AdminPortal({ onBackToHome }) {
     }
   };
 
-  const handleReject = async (driverId, name) => {
-    if (!window.confirm(`Are you sure you want to reject ${name}'s application?`)) return;
+  // Rejection & Pricing state
+  const [rejectingDriver, setRejectingDriver] = useState(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('');
+  const [pricingForm, setPricingForm] = useState({
+    cityBaseHours: 4,
+    cityBaseFare: 700,
+    cityExtraHourlyRate: 100,
+    nightSurchargePerHour: 150,
+    outstationFlatRate: 2000,
+    outstationInterstateRate: 2500,
+    monthly8hSalary: 25000,
+    monthly10hSalary: 28000,
+    monthly12hSalary: 30000,
+  });
+  const [pricingLoading, setPricingLoading] = useState(false);
+
+  const loadPricingData = useCallback(async () => {
+    setPricingLoading(true);
     try {
-      const res = await rejectDriverApi(driverId);
+      const data = await fetchPricingSettingsApi();
+      if (data) setPricingForm(data);
+    } catch {
+      toast.error('Failed to load pricing settings');
+    } finally {
+      setPricingLoading(false);
+    }
+  }, []);
+
+  const handleSavePricing = async (e) => {
+    e.preventDefault();
+    setPricingLoading(true);
+    try {
+      const res = await updatePricingSettingsApi(pricingForm);
+      if (res) {
+        toast.success('Duty pricing rates updated successfully!');
+      }
+    } catch {
+      toast.error('Failed to save pricing settings');
+    } finally {
+      setPricingLoading(false);
+    }
+  };
+
+  const handleOpenRejectModal = (driverId, name) => {
+    setRejectingDriver({ id: driverId, name });
+    setRejectionReasonInput('');
+  };
+
+  const confirmRejectWithReason = async () => {
+    if (!rejectingDriver) return;
+    try {
+      const res = await rejectDriverApi(
+        rejectingDriver.id,
+        rejectionReasonInput.trim() || 'Verification details incomplete. Please provide valid documents.'
+      );
       if (res.success) {
-        toast.info(`${name}'s application was removed.`);
+        toast.info(`${rejectingDriver.name}'s application was rejected. Driver can reapply after 3 days.`);
+        setRejectingDriver(null);
+        setRejectionReasonInput('');
         loadAdminData();
       } else {
         toast.error(res.message || 'Failed to reject driver');
@@ -495,10 +563,25 @@ export default function AdminPortal({ onBackToHome }) {
         >
           Bookings ({bookings.length})
         </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            loadPricingData();
+            setActiveTab('pricing');
+          }}
+          className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            activeTab === 'pricing'
+              ? 'bg-[#FF5500] text-white shadow-xs'
+              : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
+          }`}
+        >
+          <span>⚙ Duty Pricing Rates</span>
+        </button>
       </div>
 
       {/* DRIVER TABLE & CRUD LIST */}
-      {activeTab !== 'bookings' && (
+      {activeTab !== 'bookings' && activeTab !== 'pricing' && (
         <div className="bg-white rounded-3xl border border-neutral-200 overflow-hidden shadow-xs">
           <div className="p-5 border-b border-neutral-100 flex items-center justify-between">
             <h2 className="text-base font-bold text-neutral-950 font-sans">
@@ -662,33 +745,53 @@ export default function AdminPortal({ onBackToHome }) {
                         <td className="py-4 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             {!isApproved ? (
-                              <button
-                                type="button"
-                                onClick={() => handleApprove(driver.id, driver.name)}
-                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
-                                title="Approve driver application"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                Approve
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleApprove(driver.id, driver.name)}
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                  title="Approve driver application"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenRejectModal(driver.id, driver.name)}
+                                  className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all cursor-pointer"
+                                  title="Reject application with reason"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                              </>
                             ) : (
-                              <span
-                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                  isExpired
-                                    ? 'bg-red-50 text-red-700 border border-red-200'
-                                    : driver.subscriptionPlan === 'featured' || driver.subscriptionPlan === 'starter'
-                                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                    : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                }`}
-                              >
-                                {isExpired
-                                  ? 'Expired'
-                                  : driver.subscriptionPlan === 'featured'
-                                  ? 'Featured'
-                                  : driver.subscriptionPlan === 'starter'
-                                  ? 'Paid Plan'
-                                  : 'Free Trial'}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                    isExpired
+                                      ? 'bg-red-50 text-red-700 border border-red-200'
+                                      : driver.subscriptionPlan === 'featured' || driver.subscriptionPlan === 'starter'
+                                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                  }`}
+                                >
+                                  {isExpired
+                                    ? 'Expired'
+                                    : driver.subscriptionPlan === 'featured'
+                                    ? 'Featured'
+                                    : driver.subscriptionPlan === 'starter'
+                                    ? 'Paid Plan'
+                                    : 'Free Trial'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleExtendDays(driver.id, driver.name)}
+                                  className="px-2 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded text-[10px] font-bold border border-neutral-200 cursor-pointer"
+                                  title="Extend +30 Bonus Days"
+                                >
+                                  +30d
+                                </button>
+                              </div>
                             )}
 
                             {/* Edit Driver */}
@@ -758,6 +861,206 @@ export default function AdminPortal({ onBackToHome }) {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* DYNAMIC DUTY PRICING RATES TAB CONTENT */}
+      {activeTab === 'pricing' && (
+        <div className="bg-white rounded-3xl border border-neutral-200 p-6 sm:p-8 space-y-6">
+          <div className="border-b border-neutral-100 pb-4 flex items-center justify-between">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF5500]/10 text-[#FF5500] text-xs font-bold uppercase mb-1">
+                <span>Association & Custom Duty Rates</span>
+              </div>
+              <h2 className="text-xl font-extrabold text-neutral-950 font-sans">
+                Dynamic Driver Duty Pricing Configuration
+              </h2>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Update driver duty rates across City, Outstation, and Monthly duties. Updates are instantly applied on homepage calculations.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleSavePricing}
+              disabled={pricingLoading}
+              className="px-6 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>{pricingLoading ? 'Saving...' : 'Save Pricing Rates'}</span>
+            </button>
+          </div>
+
+          <form onSubmit={handleSavePricing} className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+            {/* 1. Temporary In-City Duties */}
+            <div className="p-5 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-4">
+              <div className="border-b border-neutral-200 pb-2">
+                <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-widest block">Section 1</span>
+                <h3 className="font-bold text-sm text-neutral-950 font-sans">City Duties (In-City & Round Trip)</h3>
+              </div>
+
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">Base Hours (First N Hours)</label>
+                <input
+                  type="number"
+                  value={pricingForm.cityBaseHours}
+                  onChange={(e) => setPricingForm({ ...pricingForm, cityBaseHours: Number(e.target.value) })}
+                  className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl font-bold text-neutral-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">Base Fare (First {pricingForm.cityBaseHours} Hours) in ₹</label>
+                <input
+                  type="number"
+                  value={pricingForm.cityBaseFare}
+                  onChange={(e) => setPricingForm({ ...pricingForm, cityBaseFare: Number(e.target.value) })}
+                  className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl font-bold text-neutral-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">Additional Hourly Rate (₹ / hr)</label>
+                <input
+                  type="number"
+                  value={pricingForm.cityExtraHourlyRate}
+                  onChange={(e) => setPricingForm({ ...pricingForm, cityExtraHourlyRate: Number(e.target.value) })}
+                  className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl font-bold text-neutral-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">Night Surcharge (₹ / hr after 10 PM)</label>
+                <input
+                  type="number"
+                  value={pricingForm.nightSurchargePerHour}
+                  onChange={(e) => setPricingForm({ ...pricingForm, nightSurchargePerHour: Number(e.target.value) })}
+                  className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl font-bold text-neutral-900"
+                />
+              </div>
+            </div>
+
+            {/* 2. Outstation Duties */}
+            <div className="p-5 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-4">
+              <div className="border-b border-neutral-200 pb-2">
+                <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-widest block">Section 2</span>
+                <h3 className="font-bold text-sm text-neutral-950 font-sans">Outstation Duties</h3>
+              </div>
+
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">Single Day Outstation (Up to 200 km) in ₹</label>
+                <input
+                  type="number"
+                  value={pricingForm.outstationFlatRate}
+                  onChange={(e) => setPricingForm({ ...pricingForm, outstationFlatRate: Number(e.target.value) })}
+                  className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl font-bold text-neutral-900"
+                />
+                <span className="text-[10px] text-neutral-500 mt-1 block">+ Customer provides food expenses</span>
+              </div>
+
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">Interstate / Multi-Day Rate (₹ / day)</label>
+                <input
+                  type="number"
+                  value={pricingForm.outstationInterstateRate}
+                  onChange={(e) => setPricingForm({ ...pricingForm, outstationInterstateRate: Number(e.target.value) })}
+                  className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl font-bold text-neutral-900"
+                />
+                <span className="text-[10px] text-neutral-500 mt-1 block">+ Customer provides food & room accommodation</span>
+              </div>
+            </div>
+
+            {/* 3. Permanent Duties */}
+            <div className="p-5 bg-neutral-50 rounded-2xl border border-neutral-200 space-y-4">
+              <div className="border-b border-neutral-200 pb-2">
+                <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-widest block">Section 3</span>
+                <h3 className="font-bold text-sm text-neutral-950 font-sans">Permanent Duties (Monthly Salary)</h3>
+              </div>
+
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">8 Hours / Day Tier (₹ / month)</label>
+                <input
+                  type="number"
+                  value={pricingForm.monthly8hSalary}
+                  onChange={(e) => setPricingForm({ ...pricingForm, monthly8hSalary: Number(e.target.value) })}
+                  className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl font-bold text-neutral-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">10 Hours / Day Tier (₹ / month)</label>
+                <input
+                  type="number"
+                  value={pricingForm.monthly10hSalary}
+                  onChange={(e) => setPricingForm({ ...pricingForm, monthly10hSalary: Number(e.target.value) })}
+                  className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl font-bold text-neutral-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">12 Hours / Day Tier (₹ / month)</label>
+                <input
+                  type="number"
+                  value={pricingForm.monthly12hSalary}
+                  onChange={(e) => setPricingForm({ ...pricingForm, monthly12hSalary: Number(e.target.value) })}
+                  className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl font-bold text-neutral-900"
+                />
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* REJECTION REASON MODAL (Requirement 5) */}
+      {rejectingDriver && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 space-y-4 border border-neutral-200 shadow-2xl animate-scale-up">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+              <h3 className="font-bold text-base text-neutral-950 font-sans flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-red-600" />
+                Reject Application: {rejectingDriver.name}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setRejectingDriver(null)}
+                className="p-1 rounded-full text-neutral-400 hover:text-neutral-900"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-neutral-700 block">
+                Reason for Application Rejection:
+              </label>
+              <textarea
+                rows={3}
+                value={rejectionReasonInput}
+                onChange={(e) => setRejectionReasonInput(e.target.value)}
+                placeholder="e.g. License photo blurry, Aadhaar verification failed, details mismatch..."
+                className="w-full p-3 text-xs bg-neutral-50 rounded-xl border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-red-500 font-sans"
+              />
+              <p className="text-[11px] text-neutral-500 leading-normal">
+                The driver will see this rejection reason when logging in and will be allowed to re-apply after 3 days.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-neutral-100">
+              <button
+                type="button"
+                onClick={() => setRejectingDriver(null)}
+                className="px-4 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-100 rounded-full"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRejectWithReason}
+                className="px-5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-full shadow-xs cursor-pointer"
+              >
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

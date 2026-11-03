@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { X, Calendar, Clock, MapPin, Star, Phone, MessageCircle, AlertTriangle, ShieldCheck, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { validateAddress, validateIndianMobile } from '../utils/helpers';
@@ -21,15 +21,15 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
   }); // 'city' | 'outstation' | 'monthly'
 
   // Sync duty category whenever selected driver changes
-  useEffect(() => {
-    if (driver) {
-      if (driver.driverType === 'permanent') {
-        setDutyCategory('monthly');
-      } else if (driver.driverType === 'freelance' && dutyCategory === 'monthly') {
-        setDutyCategory('city');
-      }
+  const [prevDriverId, setPrevDriverId] = useState(driver?.id);
+  if (driver && driver.id !== prevDriverId) {
+    setPrevDriverId(driver.id);
+    if (driver.driverType === 'permanent') {
+      setDutyCategory('monthly');
+    } else if (driver.driverType === 'freelance' && dutyCategory === 'monthly') {
+      setDutyCategory('city');
     }
-  }, [driver]);
+  }
 
   // City duty state
   const [cityHours, setCityHours] = useState(4);
@@ -38,7 +38,6 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
 
   // Outstation duty state
   const [outstationDays, setOutstationDays] = useState(1);
-  const [outstationDistance, setOutstationDistance] = useState(150);
   const [isInterstate, setIsInterstate] = useState(false);
   const [agreedOutstationRules, setAgreedOutstationRules] = useState(false);
 
@@ -69,7 +68,6 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
       });
     } else if (dutyCategory === 'outstation') {
       return calculateOutstationFare({
-        distanceKm: outstationDistance,
         days: outstationDays,
         isInterstate,
       });
@@ -81,7 +79,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
         ruleNotice: `${tier.label}: ₹${tier.monthlySalary.toLocaleString('en-IN')}/mo (6 days/week, 1 mandated weekly off).`,
       };
     }
-  }, [dutyCategory, cityHours, isNightDuty, nightHours, outstationDistance, outstationDays, isInterstate, monthlyHoursPerDay]);
+  }, [dutyCategory, cityHours, isNightDuty, nightHours, outstationDays, isInterstate, monthlyHoursPerDay]);
 
   if (!isOpen || !driver) return null;
 
@@ -137,7 +135,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
     const cleanCustomerMobile = phoneRes.cleaned;
     const finalFare = fareBreakdown.totalCost;
 
-    let dutyLabel = 'City Duty';
+    let dutyLabel;
     if (dutyCategory === 'city') {
       dutyLabel = `City Duty (${cityHours} hrs${isNightDuty ? `, ${nightHours}h night` : ''})`;
     } else if (dutyCategory === 'outstation') {
@@ -448,36 +446,7 @@ Please confirm if you are available!`;
                 </button>
               </div>
 
-              {/* Approximate Distance Selection for Single Day */}
-              {!isInterstate && outstationDays === 1 && (
-                <div className="pt-2 border-t border-neutral-200 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-neutral-700 font-semibold">Estimated Distance:</span>
-                    <span className="text-xs font-bold text-neutral-900">{outstationDistance} km</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {[100, 150, 200, 250, 300].map((km) => (
-                      <button
-                        key={km}
-                        type="button"
-                        onClick={() => setOutstationDistance(km)}
-                        className={`flex-1 min-h-[40px] py-1.5 px-2 rounded-lg text-xs font-bold border ${
-                          outstationDistance === km
-                            ? 'bg-neutral-900 text-white border-neutral-900'
-                            : 'bg-white text-neutral-700 border-neutral-200'
-                        }`}
-                      >
-                        {km} km
-                      </button>
-                    ))}
-                  </div>
-                  {outstationDistance > 200 && (
-                    <p className="text-[11px] text-emerald-700 font-medium">
-                      +₹10/km for distance beyond 200 km (+₹{(outstationDistance - 200) * 10}).
-                    </p>
-                  )}
-                </div>
-              )}
+
 
               {(isInterstate || outstationDays > 1) && (
                 <div className="flex items-center justify-between pt-2 border-t border-neutral-200">

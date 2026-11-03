@@ -5,7 +5,6 @@ import {
   Power,
   ShieldCheck,
   CheckCircle2,
-  FileText,
   Upload,
   LogOut,
   Sparkles,
@@ -14,7 +13,6 @@ import {
   Edit3,
   User,
   X,
-  Lock,
   IndianRupee,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -136,11 +134,12 @@ export default function DriverPortal({ onBackToHome }) {
         setLoggedInDriver(res.driver);
         setMode('dashboard');
         toast.success(`Welcome back, ${res.driver.name}! Logged into Driver Portal.`);
-      } else if (res && (res.code === 'REJECTED' || res.driver?.isRejected)) {
+      } else if (res && (res.code === 'REJECTED' || res.driver?.isRejected || res.driver?.listingStatus === 'Rejected')) {
         setAuthStatusModal({
           type: 'rejected',
           phone: clean,
           driverName: res.driver?.name || 'Driver',
+          rejectionReason: res.rejectionReason || res.driver?.rejectionReason || 'Documents or details verification incomplete.',
         });
       } else if (res && res.code === 'PENDING_APPROVAL') {
         setAuthStatusModal({
@@ -369,7 +368,6 @@ export default function DriverPortal({ onBackToHome }) {
     setUploadStatusText('');
 
     const fee = registrationType === 'hourly' ? 49 : 99;
-    const rateDisplay = `₹${formData.hourlyRate}/hr`;
 
     const registrationPayload = {
       name: nameRes.cleaned,
@@ -594,29 +592,29 @@ export default function DriverPortal({ onBackToHome }) {
               <p className="text-xs font-bold text-neutral-700 uppercase tracking-wider">
                 Renew or Upgrade Your Homepage Listing Plan (+30 Days)
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Starter Plan ₹49 */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Freelance Plan ₹49 */}
                 <div className="p-5 rounded-2xl border border-neutral-200 bg-neutral-50 space-y-3 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-                        Standard Listing
+                        Freelance Plan
                       </span>
                       <span className="text-xs font-extrabold text-neutral-950 bg-white px-2.5 py-1 rounded-full border border-neutral-200">
                         ₹49 / month
                       </span>
                     </div>
                     <div className="text-base font-bold text-neutral-950 font-sans mt-2">
-                      Starter Driver Plan
+                      Freelance Driver
                     </div>
                     <p className="text-xs text-neutral-600 mt-1">
-                      Standard homepage profile listing in your primary area for 30 days.
+                      For temporary city & outstation drivers. 3 months free, then ₹49/mo.
                     </p>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => handleSubscribePlan('starter', 49)}
+                    onClick={() => handleSubscribePlan('freelance', 49)}
                     disabled={subscribeLoading}
                     className="w-full py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer"
                   >
@@ -624,36 +622,65 @@ export default function DriverPortal({ onBackToHome }) {
                   </button>
                 </div>
 
-                {/* Featured Plan ₹99 */}
-                <div className="p-5 rounded-2xl border border-amber-300 bg-amber-50/50 space-y-3 flex flex-col justify-between relative overflow-hidden">
-                  <div className="absolute top-2 right-2 bg-amber-500 text-neutral-950 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider">
-                    Recommended
-                  </div>
+                {/* Permanent Plan ₹99 */}
+                <div className="p-5 rounded-2xl border border-neutral-300 bg-white space-y-3 flex flex-col justify-between">
                   <div>
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-xs font-bold uppercase tracking-wider text-amber-800">
-                        Top Priority
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-blue-700">
+                        Permanent Plan
                       </span>
-                      <span className="text-xs font-extrabold text-neutral-950 bg-white px-2.5 py-1 rounded-full border border-amber-300">
+                      <span className="text-xs font-extrabold text-neutral-950 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
                         ₹99 / month
                       </span>
                     </div>
-                    <div className="text-base font-bold text-neutral-950 font-sans mt-2 flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-amber-600" />
-                      Featured Driver Plan
+                    <div className="text-base font-bold text-neutral-950 font-sans mt-2">
+                      Permanent Driver
                     </div>
-                    <p className="text-xs text-neutral-700 mt-1">
-                      Gold "Featured" badge + Top placement in homepage driver searches.
+                    <p className="text-xs text-neutral-600 mt-1">
+                      For full-time monthly salary drivers. 3 months free, then ₹99/mo.
                     </p>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => handleSubscribePlan('featured', 99)}
+                    onClick={() => handleSubscribePlan('permanent', 99)}
+                    disabled={subscribeLoading}
+                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    Subscribe ₹99 (+30 Days)
+                  </button>
+                </div>
+
+                {/* Combination Plan ₹149 */}
+                <div className="p-5 rounded-2xl border border-amber-300 bg-amber-50/50 space-y-3 flex flex-col justify-between relative overflow-hidden">
+                  <div className="absolute top-2 right-2 bg-amber-500 text-neutral-950 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider">
+                    Best Value
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-xs font-bold uppercase tracking-wider text-amber-800">
+                        Dual Listing
+                      </span>
+                      <span className="text-xs font-extrabold text-neutral-950 bg-white px-2.5 py-1 rounded-full border border-amber-300">
+                        ₹149 / month
+                      </span>
+                    </div>
+                    <div className="text-base font-bold text-neutral-950 font-sans mt-2 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-600" />
+                      Combination Driver
+                    </div>
+                    <p className="text-xs text-neutral-700 mt-1">
+                      Receive both Freelance hourly & Permanent monthly duties. 3 months free, then ₹149/mo.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSubscribePlan('combined', 149)}
                     disabled={subscribeLoading}
                     className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-neutral-950 rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer"
                   >
-                    Upgrade Featured ₹99 (+30 Days)
+                    Subscribe ₹149 (+30 Days)
                   </button>
                 </div>
               </div>
@@ -819,7 +846,7 @@ export default function DriverPortal({ onBackToHome }) {
                     <div className="flex items-center justify-between mb-2">
                       <Clock className="w-5 h-5" />
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">
-                        3-Mo Free
+                        3-Mo Free → ₹49/mo
                       </span>
                     </div>
                     <div className="font-bold text-xs sm:text-sm">Freelance (Temporary)</div>
@@ -843,7 +870,7 @@ export default function DriverPortal({ onBackToHome }) {
                     <div className="flex items-center justify-between mb-2">
                       <UserPlus className="w-5 h-5" />
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">
-                        3-Mo Free
+                        3-Mo Free → ₹99/mo
                       </span>
                     </div>
                     <div className="font-bold text-xs sm:text-sm">Permanent (Monthly)</div>
@@ -867,7 +894,7 @@ export default function DriverPortal({ onBackToHome }) {
                     <div className="flex items-center justify-between mb-2">
                       <Sparkles className="w-5 h-5 text-amber-400" />
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">
-                        3-Mo Free
+                        3-Mo Free → ₹149/mo
                       </span>
                     </div>
                     <div className="font-bold text-xs sm:text-sm">Combined (Both)</div>
@@ -1344,20 +1371,42 @@ export default function DriverPortal({ onBackToHome }) {
                     <span>APPLICATION REJECTED</span>
                   </div>
                   <h3 className="text-xl font-extrabold text-neutral-950 font-sans">
-                    Profile Application Status
+                    Application Status: Action Required
                   </h3>
-                  <p className="text-sm font-bold text-red-700 leading-relaxed bg-red-50 p-4 rounded-2xl border border-red-200">
-                    Your profile is rejected. Retry after 3 days with real valid details.
-                  </p>
+                  <div className="bg-red-50 p-4 rounded-2xl border border-red-200 text-left space-y-1.5 text-xs">
+                    <div className="font-bold text-red-900">Reason for Rejection:</div>
+                    <p className="text-red-800 font-medium leading-relaxed">
+                      {authStatusModal.rejectionReason || 'Verification documents or details were incomplete.'}
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 text-left space-y-1 text-xs">
+                    <div className="font-bold text-neutral-900">Re-Application Policy:</div>
+                    <p className="text-neutral-600 leading-relaxed">
+                      Drivers are allowed to update and re-submit application details after 3 days.
+                    </p>
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setAuthStatusModal(null)}
-                  className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
-                >
-                  Understood & Close
-                </button>
+                <div className="pt-2 flex flex-col sm:flex-row items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthStatusModal(null);
+                      setMode('register');
+                    }}
+                    className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
+                  >
+                    Re-Apply / Update Driver Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAuthStatusModal(null)}
+                    className="w-full sm:w-auto px-5 py-3.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-full text-xs font-semibold transition-all cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
               </>
             ) : (
               <>

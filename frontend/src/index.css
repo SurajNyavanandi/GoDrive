@@ -87,7 +87,7 @@ body {
 
 .animate-infinite-scroll {
   display: flex;
-  animation: infinite-scroll 240s linear infinite;
+  animation: infinite-scroll 600s linear infinite;
   will-change: transform;
 }
 
@@ -119,7 +119,7 @@ body {
 
 .animate-marquee {
   display: inline-flex;
-  animation: marquee 240s linear infinite;
+  animation: marquee 600s linear infinite;
   will-change: transform;
 }
 
