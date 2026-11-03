@@ -375,6 +375,29 @@ export async function rejectDriverApi(id, reason) {
   return { success: true, message: 'Driver application rejected' };
 }
 
+export async function blockDriverApi(id, reason) {
+  try {
+    const res = await fetch(`/api/admin/drivers/${id}/block`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    });
+    const json = await res.json();
+    if (res.ok) return json;
+  } catch (err) {
+    logger.warn('API fetch fallback triggered', err?.message);
+  }
+
+  const driver = memoryDrivers.find((d) => d.id === id);
+  if (driver) {
+    driver.isApproved = false;
+    driver.status = 'Blocked';
+    driver.listingStatus = 'Blocked';
+    driver.blockReason = reason || 'Blocked due to policy violations';
+  }
+  return { success: true, message: 'Driver account blocked' };
+}
+
 export async function fetchPricingSettingsApi() {
   try {
     const res = await fetch('/api/admin/pricing');

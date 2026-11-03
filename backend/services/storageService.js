@@ -25,6 +25,9 @@ function initDB() {
   }
 
   const defaultPricing = {
+    freelanceSubscriptionPrice: 49,
+    permanentSubscriptionPrice: 99,
+    combinationSubscriptionPrice: 149,
     cityBaseHours: 4,
     cityBaseFare: 700,
     cityExtraHourlyRate: 100,
@@ -489,9 +492,27 @@ const rejectDriver = (id, reason = 'Application details verification incomplete'
   return true;
 };
 
+const blockDriver = (id, reason = 'Blocked due to policy violations') => {
+  const db = initDB();
+  const driver = db.drivers.find((d) => d.id === id);
+  if (!driver) return false;
+
+  driver.isApproved = false;
+  driver.status = 'Blocked';
+  driver.listingStatus = 'Blocked';
+  driver.blockReason = reason;
+  driver.blockedAt = new Date().toISOString();
+
+  saveDB(db);
+  return true;
+};
+
 const getPricingSettings = () => {
   const db = initDB();
   return db.pricingSettings || {
+    freelanceSubscriptionPrice: 49,
+    permanentSubscriptionPrice: 99,
+    combinationSubscriptionPrice: 149,
     cityBaseHours: 4,
     cityBaseFare: 700,
     cityExtraHourlyRate: 100,
@@ -522,14 +543,27 @@ const getReviews = (driverId) => {
 
 const createReview = (reviewData) => {
   const db = initDB();
+  const ratingNum = Number(reviewData.rating) || 5;
   const newReview = {
     id: `rev-${Date.now()}`,
     ...reviewData,
-    rating: Number(reviewData.rating) || 5,
+    rating: ratingNum,
     createdAt: new Date().toISOString(),
   };
   if (!db.reviews) db.reviews = [];
   db.reviews.unshift(newReview);
+
+  // If review is associated with a driver, update driver rating & trips
+  if (reviewData.driverId) {
+    const driver = db.drivers.find((d) => d.id === reviewData.driverId);
+    if (driver) {
+      const driverRevList = db.reviews.filter((r) => r.driverId === reviewData.driverId);
+      const avg = (driverRevList.reduce((acc, r) => acc + (r.rating || 5), 0) / driverRevList.length).toFixed(1);
+      driver.rating = Number(avg);
+      driver.trips = (driver.trips || 0) + 1;
+    }
+  }
+
   saveDB(db);
   return newReview;
 };
@@ -566,6 +600,7 @@ module.exports = {
   updateDriverStatus,
   approveDriver,
   rejectDriver,
+  blockDriver,
   getPricingSettings,
   updatePricingSettings,
   getReviews,

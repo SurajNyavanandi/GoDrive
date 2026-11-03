@@ -89,6 +89,11 @@ export default function DriverPortal({ onBackToHome }) {
   const [uploadStatusText, setUploadStatusText] = useState('');
   const [subscribeLoading, setSubscribeLoading] = useState(false);
 
+  // Mandatory Driver Code of Conduct & Disclaimer Checkboxes (Requirement 4)
+  const [conductNonAlcoholic, setConductNonAlcoholic] = useState(false);
+  const [conductNoAbuse, setConductNoAbuse] = useState(false);
+  const [conductDisclaimer, setConductDisclaimer] = useState(false);
+
   // Handle Photo File Uploads (License, Aadhaar, Headshot)
   const handleFileUpload = (e, field) => {
     const file = e.target.files[0];
@@ -327,6 +332,11 @@ export default function DriverPortal({ onBackToHome }) {
 
     if (!formData.aadhaarPhoto && !formData.aadhaarPhotoPreview) {
       toast.error('Aadhaar Card Photo is mandatory.');
+      return;
+    }
+
+    if (!conductNonAlcoholic || !conductNoAbuse || !conductDisclaimer) {
+      toast.error('Please accept all Code of Conduct and Platform Disclaimer checkboxes to register.');
       return;
     }
 
@@ -1154,6 +1164,55 @@ export default function DriverPortal({ onBackToHome }) {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* MANDATORY CODE OF CONDUCT & LIABILITY DISCLAIMER (Requirement 4) */}
+              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-3 text-xs">
+                <div className="font-bold text-amber-950 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-amber-600" />
+                  <span>Mandatory Driver Conduct &amp; Platform Terms *</span>
+                </div>
+
+                <div className="space-y-2.5 text-neutral-800">
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={conductNonAlcoholic}
+                      onChange={(e) => setConductNonAlcoholic(e.target.checked)}
+                      className="w-4.5 h-4.5 mt-0.5 accent-neutral-900 rounded shrink-0"
+                      required
+                    />
+                    <span className="leading-snug">
+                      <strong>Non-Alcoholic &amp; Zero Substance Policy:</strong> I strictly agree to abstain from consuming alcohol or any intoxicating substances before and during duty hours. *
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={conductNoAbuse}
+                      onChange={(e) => setConductNoAbuse(e.target.checked)}
+                      className="w-4.5 h-4.5 mt-0.5 accent-neutral-900 rounded shrink-0"
+                      required
+                    />
+                    <span className="leading-snug">
+                      <strong>Professional Etiquette:</strong> I agree to behave politely with customers with zero tolerance for abusive language, aggressive behavior, or misconduct. *
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={conductDisclaimer}
+                      onChange={(e) => setConductDisclaimer(e.target.checked)}
+                      className="w-4.5 h-4.5 mt-0.5 accent-neutral-900 rounded shrink-0"
+                      required
+                    />
+                    <span className="leading-snug">
+                      <strong>Platform Liability Disclaimer:</strong> I acknowledge that Mana Drivers is an aggregator connecting drivers with car owners. Mana Drivers is not liable for traffic violations, vehicle damage, or personal disputes. *
+                    </span>
+                  </label>
                 </div>
               </div>
 

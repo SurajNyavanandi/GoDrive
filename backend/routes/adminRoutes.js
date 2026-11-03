@@ -111,6 +111,23 @@ router.put('/drivers/:id/reject', (req, res) => {
 });
 
 /**
+ * PUT /api/admin/drivers/:id/block
+ * Admin permanently blocks driver account with reason
+ */
+router.put('/drivers/:id/block', (req, res) => {
+  try {
+    const { reason } = req.body;
+    const blocked = storage.blockDriver(req.params.id, reason);
+    if (!blocked) {
+      return res.status(404).json({ success: false, message: 'Driver not found' });
+    }
+    res.json({ success: true, message: 'Driver account has been permanently blocked.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
  * GET /api/admin/pricing
  * Retrieve current dynamic driver duty rates
  */

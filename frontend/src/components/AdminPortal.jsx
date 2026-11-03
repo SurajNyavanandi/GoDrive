@@ -22,6 +22,7 @@ import {
   fetchAdminDriversApi,
   approveDriverApi,
   rejectDriverApi,
+  blockDriverApi,
   fetchAdminBookingsApi,
   createDriverApi,
   updateDriverApi,
@@ -116,10 +117,16 @@ export default function AdminPortal({ onBackToHome }) {
     }
   };
 
-  // Rejection & Pricing state
+  // Rejection, Blocking & Pricing state
   const [rejectingDriver, setRejectingDriver] = useState(null);
   const [rejectionReasonInput, setRejectionReasonInput] = useState('');
+  const [blockingDriver, setBlockingDriver] = useState(null);
+  const [blockReasonInput, setBlockReasonInput] = useState('');
+
   const [pricingForm, setPricingForm] = useState({
+    freelanceSubscriptionPrice: 49,
+    permanentSubscriptionPrice: 99,
+    combinationSubscriptionPrice: 149,
     cityBaseHours: 4,
     cityBaseFare: 700,
     cityExtraHourlyRate: 100,
@@ -150,7 +157,7 @@ export default function AdminPortal({ onBackToHome }) {
     try {
       const res = await updatePricingSettingsApi(pricingForm);
       if (res) {
-        toast.success('Duty pricing rates updated successfully!');
+        toast.success('Duty & Subscription pricing rates updated successfully!');
       }
     } catch {
       toast.error('Failed to save pricing settings');
@@ -181,6 +188,31 @@ export default function AdminPortal({ onBackToHome }) {
       }
     } catch {
       toast.error('Error rejecting driver');
+    }
+  };
+
+  const handleOpenBlockModal = (driverId, name) => {
+    setBlockingDriver({ id: driverId, name });
+    setBlockReasonInput('');
+  };
+
+  const confirmBlockWithReason = async () => {
+    if (!blockingDriver) return;
+    try {
+      const res = await blockDriverApi(
+        blockingDriver.id,
+        blockReasonInput.trim() || 'Blocked permanently by admin due to platform policy violations.'
+      );
+      if (res.success) {
+        toast.error(`${blockingDriver.name}'s account has been permanently BLOCKED.`);
+        setBlockingDriver(null);
+        setBlockReasonInput('');
+        loadAdminData();
+      } else {
+        toast.error(res.message || 'Failed to block driver');
+      }
+    } catch {
+      toast.error('Error blocking driver');
     }
   };
 
@@ -804,6 +836,16 @@ export default function AdminPortal({ onBackToHome }) {
                               <Edit className="w-3.5 h-3.5" />
                             </button>
 
+                            {/* Block Driver */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenBlockModal(driver.id, driver.name)}
+                              className="p-2 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-full transition-all cursor-pointer"
+                              title="Block Driver Account"
+                            >
+                              <Lock className="w-3.5 h-3.5" />
+                            </button>
+
                             {/* Delete Driver */}
                             <button
                               type="button"
@@ -1006,6 +1048,49 @@ export default function AdminPortal({ onBackToHome }) {
                 />
               </div>
             </div>
+
+            {/* 4. Driver Subscription / Premium Pricing (Requirement 1) */}
+            <div className="p-5 bg-amber-50/50 rounded-2xl border border-amber-300 md:col-span-3 space-y-4">
+              <div className="border-b border-amber-200 pb-2">
+                <span className="text-[10px] font-extrabold text-amber-800 uppercase tracking-widest block">Section 4</span>
+                <h3 className="font-bold text-sm text-neutral-950 font-sans">Driver Subscription Pricing (Applied After 3 Months Free)</h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="font-semibold text-neutral-800 block mb-1">Freelance Driver Plan (₹ / month)</label>
+                  <input
+                    type="number"
+                    value={pricingForm.freelanceSubscriptionPrice || 49}
+                    onChange={(e) => setPricingForm({ ...pricingForm, freelanceSubscriptionPrice: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl font-bold text-neutral-900"
+                  />
+                  <span className="text-[10px] text-neutral-500 mt-1 block">Standard hourly/outstation freelance drivers</span>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-neutral-800 block mb-1">Permanent Driver Plan (₹ / month)</label>
+                  <input
+                    type="number"
+                    value={pricingForm.permanentSubscriptionPrice || 99}
+                    onChange={(e) => setPricingForm({ ...pricingForm, permanentSubscriptionPrice: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl font-bold text-neutral-900"
+                  />
+                  <span className="text-[10px] text-neutral-500 mt-1 block">Full-time monthly salary drivers</span>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-neutral-800 block mb-1">Combination Dual-Duty Plan (₹ / month)</label>
+                  <input
+                    type="number"
+                    value={pricingForm.combinationSubscriptionPrice || 149}
+                    onChange={(e) => setPricingForm({ ...pricingForm, combinationSubscriptionPrice: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-white border border-neutral-300 rounded-xl font-bold text-neutral-900"
+                  />
+                  <span className="text-[10px] text-neutral-500 mt-1 block">Dual listing for both hourly & monthly duties</span>
+                </div>
+              </div>
+            </div>
           </form>
         </div>
       )}
@@ -1058,6 +1143,60 @@ export default function AdminPortal({ onBackToHome }) {
                 className="px-5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-full shadow-xs cursor-pointer"
               >
                 Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BLOCK DRIVER MODAL (Requirement 5) */}
+      {blockingDriver && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 space-y-4 border border-amber-300 shadow-2xl animate-scale-up">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+              <h3 className="font-bold text-base text-neutral-950 font-sans flex items-center gap-2">
+                <Lock className="w-5 h-5 text-amber-600" />
+                Block Driver Account: {blockingDriver.name}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setBlockingDriver(null)}
+                className="p-1 rounded-full text-neutral-400 hover:text-neutral-900"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-neutral-700 block">
+                Reason for Permanent Block:
+              </label>
+              <textarea
+                rows={3}
+                value={blockReasonInput}
+                onChange={(e) => setBlockReasonInput(e.target.value)}
+                placeholder="e.g. Abusive behavior, policy violations, safety complaints..."
+                className="w-full p-3 text-xs bg-amber-50/50 rounded-xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 font-sans"
+              />
+              <p className="text-[11px] text-amber-900 leading-normal font-medium">
+                Blocked driver accounts are suspended immediately and cannot log in or re-apply.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-neutral-100">
+              <button
+                type="button"
+                onClick={() => setBlockingDriver(null)}
+                className="px-4 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-100 rounded-full"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmBlockWithReason}
+                className="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-full shadow-xs cursor-pointer"
+              >
+                Block Driver Account
               </button>
             </div>
           </div>
