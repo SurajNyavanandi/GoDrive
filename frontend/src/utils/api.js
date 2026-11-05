@@ -1,6 +1,8 @@
 import { initialDrivers } from '../data/mockDrivers';
 import logger from './logger';
 
+const API_BASE = (import.meta.env?.VITE_API_URL || '').replace(/\/$/, '');
+
 // IN-MEMORY FALLBACK DATASET (Used if backend endpoint fails)
 let memoryDrivers = JSON.parse(JSON.stringify(initialDrivers));
 let memoryBookings = [];
@@ -15,42 +17,11 @@ let memoryPricing = {
   monthly10hSalary: 28000,
   monthly12hSalary: 30000,
 };
-let memoryReviews = [
-  {
-    id: 'rev-1',
-    driverId: 'drv-1',
-    driverName: 'Suresh Kumar',
-    title: 'Punctual & Very Skilled Fortuner Driver',
-    quote: 'Booked Suresh for 6 hours across Hitec City and Jubilee Hills. Very polite and knows all shortcuts. Fixed ₹900 fare was completely transparent.',
-    author: 'Vikram Reddy',
-    initials: 'VR',
-    carAndArea: 'Hitec City · Toyota Fortuner Owner',
-    date: 'Today',
-    tripType: '6-Hr City Duty',
-    rating: 5,
-    comment: 'Driver arrived 15 mins early and drove smoothly in heavy traffic.',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'rev-2',
-    driverId: 'drv-2',
-    driverName: 'Ramesh Babu',
-    title: 'Safe Highway Driving to Srisailam',
-    quote: 'Handed over keys for my Kia Seltos for an outstation trip. Maintained safe speed on ghat roads and took good care of my vehicle.',
-    author: 'Ananya Rao',
-    initials: 'AR',
-    carAndArea: 'Gachibowli · Kia Seltos Owner',
-    date: 'Yesterday',
-    tripType: 'Outstation Duty',
-    rating: 5,
-    comment: 'Courteous and reliable driver. Will book Ramesh again.',
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
+let memoryReviews = [];
 
 export async function fetchPublicDrivers() {
   try {
-    const res = await fetch('/api/drivers');
+    const res = await fetch(`${API_BASE}/api/drivers`);
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
@@ -65,7 +36,7 @@ export async function fetchPublicDrivers() {
 
 export async function loginDriverApi(phone, otp) {
   try {
-    const res = await fetch('/api/drivers/login', {
+    const res = await fetch(`${API_BASE}/api/drivers/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, otp }),
@@ -97,7 +68,7 @@ export async function loginDriverApi(phone, otp) {
 
 export async function registerDriverApi(data) {
   try {
-    const res = await fetch('/api/drivers/register', {
+    const res = await fetch(`${API_BASE}/api/drivers/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -130,7 +101,7 @@ export async function registerDriverApi(data) {
 
 export async function subscribeDriverPlanApi(driverId, plan) {
   try {
-    const res = await fetch(`/api/drivers/${driverId}/subscribe`, {
+    const res = await fetch(`${API_BASE}/api/drivers/${driverId}/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plan }),
@@ -151,7 +122,7 @@ export async function subscribeDriverPlanApi(driverId, plan) {
 
 export async function updateDriverSelfProfileApi(driverId, profileData) {
   try {
-    const res = await fetch(`/api/drivers/${driverId}/profile`, {
+    const res = await fetch(`${API_BASE}/api/drivers/${driverId}/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(profileData),
@@ -172,7 +143,7 @@ export async function updateDriverSelfProfileApi(driverId, profileData) {
 
 export async function uploadDriverDocsApi(formData) {
   try {
-    const res = await fetch('/api/drivers/upload-docs', {
+    const res = await fetch(`${API_BASE}/api/drivers/upload-docs`, {
       method: 'POST',
       body: formData,
     });
@@ -195,7 +166,7 @@ export async function uploadDriverDocsApi(formData) {
 
 export async function updateDriverStatusApi(driverId, status) {
   try {
-    const res = await fetch(`/api/drivers/${driverId}/status`, {
+    const res = await fetch(`${API_BASE}/api/drivers/${driverId}/status`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
@@ -216,7 +187,7 @@ export async function updateDriverStatusApi(driverId, status) {
 
 export async function createBookingApi(bookingData) {
   try {
-    const res = await fetch('/api/bookings', {
+    const res = await fetch(`${API_BASE}/api/bookings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bookingData),
@@ -240,7 +211,7 @@ export async function createBookingApi(bookingData) {
 // ADMIN APIS
 export async function fetchAdminDriversApi() {
   try {
-    const res = await fetch('/api/admin/drivers');
+    const res = await fetch(`${API_BASE}/api/admin/drivers`);
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
@@ -255,7 +226,7 @@ export async function fetchAdminDriversApi() {
 
 export async function createDriverApi(driverData) {
   try {
-    const res = await fetch('/api/admin/drivers', {
+    const res = await fetch(`${API_BASE}/api/admin/drivers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(driverData),
@@ -281,7 +252,7 @@ export async function createDriverApi(driverData) {
 
 export async function updateDriverApi(driverId, driverData) {
   try {
-    const res = await fetch(`/api/admin/drivers/${driverId}`, {
+    const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(driverData),
@@ -302,7 +273,7 @@ export async function updateDriverApi(driverId, driverData) {
 
 export async function deleteDriverApi(driverId) {
   try {
-    const res = await fetch(`/api/admin/drivers/${driverId}`, { method: 'DELETE' });
+    const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}`, { method: 'DELETE' });
     const json = await res.json();
     if (res.ok) return json;
   } catch (err) {
@@ -315,7 +286,7 @@ export async function deleteDriverApi(driverId) {
 
 export async function extendSubscriptionApi(driverId, days = 30) {
   try {
-    const res = await fetch(`/api/admin/drivers/${driverId}/subscription`, {
+    const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}/subscription`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ days }),
@@ -336,7 +307,7 @@ export async function extendSubscriptionApi(driverId, days = 30) {
 
 export async function approveDriverApi(id) {
   try {
-    const res = await fetch(`/api/admin/drivers/${id}/approve`, { method: 'PUT' });
+    const res = await fetch(`${API_BASE}/api/admin/drivers/${id}/approve`, { method: 'PUT' });
     const json = await res.json();
     if (res.ok) return json;
   } catch (err) {
@@ -353,7 +324,7 @@ export async function approveDriverApi(id) {
 
 export async function rejectDriverApi(id, reason) {
   try {
-    const res = await fetch(`/api/admin/drivers/${id}/reject`, {
+    const res = await fetch(`${API_BASE}/api/admin/drivers/${id}/reject`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason }),
@@ -377,7 +348,7 @@ export async function rejectDriverApi(id, reason) {
 
 export async function blockDriverApi(id, reason) {
   try {
-    const res = await fetch(`/api/admin/drivers/${id}/block`, {
+    const res = await fetch(`${API_BASE}/api/admin/drivers/${id}/block`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason }),
@@ -398,9 +369,62 @@ export async function blockDriverApi(id, reason) {
   return { success: true, message: 'Driver account blocked' };
 }
 
+export async function unblockDriverApi(id) {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/drivers/${id}/unblock`, {
+      method: 'PUT',
+    });
+    const json = await res.json();
+    if (res.ok) return json;
+  } catch (err) {
+    logger.warn('API fetch fallback triggered', err?.message);
+  }
+
+  const driver = memoryDrivers.find((d) => d.id === id);
+  if (driver) {
+    driver.isApproved = true;
+    driver.status = 'Available';
+    driver.listingStatus = driver.driverType === 'permanent' ? 'Verified Monthly Chauffeur' : 'Verified Driver';
+    delete driver.blockReason;
+  }
+  return { success: true, message: 'Driver unblocked' };
+}
+
+export async function restoreDriverApi(driverSnapshot) {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/drivers/restore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ driver: driverSnapshot }),
+    });
+    const json = await res.json();
+    if (res.ok) return json;
+  } catch (err) {
+    logger.warn('API fetch fallback triggered', err?.message);
+  }
+
+  if (driverSnapshot) {
+    memoryDrivers.unshift(driverSnapshot);
+  }
+  return { success: true, message: 'Driver restored' };
+}
+
+export async function fetchAdminHistoryApi() {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/history`);
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) return json.data;
+    }
+  } catch (err) {
+    logger.warn('API fetch fallback triggered', err?.message);
+  }
+  return [];
+}
+
 export async function fetchPricingSettingsApi() {
   try {
-    const res = await fetch('/api/admin/pricing');
+    const res = await fetch(`${API_BASE}/api/admin/pricing`);
     if (res.ok) {
       const json = await res.json();
       if (json.success && json.data) return json.data;
@@ -413,7 +437,7 @@ export async function fetchPricingSettingsApi() {
 
 export async function updatePricingSettingsApi(settingsData) {
   try {
-    const res = await fetch('/api/admin/pricing', {
+    const res = await fetch(`${API_BASE}/api/admin/pricing`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settingsData),
@@ -430,7 +454,7 @@ export async function updatePricingSettingsApi(settingsData) {
 
 export async function fetchReviewsApi(driverId) {
   try {
-    const url = driverId ? `/api/drivers/reviews?driverId=${driverId}` : '/api/drivers/reviews';
+    const url = driverId ? `${API_BASE}/api/drivers/reviews?driverId=${driverId}` : `${API_BASE}/api/drivers/reviews`;
     const res = await fetch(url);
     if (res.ok) {
       const json = await res.json();
@@ -445,7 +469,7 @@ export async function fetchReviewsApi(driverId) {
 
 export async function submitReviewApi(reviewData) {
   try {
-    const res = await fetch('/api/drivers/reviews', {
+    const res = await fetch(`${API_BASE}/api/drivers/reviews`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(reviewData),
@@ -468,7 +492,7 @@ export async function submitReviewApi(reviewData) {
 
 export async function fetchAdminBookingsApi() {
   try {
-    const res = await fetch('/api/admin/bookings');
+    const res = await fetch(`${API_BASE}/api/admin/bookings`);
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) return json;

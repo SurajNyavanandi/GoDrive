@@ -17,7 +17,7 @@ const apiRoutes = require('./routes');
 const { errorHandler, notFoundHandler } = require('./utils/errorHandler');
 const logger = require('./utils/logger');
 
-const PORT = process.env.PORT || env.PORT || 3000;
+const PORT = process.env.NODE_ENV === 'production' ? (process.env.PORT || 3000) : 3000;
 
 async function startServer() {
   const app = express();

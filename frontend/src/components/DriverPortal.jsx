@@ -14,9 +14,12 @@ import {
   User,
   X,
   IndianRupee,
+  KeyRound,
+  Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
+import SearchableSelect from './common/SearchableSelect';
 import { triggerDriverRegistrationRazorpay } from '../utils/razorpay';
 import {
   loginDriverApi,
@@ -36,12 +39,13 @@ import {
   validateName,
 } from '../utils/helpers';
 
-export default function DriverPortal({ onBackToHome }) {
+export default function DriverPortal({ onBackToHome, pricingSettings }) {
   // Mode: 'login' | 'register' | 'dashboard'
   const [mode, setMode] = useState('login');
 
   // Authenticated Driver state
   const [loggedInDriver, setLoggedInDriver] = useState(null);
+  const [currentTime] = useState(() => Date.now());
 
   // Popup Modal state for Login verification (Unregistered / Pending Approval)
   const [authStatusModal, setAuthStatusModal] = useState(null); // null | { type: 'unregistered' | 'pending', phone: string, driverName?: string }
@@ -377,7 +381,11 @@ export default function DriverPortal({ onBackToHome }) {
 
     setUploadStatusText('');
 
-    const fee = registrationType === 'hourly' ? 49 : 99;
+    const fee = registrationType === 'combined'
+      ? (pricingSettings?.combinationSubscriptionPrice || 149)
+      : registrationType === 'hourly'
+      ? (pricingSettings?.freelanceSubscriptionPrice || 49)
+      : (pricingSettings?.permanentSubscriptionPrice || 99);
 
     const registrationPayload = {
       name: nameRes.cleaned,
@@ -406,6 +414,22 @@ export default function DriverPortal({ onBackToHome }) {
           const res = await registerDriverApi(registrationPayload);
           if (res.success) {
             setRegisterSuccessBanner(true);
+            try {
+              window.history.pushState({}, '', '/driver/success');
+              if (typeof window.gtag === 'function') {
+                window.gtag('event', 'conversion', {
+                  event_category: 'DriverSignup',
+                  event_label: 'Driver Registered',
+                });
+              }
+              if (typeof window.fbq === 'function') {
+                window.fbq('track', 'CompleteRegistration', {
+                  content_name: 'Driver Signup',
+                });
+              }
+            } catch {
+              // ignore
+            }
             toast.success('Registration payment verified & 3-Month Free Trial activated!');
           } else {
             toast.error(res.message || 'Failed to submit driver application');
@@ -413,6 +437,11 @@ export default function DriverPortal({ onBackToHome }) {
         } catch {
           toast.error('Registration saved locally');
           setRegisterSuccessBanner(true);
+          try {
+            window.history.pushState({}, '', '/driver/success');
+          } catch {
+            // ignore
+          }
         } finally {
           setRegisterLoading(false);
         }
@@ -557,6 +586,43 @@ export default function DriverPortal({ onBackToHome }) {
                     : 'OFFLINE'}
                 </span>
               </button>
+            </div>
+          </div>
+
+          {/* PERMANENT REVIEW OTP WIDGET (Trip Feedback Verification) */}
+          <div className="bg-gradient-to-r from-emerald-950 via-neutral-900 to-neutral-950 text-white rounded-3xl p-6 border border-emerald-500/30 shadow-md space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-xl bg-emerald-500/20 text-emerald-400">
+                    <KeyRound className="w-5 h-5" />
+                  </span>
+                  <h3 className="font-bold text-white text-base font-sans">Your Permanent Review OTP</h3>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-bold tracking-wider uppercase">
+                    Trip Verification Code
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-300 max-w-xl leading-relaxed">
+                  Share this fixed 4-digit code with your car owner after completing duty. When they enter this OTP, their 5-star rating & review will be verified and published on your profile to boost your bookings!
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 bg-neutral-900/90 px-5 py-3 rounded-2xl border border-emerald-500/40 shrink-0">
+                <div className="font-mono text-2xl sm:text-3xl font-black text-emerald-400 tracking-widest">
+                  {loggedInDriver.reviewOtp || '4821'}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(loggedInDriver.reviewOtp || '4821');
+                    toast.success('Review OTP copied to clipboard!');
+                  }}
+                  className="p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                  title="Copy Review OTP"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -885,7 +951,7 @@ export default function DriverPortal({ onBackToHome }) {
                     </div>
                     <div className="font-bold text-xs sm:text-sm">Permanent (Monthly)</div>
                     <p className="text-[11px] opacity-80 mt-1">
-                      Full-time driver duties (₹25,000 – ₹30,000/mo + 1 day off).
+                      Full-time driver duties (4h: ₹20k–₹25k, 8h: ₹25k–₹30k, 12h: ₹30k–₹40k/mo negotiable).
                     </p>
                   </button>
 
@@ -932,7 +998,7 @@ export default function DriverPortal({ onBackToHome }) {
                         • City Temporary Duty: <span className="font-bold">₹700 flat for first 4 hours</span> (Round trip) + ₹100/add'l hr (6:00 AM – 10:00 PM).
                       </p>
                       <p className="text-emerald-800">
-                        • Night Charge: After 10:00 PM, additional ₹150/hour. Outstation: ₹2,000 flat up to 200 km (+ food expenses).
+                        • Night Charge: After 10:00 PM, additional ₹150/hour. Outstation: ₹2,000 flat per day (+ food expenses).
                       </p>
                     </div>
                   )}
@@ -940,7 +1006,7 @@ export default function DriverPortal({ onBackToHome }) {
                   {registrationType === 'monthly' && (
                     <div className="text-xs text-emerald-950 space-y-1 pt-1">
                       <p className="font-semibold">
-                        • Monthly Driver Salary: <span className="font-bold">8 hrs: ₹25,000/mo</span> · 10 hrs: ₹28,000/mo · 12 hrs: ₹30,000/mo.
+                        • Monthly Driver Salary (Negotiable Ranges): <span className="font-bold">4 hrs: ₹20,000–₹25,000/mo</span> · 8 hrs: ₹25,000–₹30,000/mo · 12 hrs: ₹30,000–₹40,000/mo.
                       </p>
                       <p className="text-emerald-800">
                         • All monthly duty tiers mandate 1 day off per week.
@@ -951,7 +1017,7 @@ export default function DriverPortal({ onBackToHome }) {
                   {registrationType === 'combined' && (
                     <div className="text-xs text-emerald-950 space-y-1 pt-1">
                       <p className="font-semibold">
-                        • Combined Profile: You will receive direct customer requests for both Hourly City Duty (₹700/4h) and Monthly Permanent Duties (₹25k–₹30k/mo).
+                        • Combined Profile: You will receive direct customer requests for both Hourly City Duty (₹700/4h) and Monthly Permanent Duties (₹20k–₹40k/mo negotiable).
                       </p>
                       <p className="text-emerald-800">
                         • All trips adhere strictly to transparent standard pricing. Zero commission fee is charged by Mana Drivers.
@@ -969,7 +1035,7 @@ export default function DriverPortal({ onBackToHome }) {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Ramesh Kumar"
+                    placeholder="e.g. Full Name"
                     maxLength={60}
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value.slice(0, 60) })}
@@ -997,19 +1063,15 @@ export default function DriverPortal({ onBackToHome }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-2">
-                    Primary Area in Hyderabad
+                    Primary Area in Hyderabad *
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={HYDERABAD_LOCALITIES}
                     value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                  >
-                    {HYDERABAD_LOCALITIES.map((loc) => (
-                      <option key={loc} value={loc}>
-                        {loc}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, location: val })}
+                    placeholder="Search your locality (e.g. Kondapur)..."
+                    searchPlaceholder="Type locality name..."
+                  />
                 </div>
 
                 <div>
@@ -1439,25 +1501,78 @@ export default function DriverPortal({ onBackToHome }) {
                     </p>
                   </div>
 
-                  <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 text-left space-y-1 text-xs">
-                    <div className="font-bold text-neutral-900">Re-Application Policy:</div>
-                    <p className="text-neutral-600 leading-relaxed">
-                      Drivers are allowed to update and re-submit application details after 3 days.
-                    </p>
+                  <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 text-left space-y-1.5 text-xs">
+                    <div className="font-bold text-neutral-900 flex items-center justify-between">
+                      <span>Re-Application Status:</span>
+                      {(() => {
+                        const reapplyTime = authStatusModal.driver?.reapplyAllowedAt ? new Date(authStatusModal.driver.reapplyAllowedAt).getTime() : 0;
+                        const canReapply = !reapplyTime || currentTime >= reapplyTime;
+                        return canReapply ? (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                            Eligible to Re-Apply
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                            Cooldown Active (3 Days)
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    {(() => {
+                      const reapplyTime = authStatusModal.driver?.reapplyAllowedAt ? new Date(authStatusModal.driver.reapplyAllowedAt).getTime() : 0;
+                      const now = currentTime;
+                      const canReapply = !reapplyTime || now >= reapplyTime;
+                      const daysLeft = reapplyTime ? Math.max(1, Math.ceil((reapplyTime - now) / (1000 * 60 * 60 * 24))) : 0;
+
+                      return canReapply ? (
+                        <p className="text-emerald-800 leading-relaxed font-medium">
+                          Your 3-day waiting period has passed. You can now update your details and re-submit your documents for admin approval.
+                        </p>
+                      ) : (
+                        <p className="text-amber-800 leading-relaxed">
+                          Per policy, drivers can re-apply 3 days after rejection. You can re-apply in <strong>{daysLeft} day{daysLeft > 1 ? 's' : ''}</strong> (on {new Date(reapplyTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}).
+                        </p>
+                      );
+                    })()}
                   </div>
                 </div>
 
                 <div className="pt-2 flex flex-col sm:flex-row items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthStatusModal(null);
-                      setMode('register');
-                    }}
-                    className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
-                  >
-                    Re-Apply / Update Driver Profile
-                  </button>
+                  {(() => {
+                    const reapplyTime = authStatusModal.driver?.reapplyAllowedAt ? new Date(authStatusModal.driver.reapplyAllowedAt).getTime() : 0;
+                    const canReapply = !reapplyTime || currentTime >= reapplyTime;
+                    return canReapply ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (authStatusModal.driver) {
+                            setFormData((prev) => ({
+                              ...prev,
+                              name: authStatusModal.driver.name || prev.name,
+                              phone: authStatusModal.phone || prev.phone,
+                              location: authStatusModal.driver.location || prev.location,
+                              experience: authStatusModal.driver.experience || prev.experience,
+                              licenseNo: authStatusModal.driver.licenseNo || prev.licenseNo,
+                              aadhaarNo: authStatusModal.driver.aadhaarNo || prev.aadhaarNo,
+                            }));
+                          }
+                          setAuthStatusModal(null);
+                          setMode('register');
+                        }}
+                        className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
+                      >
+                        Re-Apply Now with Corrected Documents
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full py-3.5 bg-neutral-300 text-neutral-500 rounded-full text-xs font-bold cursor-not-allowed"
+                      >
+                        Re-Apply Enabled After 3 Days
+                      </button>
+                    );
+                  })()}
                   <button
                     type="button"
                     onClick={() => setAuthStatusModal(null)}

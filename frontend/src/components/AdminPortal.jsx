@@ -16,6 +16,8 @@ import {
   UserCheck,
   Lock,
   Key,
+  History,
+  RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -23,6 +25,9 @@ import {
   approveDriverApi,
   rejectDriverApi,
   blockDriverApi,
+  unblockDriverApi,
+  restoreDriverApi,
+  fetchAdminHistoryApi,
   fetchAdminBookingsApi,
   createDriverApi,
   updateDriverApi,
@@ -33,17 +38,22 @@ import {
 } from '../utils/api';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
 
-export default function AdminPortal({ onBackToHome }) {
+export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUpdated }) {
   // Admin PIN Auth Security State
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [adminPinInput, setAdminPinInput] = useState('');
 
-  // Tabs: 'all' | 'trial' | 'paid' | 'expired' | 'pending' | 'bookings'
+  // Tabs: 'all' | 'trial' | 'paid' | 'expired' | 'pending' | 'bookings' | 'pricing' | 'history'
   const [activeTab, setActiveTab] = useState('all');
   const [drivers, setDrivers] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedDocModal, setSelectedDocModal] = useState(null);
+
+  // Admin Action History / Audit Log State
+  const [historyList, setHistoryList] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState('all');
 
   // Modals for CRUD
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -66,16 +76,45 @@ export default function AdminPortal({ onBackToHome }) {
     subscriptionPlan: 'free_trial',
   });
 
+  // Rejection, Blocking & Pricing state
+  const [rejectingDriver, setRejectingDriver] = useState(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('');
+  const [blockingDriver, setBlockingDriver] = useState(null);
+  const [blockReasonInput, setBlockReasonInput] = useState('');
+
+  const [pricingForm, setPricingForm] = useState(() => ({
+    freelanceSubscriptionPrice: 49,
+    permanentSubscriptionPrice: 99,
+    combinationSubscriptionPrice: 149,
+    cityBaseHours: 4,
+    cityBaseFare: 700,
+    cityExtraHourlyRate: 100,
+    nightSurchargePerHour: 150,
+    outstationFlatRate: 2000,
+    outstationInterstateRate: 2500,
+    monthly8hSalary: 25000,
+    monthly10hSalary: 28000,
+    monthly12hSalary: 30000,
+    ...(pricingSettings || {}),
+  }));
+  const [pricingLoading, setPricingLoading] = useState(false);
+
   const loadAdminData = useCallback(async () => {
     setLoading(true);
     try {
-      const driversRes = await fetchAdminDriversApi();
+      const [driversRes, bookingsRes, historyData] = await Promise.all([
+        fetchAdminDriversApi(),
+        fetchAdminBookingsApi().catch(() => ({ success: false, data: [] })),
+        fetchAdminHistoryApi().catch(() => []),
+      ]);
       if (driversRes.success) {
         setDrivers(driversRes.data);
       }
-      const bookingsRes = await fetchAdminBookingsApi();
       if (bookingsRes.success) {
         setBookings(bookingsRes.data);
+      }
+      if (Array.isArray(historyData)) {
+        setHistoryList(historyData);
       }
     } catch {
       toast.error('Failed to connect to backend admin API');
@@ -89,10 +128,14 @@ export default function AdminPortal({ onBackToHome }) {
     const fetchInitial = async () => {
       setLoading(true);
       try {
-        const driversRes = await fetchAdminDriversApi();
+        const [driversRes, bookingsRes, historyData] = await Promise.all([
+          fetchAdminDriversApi(),
+          fetchAdminBookingsApi().catch(() => ({ success: false, data: [] })),
+          fetchAdminHistoryApi().catch(() => []),
+        ]);
         if (mounted && driversRes.success) setDrivers(driversRes.data);
-        const bookingsRes = await fetchAdminBookingsApi();
         if (mounted && bookingsRes.success) setBookings(bookingsRes.data);
+        if (mounted && Array.isArray(historyData)) setHistoryList(historyData);
       } catch {
         if (mounted) toast.error('Failed to connect to backend admin API');
       } finally {
@@ -117,27 +160,48 @@ export default function AdminPortal({ onBackToHome }) {
     }
   };
 
-  // Rejection, Blocking & Pricing state
-  const [rejectingDriver, setRejectingDriver] = useState(null);
-  const [rejectionReasonInput, setRejectionReasonInput] = useState('');
-  const [blockingDriver, setBlockingDriver] = useState(null);
-  const [blockReasonInput, setBlockReasonInput] = useState('');
+  const loadAdminHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const logs = await fetchAdminHistoryApi();
+      if (Array.isArray(logs)) setHistoryList(logs);
+    } catch {
+      toast.error('Failed to load admin audit history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
 
-  const [pricingForm, setPricingForm] = useState({
-    freelanceSubscriptionPrice: 49,
-    permanentSubscriptionPrice: 99,
-    combinationSubscriptionPrice: 149,
-    cityBaseHours: 4,
-    cityBaseFare: 700,
-    cityExtraHourlyRate: 100,
-    nightSurchargePerHour: 150,
-    outstationFlatRate: 2000,
-    outstationInterstateRate: 2500,
-    monthly8hSalary: 25000,
-    monthly10hSalary: 28000,
-    monthly12hSalary: 30000,
-  });
-  const [pricingLoading, setPricingLoading] = useState(false);
+  const handleUnblockDriver = async (driverId, name) => {
+    try {
+      const res = await unblockDriverApi(driverId);
+      if (res.success) {
+        toast.success(`${name || 'Driver'} unblocked successfully! Status restored to Available.`);
+        loadAdminData();
+        loadAdminHistory();
+      } else {
+        toast.error(res.message || 'Failed to unblock driver');
+      }
+    } catch {
+      toast.error('Error unblocking driver');
+    }
+  };
+
+  const handleRestoreDriver = async (snapshot) => {
+    if (!snapshot) return;
+    try {
+      const res = await restoreDriverApi(snapshot);
+      if (res.success) {
+        toast.success(`Driver ${snapshot.name} restored to database roster successfully!`);
+        loadAdminData();
+        loadAdminHistory();
+      } else {
+        toast.error(res.message || 'Failed to restore driver');
+      }
+    } catch {
+      toast.error('Error restoring driver');
+    }
+  };
 
   const loadPricingData = useCallback(async () => {
     setPricingLoading(true);
@@ -158,6 +222,10 @@ export default function AdminPortal({ onBackToHome }) {
       const res = await updatePricingSettingsApi(pricingForm);
       if (res) {
         toast.success('Duty & Subscription pricing rates updated successfully!');
+        if (onPricingUpdated) {
+          onPricingUpdated(res.data || pricingForm);
+        }
+        loadAdminHistory();
       }
     } catch {
       toast.error('Failed to save pricing settings');
@@ -328,6 +396,14 @@ export default function AdminPortal({ onBackToHome }) {
       return true; // 'all'
     });
   }, [drivers, activeTab]);
+
+  // Filtered History Audit Logs
+  const filteredHistory = useMemo(() => {
+    return historyList.filter((item) => {
+      if (historyFilter === 'all') return true;
+      return item.actionType === historyFilter;
+    });
+  }, [historyList, historyFilter]);
 
   if (!adminAuthed) {
     return (
@@ -610,10 +686,26 @@ export default function AdminPortal({ onBackToHome }) {
         >
           <span>⚙ Duty Pricing Rates</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            loadAdminHistory();
+            setActiveTab('history');
+          }}
+          className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            activeTab === 'history'
+              ? 'bg-neutral-950 text-white shadow-xs'
+              : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
+          }`}
+        >
+          <History className="w-3.5 h-3.5 text-amber-400" />
+          <span>Action History ({historyList.length})</span>
+        </button>
       </div>
 
       {/* DRIVER TABLE & CRUD LIST */}
-      {activeTab !== 'bookings' && activeTab !== 'pricing' && (
+      {activeTab !== 'bookings' && activeTab !== 'pricing' && activeTab !== 'history' && (
         <div className="bg-white rounded-3xl border border-neutral-200 overflow-hidden shadow-xs">
           <div className="p-5 border-b border-neutral-100 flex items-center justify-between">
             <h2 className="text-base font-bold text-neutral-950 font-sans">
@@ -790,10 +882,11 @@ export default function AdminPortal({ onBackToHome }) {
                                 <button
                                   type="button"
                                   onClick={() => handleOpenRejectModal(driver.id, driver.name)}
-                                  className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-all cursor-pointer"
-                                  title="Reject application with reason"
+                                  className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-full text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                  title="Reject application with reason (reapply allowed after 3 days)"
                                 >
-                                  <XCircle className="w-4 h-4" />
+                                  <XCircle className="w-3.5 h-3.5 text-red-600" />
+                                  Reject
                                 </button>
                               </>
                             ) : (
@@ -884,7 +977,7 @@ export default function AdminPortal({ onBackToHome }) {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-[11px] font-bold text-neutral-400">{bk.id}</span>
-                      <span className="font-bold text-neutral-950 text-sm">{bk.customerName || 'Customer'} ({bk.customerPhone || '+91 99632 54183'})</span>
+                      <span className="font-bold text-neutral-950 text-sm">{bk.customerName || 'Customer'} {bk.customerPhone ? `(${bk.customerPhone})` : ''}</span>
                     </div>
                     <div className="text-neutral-600">
                       Driver Assigned: <span className="font-bold text-neutral-900">{bk.driverName || 'Verified Driver'}</span>
@@ -1090,8 +1183,179 @@ export default function AdminPortal({ onBackToHome }) {
                   <span className="text-[10px] text-neutral-500 mt-1 block">Dual listing for both hourly & monthly duties</span>
                 </div>
               </div>
+
+              {/* Grandfathering Protection Disclaimer */}
+              <div className="p-3.5 bg-white rounded-xl border border-amber-300 flex items-start gap-2.5 text-xs text-amber-950 shadow-2xs">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <span className="font-bold text-neutral-950 block">Grandfathering Price-Lock Policy (Existing Drivers Keep Their Plan)</span>
+                  <p className="text-[11px] text-neutral-600 leading-relaxed font-normal">
+                    If an existing driver registered when the subscription plan was ₹49, they stick with the ₹49 renewal rate permanently. Any rate increase configured here (e.g., to ₹55) applies strictly to new driver signups.
+                  </p>
+                </div>
+              </div>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ADMIN ACTION HISTORY & AUDIT LOG TAB CONTENT */}
+      {activeTab === 'history' && (
+        <div className="bg-white rounded-3xl border border-neutral-200 p-6 sm:p-8 space-y-6">
+          <div className="border-b border-neutral-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-900 text-white text-xs font-bold uppercase mb-1">
+                <History className="w-3.5 h-3.5 text-amber-400" />
+                <span>Admin Audit Log & Change History</span>
+              </div>
+              <h2 className="text-xl font-extrabold text-neutral-950 font-sans">
+                Admin Action History & Mistake Recovery
+              </h2>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Review all admin actions (blocks, deletions, rejections, approvals, pricing updates). If you made a mistake like accidentally blocking or deleting a user, click Unblock or Restore below.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadAdminHistory}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 rounded-full text-xs font-medium text-neutral-800 transition-all cursor-pointer self-start sm:self-auto"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${historyLoading ? 'animate-spin' : ''}`} />
+              Refresh Logs
+            </button>
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2 pt-1 pb-2 border-b border-neutral-100">
+            <span className="text-xs font-semibold text-neutral-500 mr-2">Filter Log:</span>
+            {[
+              { id: 'all', label: `All Events (${historyList.length})` },
+              { id: 'BLOCK_DRIVER', label: 'Blocked Drivers' },
+              { id: 'DELETE_DRIVER', label: 'Deleted Drivers' },
+              { id: 'UNBLOCK_DRIVER', label: 'Unblocks' },
+              { id: 'RESTORE_DRIVER', label: 'Restorations' },
+              { id: 'REJECT_DRIVER', label: 'Rejections' },
+              { id: 'APPROVE_DRIVER', label: 'Approvals' },
+              { id: 'UPDATE_PRICING', label: 'Pricing Updates' },
+              { id: 'CREATE_DRIVER', label: 'Created Drivers' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setHistoryFilter(f.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                  historyFilter === f.id
+                    ? 'bg-neutral-950 text-white shadow-xs'
+                    : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* History List or Empty State */}
+          {filteredHistory.length === 0 ? (
+            <div className="p-12 text-center space-y-3 bg-neutral-50 rounded-2xl border border-neutral-200">
+              <History className="w-10 h-10 text-neutral-300 mx-auto" />
+              <h3 className="text-sm font-bold text-neutral-800">No Action History Found</h3>
+              <p className="text-xs text-neutral-500">No actions recorded matching this filter category.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredHistory.map((item) => {
+                const isBlock = item.actionType === 'BLOCK_DRIVER';
+                const isDelete = item.actionType === 'DELETE_DRIVER';
+                const isUnblock = item.actionType === 'UNBLOCK_DRIVER';
+                const isRestore = item.actionType === 'RESTORE_DRIVER';
+                const isApprove = item.actionType === 'APPROVE_DRIVER';
+                const isPricing = item.actionType === 'UPDATE_PRICING';
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`p-4 rounded-2xl border transition-all text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                      isBlock
+                        ? 'bg-amber-50/60 border-amber-300'
+                        : isDelete
+                        ? 'bg-red-50/50 border-red-300'
+                        : isUnblock || isRestore || isApprove
+                        ? 'bg-emerald-50/50 border-emerald-200'
+                        : isPricing
+                        ? 'bg-blue-50/50 border-blue-200'
+                        : 'bg-neutral-50 border-neutral-200'
+                    }`}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                            isBlock
+                              ? 'bg-amber-200 text-amber-900'
+                              : isDelete
+                              ? 'bg-red-200 text-red-900'
+                              : isUnblock || isRestore || isApprove
+                              ? 'bg-emerald-200 text-emerald-900'
+                              : isPricing
+                              ? 'bg-blue-200 text-blue-900'
+                              : 'bg-neutral-200 text-neutral-800'
+                          }`}
+                        >
+                          {item.actionType.replace(/_/g, ' ')}
+                        </span>
+                        <span className="font-bold text-neutral-950 text-sm font-sans">
+                          {item.targetName}
+                        </span>
+                        <span className="text-neutral-400 font-mono text-[11px]">
+                          ({item.targetType}: {item.targetId})
+                        </span>
+                      </div>
+
+                      <p className="text-neutral-700 leading-relaxed font-normal">
+                        {item.details}
+                      </p>
+
+                      <div className="text-[11px] text-neutral-400 font-mono">
+                        Timestamp: {new Date(item.timestamp).toLocaleString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Undo / Mistake Recovery Action Buttons */}
+                    <div className="shrink-0 flex items-center gap-2">
+                      {isBlock && (
+                        <button
+                          type="button"
+                          onClick={() => handleUnblockDriver(item.targetId, item.targetName)}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Unblock Driver (Mistake Fix)</span>
+                        </button>
+                      )}
+
+                      {isDelete && item.previousState && (
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreDriver(item.previousState)}
+                          className="px-4 py-2 bg-neutral-950 hover:bg-neutral-800 text-white rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Restore Deleted Driver</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -1280,10 +1544,10 @@ export default function AdminPortal({ onBackToHome }) {
                 </span>
                 <p className="text-[11px] text-neutral-600 leading-relaxed">
                   {driverForm.driverType === 'permanent'
-                    ? 'Monthly Duty: ₹25,000 (8h) · ₹28,000 (10h) · ₹30,000 (12h) per month + 1 weekly off.'
+                    ? 'Monthly Duty: 4h (₹20k–₹25k) · 8h (₹25k–₹30k) · 12h (₹30k–₹40k) Negotiable + 1 weekly off.'
                     : driverForm.driverType === 'combined'
-                    ? 'Hourly: ₹700 (4h) + ₹100/hr · Outstation: ₹2,000 (200km) · Monthly: ₹25k - ₹30k/mo.'
-                    : 'City Duty: ₹700 flat for first 4 hrs + ₹100/add\'l hr + ₹150 night charge (10 PM to 6 AM). Outstation: ₹2,000 flat up to 200 km.'}
+                    ? 'Hourly: ₹700 (4h), ₹900 (6h), ₹1,100 (8h) · Outstation: ₹2,000 / ₹2,500 · Monthly: ₹20k–₹40k Negotiable.'
+                    : 'City Duty: Strictly 4, 6, 8 hrs (₹700 for 4h + ₹100/hr extra). Outstation: Flat ₹2,000 / ₹2,500 round trip.'}
                 </p>
               </div>
 
@@ -1407,10 +1671,10 @@ export default function AdminPortal({ onBackToHome }) {
                 </span>
                 <p className="text-[11px] text-neutral-600 leading-relaxed">
                   {driverForm.driverType === 'permanent'
-                    ? 'Monthly Duty: ₹25,000 (8h) · ₹28,000 (10h) · ₹30,000 (12h) per month + 1 weekly off.'
+                    ? 'Monthly Duty: 4h (₹20k–₹25k) · 8h (₹25k–₹30k) · 12h (₹30k–₹40k) Negotiable + 1 weekly off.'
                     : driverForm.driverType === 'combined'
-                    ? 'Hourly: ₹700 (4h) + ₹100/hr · Outstation: ₹2,000 (200km) · Monthly: ₹25k - ₹30k/mo.'
-                    : 'City Duty: ₹700 flat for first 4 hrs + ₹100/add\'l hr + ₹150 night charge (10 PM to 6 AM). Outstation: ₹2,000 flat up to 200 km.'}
+                    ? 'Hourly: ₹700 (4h), ₹900 (6h), ₹1,100 (8h) · Outstation: ₹2,000 / ₹2,500 · Monthly: ₹20k–₹40k Negotiable.'
+                    : 'City Duty: Strictly 4, 6, 8 hrs (₹700 for 4h + ₹100/hr extra). Outstation: Flat ₹2,000 / ₹2,500 round trip.'}
                 </p>
               </div>
 

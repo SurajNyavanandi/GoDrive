@@ -3,30 +3,9 @@
  * Integrates 300+ Hyderabad and Greater Hyderabad locations for automated routing & selection.
  */
 
-export const initialDrivers = [
-  {
-    id: 'drv-hyd-1',
-    name: 'Ramesh Kumar',
-    phone: '9849012345',
-    driverType: 'combined',
-    hourlyRate: 175,
-    monthlySalary: 25000,
-    location: 'Kondapur',
-    experience: 8,
-    rating: 4.9,
-    trips: 142,
-    languages: 'Telugu, Hindi, English',
-    bio: 'Experienced city and highway driver with 8 years navigating Hyderabad traffic. Skilled in automatic and manual sedans, SUVs, and luxury vehicles.',
-    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-    status: 'Available',
-    subscriptionPlan: 'featured',
-    remainingDays: 90,
-    isApproved: true,
-    licenseNo: 'TS-09-2016-0045231',
-    aadhaarNo: '9030-2604-1717',
-    workingPreference: 'Combined (Hourly & Monthly Duties)',
-  },
-];
+// Strictly zero dummy users - only live dynamic drivers from backend API are used
+export const initialDrivers = [];
+
 
 export const DRIVER_TYPES = [
   { id: 'all', label: 'All Drivers' },

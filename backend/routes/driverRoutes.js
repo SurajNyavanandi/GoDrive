@@ -226,14 +226,17 @@ router.get('/reviews', (req, res) => {
  */
 router.post('/reviews', (req, res) => {
   try {
-    const { author, rating, title, quote } = req.body;
+    const { author, rating, title, quote, driverId, otp } = req.body;
     if (!author || !title || !quote) {
-      return res.status(400).json({ success: false, message: 'Name, review title, and comment are required.' });
+      return res.status(400).json({ success: false, message: 'Your name, review title, and comments are required.' });
+    }
+    if (driverId && !otp) {
+      return res.status(400).json({ success: false, message: 'Driver Review OTP is required to submit verified trip feedback.' });
     }
     const newReview = storage.createReview(req.body);
-    res.status(201).json({ success: true, message: 'Review submitted successfully', data: newReview });
+    res.status(201).json({ success: true, message: 'Verified review submitted successfully! Thank you.', data: newReview });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(400).json({ success: false, message: err.message || 'Failed to submit review' });
   }
 });
 

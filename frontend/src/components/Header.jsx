@@ -20,8 +20,10 @@ export default function Header({
 
   const navLinks = [
     { name: 'Services', href: '#services' },
+    { name: 'Why Us', href: '#why-us' },
+    { name: 'How It Works', href: '#how-to-use' },
     { name: 'Drivers', href: '#drivers' },
-    { name: 'Ratings & Reviews', href: '#reviews' },
+    { name: 'Reviews', href: '#reviews' },
     { name: 'FAQ', href: '#faq' },
   ];
 

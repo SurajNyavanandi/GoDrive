@@ -128,6 +128,51 @@ router.put('/drivers/:id/block', (req, res) => {
 });
 
 /**
+ * PUT /api/admin/drivers/:id/unblock
+ * Admin unblocks driver account (reverses mistaken block)
+ */
+router.put('/drivers/:id/unblock', (req, res) => {
+  try {
+    const unblocked = storage.unblockDriver(req.params.id);
+    if (!unblocked) {
+      return res.status(404).json({ success: false, message: 'Driver not found' });
+    }
+    res.json({ success: true, message: `Driver account for ${unblocked.name} has been unblocked.`, driver: unblocked });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/drivers/restore
+ * Admin restores a deleted driver from history snapshot
+ */
+router.post('/drivers/restore', (req, res) => {
+  try {
+    const restored = storage.restoreDriver(req.body.driver);
+    if (!restored) {
+      return res.status(400).json({ success: false, message: 'Invalid driver snapshot' });
+    }
+    res.json({ success: true, message: `Driver ${restored.name} restored successfully`, driver: restored });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * GET /api/admin/history
+ * Returns chronological admin audit logs
+ */
+router.get('/history', (req, res) => {
+  try {
+    const history = storage.getAdminHistory();
+    res.json({ success: true, count: history.length, data: history });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
  * GET /api/admin/pricing
  * Retrieve current dynamic driver duty rates
  */

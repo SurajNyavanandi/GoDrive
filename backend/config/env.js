@@ -11,20 +11,17 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const env = {
-  PORT: process.env.PORT || 3000,
+  PORT: process.env.NODE_ENV === 'production' ? (process.env.PORT || 3000) : 3000,
   NODE_ENV: process.env.NODE_ENV || 'development',
 
-  // 1. Database Connection
-  MONGO_URI:
-    process.env.MONGO_URI ||
-    process.env.MONGODB_URI ||
-    'mongodb+srv://kanukulashekhar15_db_user:vJKgFDeyKlwiKDYQ@cluster0.pdc6tmh.mongodb.net/manadrivers?retryWrites=true&w=majority',
+  // 1. Database Connection (empty default allows instant local JSON/in-memory storage mode)
+  MONGO_URI: process.env.MONGO_URI || process.env.MONGODB_URI || '',
 
   // 2. JWT Secret
   JWT_SECRET: process.env.JWT_SECRET || 'mana_drivers_jwt_secret_key_2025',
 
   // 3. Super Admin Email
-  ADMIN_EMAIL: (process.env.ADMIN_EMAIL || 'kanukulashekhar15@gmail.com').toLowerCase().trim(),
+  ADMIN_EMAIL: (process.env.ADMIN_EMAIL || 'kanusuraj15@gmail.com').toLowerCase().trim(),
 
   // 4. Payment Gateway (Razorpay)
   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || 'rzp_test_TnM27jHHHHOsFP',

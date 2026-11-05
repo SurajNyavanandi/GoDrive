@@ -14,32 +14,35 @@ import {
   Star,
   Clock,
   Car,
+  AlertTriangle,
+  FileCheck,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
-import { fetchReviewsApi, submitReviewApi } from '../utils/api';
+import { fetchReviewsApi } from '../utils/api';
+import SearchableSelect from './common/SearchableSelect';
+import HowToUseSection from './HowToUseSection';
+import WhyManaDriversSection from './WhyManaDriversSection';
+import ReviewModal from './ReviewModal';
 
 const HYDERABAD_ALL_LOCALITIES = HYDERABAD_LOCALITIES;
-
 
 export default function CustomerView({
   drivers = [],
   initialService = 'all',
   onOpenBooking,
   onSwitchToDriver,
+  pricingSettings,
 }) {
-  // Live Reviews State
+  const cityBaseFare = pricingSettings?.cityBaseFare || 700;
+  const cityBaseHours = pricingSettings?.cityBaseHours || 4;
+  const cityExtraRate = pricingSettings?.cityExtraHourlyRate || 100;
+  const nightRate = pricingSettings?.nightSurchargePerHour || 150;
+  const outstationRate = pricingSettings?.outstationFlatRate || 2000;
+  const interstateRate = pricingSettings?.outstationInterstateRate || 2500;
+  // Live Reviews State & Modal
   const [reviewsList, setReviewsList] = useState([]);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [reviewForm, setReviewForm] = useState({
-    author: '',
-    carAndArea: '',
-    tripType: 'City Duty',
-    rating: 5,
-    title: '',
-    quote: '',
-  });
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewModalDriver, setReviewModalDriver] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -60,7 +63,7 @@ export default function CustomerView({
   }, [initialService]);
 
   const [selectedDriverType, setSelectedDriverType] = useState(initialDriverType);
-  const [selectedLocality] = useState('All');
+  const [selectedLocality, setSelectedLocality] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [onlyAvailable, setOnlyAvailable] = useState(false);
 
@@ -149,7 +152,7 @@ export default function CustomerView({
       id: 'rev-1',
       title: 'Arrived in 20 minutes at Cyber Towers for my Fortuner',
       quote:
-        'Booked an hourly driver for an urgent client meeting and evening dinner across Hitec City and Jubilee Hills. Ramesh was punctual, drove my automatic Fortuner smoothly through heavy traffic, and the fixed ₹700 rate for 4 hours was completely honest with zero commission.',
+        'Booked an hourly driver for an urgent client meeting and evening dinner across Hitec City and Jubilee Hills. The driver was punctual, drove my automatic Fortuner smoothly through heavy traffic, and the fixed ₹700 rate for 4 hours was completely honest with zero commission.',
       author: 'Vikram Reddy',
       initials: 'VR',
       carAndArea: 'Hitec City · Toyota Fortuner Owner',
@@ -219,47 +222,6 @@ export default function CustomerView({
     },
   ];
 
-  const handleReviewSubmit = async (e) => {
-    e.preventDefault();
-    if (!reviewForm.author || !reviewForm.title || !reviewForm.quote) {
-      toast.error('Please fill in your name, review title, and comments.');
-      return;
-    }
-
-    setReviewSubmitting(true);
-    try {
-      const nameClean = reviewForm.author.trim();
-      const initials = nameClean.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'CU';
-      const payload = {
-        ...reviewForm,
-        author: nameClean,
-        initials,
-        carAndArea: reviewForm.carAndArea ? reviewForm.carAndArea.trim() : 'Hyderabad Car Owner',
-        date: 'Just now',
-      };
-
-      const res = await submitReviewApi(payload);
-      if (res && res.success) {
-        toast.success('Thank you! Your rating and review have been published.');
-        setReviewsList((prev) => [res.data, ...prev]);
-        setIsReviewModalOpen(false);
-        setReviewForm({
-          author: '',
-          carAndArea: '',
-          tripType: 'City Duty',
-          rating: 5,
-          title: '',
-          quote: '',
-        });
-      } else {
-        toast.error('Could not submit review');
-      }
-    } catch {
-      toast.error('Error submitting review');
-    } finally {
-      setReviewSubmitting(false);
-    }
-  };
 
   const activeReviews = reviewsList.length > 0 ? reviewsList : reviews;
 
@@ -452,19 +414,33 @@ export default function CustomerView({
           </div>
 
           {/* Search & Availability Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#FAF9F6] p-4 rounded-3xl border border-neutral-200/90 shadow-2xs">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-[#FAF9F6] p-4 rounded-3xl border border-neutral-200/90 shadow-2xs">
+            <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-neutral-400" />
               <input
                 type="text"
                 placeholder="Search driver by name, area, or language..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white border border-neutral-200 rounded-full text-xs sm:text-sm font-medium text-neutral-950 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-950 shadow-2xs"
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-neutral-200 rounded-2xl text-xs sm:text-sm font-medium text-neutral-950 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-950 shadow-2xs"
               />
             </div>
 
-            <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-neutral-700 cursor-pointer select-none">
+            {/* Searchable Locality Dropdown */}
+            <div className="w-full lg:w-72">
+              <SearchableSelect
+                options={[
+                  { value: 'All', label: 'All Areas in Hyderabad' },
+                  ...HYDERABAD_LOCALITIES.map((loc) => ({ value: loc, label: loc }))
+                ]}
+                value={selectedLocality}
+                onChange={(val) => setSelectedLocality(val)}
+                placeholder="Filter by Locality..."
+                searchPlaceholder="Search 300+ areas..."
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-neutral-700 cursor-pointer select-none shrink-0 px-2 py-1">
               <input
                 type="checkbox"
                 checked={onlyAvailable}
@@ -580,12 +556,23 @@ export default function CustomerView({
                           {isCombined
                             ? 'Hourly & Monthly Duties'
                             : isPermanent
-                            ? '₹25,000 – ₹30,000 / mo'
-                            : '₹700 / 4h (Standard Rate)'}
+                            ? '₹20k – ₹40k / mo (Negotiable)'
+                            : `₹${cityBaseFare} / ${cityBaseHours}h (Standard Rate)`}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReviewModalDriver(driver);
+                            setIsReviewModalOpen(true);
+                          }}
+                          className="px-3 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-full text-xs font-semibold tracking-tight transition-all cursor-pointer"
+                          title="Write OTP-verified review"
+                        >
+                          Review
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleInitiateDriverAction(driver)}
@@ -811,8 +798,8 @@ export default function CustomerView({
                   </p>
                 </div>
                 <div className="pt-3 border-t border-neutral-200">
-                  <span className="text-base font-bold tracking-tight text-emerald-700 block font-sans">₹700 for 4 Hours</span>
-                  <span className="text-xs text-neutral-500 font-normal">+₹100/extra hr · +₹150/hr night</span>
+                  <span className="text-base font-bold tracking-tight text-emerald-700 block font-sans">₹{cityBaseFare} for {cityBaseHours} Hours</span>
+                  <span className="text-xs text-neutral-500 font-normal">+₹{cityExtraRate}/extra hr · +₹{nightRate}/hr night</span>
                 </div>
               </div>
 
@@ -823,11 +810,11 @@ export default function CustomerView({
                     Outstation Travel
                   </h4>
                   <p className="text-sm text-neutral-600 leading-relaxed font-normal">
-                    Highway driving up to 200km or interstate multi-day trips.
+                    Single-day highway return trips or interstate multi-day road trips.
                   </p>
                 </div>
                 <div className="pt-3 border-t border-neutral-200">
-                  <span className="text-base font-bold tracking-tight text-emerald-700 block font-sans">Flat ₹2,000 / ₹2,500</span>
+                  <span className="text-base font-bold tracking-tight text-emerald-700 block font-sans">Flat ₹{outstationRate.toLocaleString('en-IN')} / ₹{interstateRate.toLocaleString('en-IN')}</span>
                   <span className="text-xs text-neutral-500 font-normal">Food & Room rules apply</span>
                 </div>
               </div>
@@ -839,12 +826,13 @@ export default function CustomerView({
                     Monthly Personal Driver
                   </h4>
                   <p className="text-sm text-neutral-600 leading-relaxed font-normal">
-                    Dedicated family driver for 8h, 10h or 12h shifts.
+                    Dedicated family driver for 4h, 8h, or 12h daily shifts.
                   </p>
                 </div>
-                <div className="pt-3 border-t border-neutral-200">
-                  <span className="text-base font-bold tracking-tight text-emerald-700 block font-sans">₹25k – ₹30k / Month</span>
-                  <span className="text-xs text-neutral-500 font-normal">6 days/wk (1 weekly off)</span>
+                <div className="pt-3 border-t border-neutral-200 space-y-0.5">
+                  <span className="text-sm font-bold tracking-tight text-emerald-700 block font-sans">4h: ₹20k–₹25k · 8h: ₹25k–₹30k</span>
+                  <span className="text-xs text-neutral-600 font-medium block">12h: ₹30k–₹40k (Negotiable)</span>
+                  <span className="text-[11px] text-neutral-400 font-normal block">6 days/wk (1 weekly off)</span>
                 </div>
               </div>
             </div>
@@ -901,11 +889,87 @@ export default function CustomerView({
                   Dedicated Full-Time Family Drivers
                 </h3>
                 <p className="text-sm text-neutral-300 leading-relaxed font-normal">
-                  8–12 hours daily support for office commutes to Financial District, school drops, and family travel.
+                  4, 8, or 12 hours daily support for office commutes to Financial District, school drops, and family travel.
                 </p>
-                <div className="pt-1 text-base font-bold tracking-tight text-emerald-400 font-sans">
-                  ₹25,000 – ₹30,000 Fixed Monthly Salary
+                <div className="pt-1 text-sm font-bold tracking-tight text-emerald-400 font-sans">
+                  4h: ₹20k–₹25k · 8h: ₹25k–₹30k · 12h: ₹30k–₹40k (Negotiable)
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          SECTION: USES & ADVANTAGES OF MANA DRIVERS
+         ========================================================================= */}
+      <WhyManaDriversSection
+        onBookNow={() => onOpenBooking(drivers[0])}
+        onBecomeDriver={onSwitchToDriver}
+      />
+
+      {/* =========================================================================
+          SECTION: HOW TO USE MANA DRIVERS (ZIG-ZAG STEP-BY-STEP FOR USERS & DRIVERS)
+         ========================================================================= */}
+      <HowToUseSection
+        onBookNow={() => onOpenBooking(drivers[0])}
+        onJoinDriver={onSwitchToDriver}
+      />
+
+      {/* =========================================================================
+          SECTION: CUSTOMER INSTRUCTIONS & SAFETY PRECAUTIONS
+         ========================================================================= */}
+      <section className="w-full bg-white py-14 sm:py-20 border-b border-neutral-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-amber-50/70 border border-amber-200 rounded-3xl p-6 sm:p-10 space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-amber-200/80">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-neutral-950 font-sans">
+                    Customer Precautions & Booking Guidelines
+                  </h3>
+                  <p className="text-xs text-amber-900 font-medium">
+                    Important rules and safety checklist before starting your trip
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-mono font-bold bg-amber-200 text-amber-950 px-3 py-1 rounded-full">
+                Safety First · 100% Verified
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs sm:text-sm text-neutral-800">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 font-bold text-neutral-950 font-sans">
+                  <FileCheck className="w-4 h-4 text-emerald-600" />
+                  <span>1. Check Car Documents & Fuel</span>
+                </div>
+                <p className="text-neutral-600 leading-relaxed">
+                  Ensure your vehicle has a valid RC (Registration Certificate), active motor insurance, Pollution Certificate (PUC), and sufficient fuel/charge before handing over the keys.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 font-bold text-neutral-950 font-sans">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>2. Verify Driver Identity</span>
+                </div>
+                <p className="text-neutral-600 leading-relaxed">
+                  Cross-check the driver’s name and photograph shown on the platform. Every driver is Aadhaar-verified and holds a valid Commercial/Non-Transport driving license.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 font-bold text-neutral-950 font-sans">
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
+                  <span>3. Get Permanent Review OTP</span>
+                </div>
+                <p className="text-neutral-600 leading-relaxed">
+                  Upon trip completion, pay the driver directly via PhonePe, GPay, or Cash with ₹0 commission. Ask for their 4-digit Review OTP to post an honest rating!
+                </p>
               </div>
             </div>
           </div>
@@ -1037,121 +1101,19 @@ export default function CustomerView({
         </div>
       </section>
 
-      {/* SUBMIT REVIEW MODAL */}
-      {isReviewModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 space-y-5 border border-neutral-200 shadow-2xl animate-scale-up">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-              <h3 className="font-bold text-lg text-neutral-950 font-sans flex items-center gap-2">
-                <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                Write Rating & Comment for Driver
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsReviewModalOpen(false)}
-                className="p-1 rounded-full text-neutral-400 hover:text-neutral-900"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleReviewSubmit} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Your Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={reviewForm.author}
-                    onChange={(e) => setReviewForm({ ...reviewForm, author: e.target.value })}
-                    placeholder="e.g. Vikram Reddy"
-                    className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Star Rating *</label>
-                  <select
-                    value={reviewForm.rating}
-                    onChange={(e) => setReviewForm({ ...reviewForm, rating: Number(e.target.value) })}
-                    className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-medium"
-                  >
-                    <option value={5}>★★★★★ (5/5 Exceptional)</option>
-                    <option value={4}>★★★★☆ (4/5 Good)</option>
-                    <option value={3}>★★★☆☆ (3/5 Average)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Car Model & Locality</label>
-                  <input
-                    type="text"
-                    value={reviewForm.carAndArea}
-                    onChange={(e) => setReviewForm({ ...reviewForm, carAndArea: e.target.value })}
-                    placeholder="e.g. Hitec City · Toyota Fortuner"
-                    className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Trip Type</label>
-                  <select
-                    value={reviewForm.tripType}
-                    onChange={(e) => setReviewForm({ ...reviewForm, tripType: e.target.value })}
-                    className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-medium"
-                  >
-                    <option value="City Duty">City Duty</option>
-                    <option value="Outstation Duty">Outstation Duty</option>
-                    <option value="Monthly Driver">Monthly Permanent Driver</option>
-                    <option value="Airport Pickup">Airport Pickup</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-neutral-700 block mb-1">Review Headline *</label>
-                <input
-                  type="text"
-                  required
-                  value={reviewForm.title}
-                  onChange={(e) => setReviewForm({ ...reviewForm, title: e.target.value })}
-                  placeholder="e.g. Arrived on time and drove very smoothly"
-                  className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-neutral-700 block mb-1">Your Detailed Review & Comments *</label>
-                <textarea
-                  rows={3}
-                  required
-                  value={reviewForm.quote}
-                  onChange={(e) => setReviewForm({ ...reviewForm, quote: e.target.value })}
-                  placeholder="Share your experience with the driver..."
-                  className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl font-medium"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
-                <button
-                  type="button"
-                  onClick={() => setIsReviewModalOpen(false)}
-                  className="px-4 py-2 font-semibold text-neutral-600 hover:bg-neutral-100 rounded-full"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={reviewSubmitting}
-                  className="px-6 py-2.5 font-bold text-white bg-neutral-950 hover:bg-neutral-800 rounded-full shadow-xs cursor-pointer"
-                >
-                  {reviewSubmitting ? 'Submitting...' : 'Post Rating & Review'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* OTP-VERIFIED DRIVER REVIEW MODAL */}
+      <ReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => {
+          setIsReviewModalOpen(false);
+          setReviewModalDriver(null);
+        }}
+        drivers={drivers}
+        initialDriver={reviewModalDriver}
+        onReviewSubmitted={(newRev) => {
+          setReviewsList((prev) => [newRev, ...prev]);
+        }}
+      />
 
       {/* =========================================================================
           SECTION 7: FAQ SECTION (STARK PURE WHITE)

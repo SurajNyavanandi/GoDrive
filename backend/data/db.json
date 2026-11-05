@@ -1,4 +1,23 @@
 {
   "drivers": [],
-  "bookings": []
+  "bookings": [],
+  "pricingSettings": {
+    "freelanceSubscriptionPrice": 49,
+    "permanentSubscriptionPrice": 99,
+    "combinationSubscriptionPrice": 149,
+    "cityBaseHours": 4,
+    "cityBaseFare": 700,
+    "cityExtraHourlyRate": 100,
+    "nightSurchargePerHour": 150,
+    "outstationFlatRate": 2000,
+    "outstationInterstateRate": 2500,
+    "monthly4hMinSalary": 20000,
+    "monthly4hMaxSalary": 25000,
+    "monthly8hMinSalary": 25000,
+    "monthly8hMaxSalary": 30000,
+    "monthly12hMinSalary": 30000,
+    "monthly12hMaxSalary": 40000
+  },
+  "reviews": [],
+  "adminHistory": []
 }
