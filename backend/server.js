@@ -99,6 +99,14 @@ async function startServer() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+  // Rewrite /api/api/* to /api/* to seamlessly handle double-prefixed requests
+  app.use((req, res, next) => {
+    if (req.url.startsWith('/api/api/')) {
+      req.url = req.url.replace(/^\/api\/api\//, '/api/');
+    }
+    next();
+  });
+
   // API Request Logger Middleware
   app.use('/api', (req, res, next) => {
     const start = Date.now();

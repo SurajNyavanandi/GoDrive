@@ -8,7 +8,7 @@ import BookingModal from './components/BookingModal';
 import MyBookingsSheet from './components/MyBookingsSheet';
 import ConversionSuccessView from './components/ConversionSuccessView';
 import ReviewModal from './components/ReviewModal';
-import { Mail, MessageCircle, Copy, Check, Star, Car, X, ShieldCheck } from 'lucide-react';
+
 import { fetchAdminBookingsApi, createBookingApi, fetchPublicDrivers, fetchPricingSettingsApi } from './utils/api';
 import { initialDrivers } from './data/mockDrivers';
 import Footer from './components/Footer';
@@ -280,16 +280,7 @@ export default function App() {
     toast.info(`Booking ${bookingId} has been cancelled.`);
   };
 
-  // Floating Helpdesk Modal State (NO personal number)
-  const [floatingContactOpen, setFloatingContactOpen] = useState(false);
-  const [emailCopied, setEmailCopied] = useState(false);
 
-  const handleCopyEmail = () => {
-    navigator.clipboard.writeText('supportmanadrivers@gmail.com');
-    setEmailCopied(true);
-    toast.success('Support email copied to clipboard!');
-    setTimeout(() => setEmailCopied(false), 2000);
-  };
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] text-[#111111] flex flex-col selection:bg-neutral-900 selection:text-white font-sans">
@@ -355,128 +346,6 @@ export default function App() {
       <Footer
         onSwitchToDriver={() => handleRoleChange('driver')}
       />
-
-      {/* FLOATING 24/7 HELPDESK & REVIEW BUTTON (NO PERSONAL NUMBER) */}
-      <div className="fixed bottom-6 right-6 z-40">
-        <button
-          type="button"
-          onClick={() => setFloatingContactOpen(!floatingContactOpen)}
-          className="w-13 h-13 rounded-full bg-neutral-950 text-white shadow-xl hover:shadow-2xl flex items-center justify-center hover:scale-105 transition-all focus:outline-none cursor-pointer border border-neutral-800"
-          title="Direct Support & Driver Review"
-          aria-label="Direct Support & Review"
-        >
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute top-2 right-2 ring-2 ring-neutral-950 animate-pulse" />
-          <MessageCircle className="w-6 h-6 text-[#FF5500]" />
-        </button>
-
-        {/* Quick Helpdesk & Review Modal (Personal phone number completely removed) */}
-        {floatingContactOpen && (
-          <div className="absolute bottom-16 right-0 w-84 bg-white rounded-3xl p-5 border border-neutral-200 shadow-2xl text-neutral-900 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-              <div>
-                <p className="font-bold text-sm tracking-tight text-neutral-950 font-sans flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Mana Drivers Helpdesk</span>
-                </p>
-                <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Hyderabad 24/7 Dispatch Desk
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setFloatingContactOpen(false)}
-                aria-label="Close modal"
-                className="text-neutral-400 hover:text-neutral-900 p-1 rounded-full cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-2.5">
-              {/* WhatsApp Live Dispatch Chat */}
-              <a
-                href="https://wa.me/?text=Hello%20Mana%20Drivers%2C%20I%20need%20a%20verified%20driver%20in%20Hyderabad"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-between gap-2 transition-all shadow-xs cursor-pointer tracking-tight"
-              >
-                <div className="flex items-center gap-2">
-                  <MessageCircle className="w-4 h-4 text-emerald-100" />
-                  <span>WhatsApp Dispatch</span>
-                </div>
-                <span className="text-[10px] bg-emerald-800/50 px-2 py-0.5 rounded-md font-mono">24/7 Live</span>
-              </a>
-
-              {/* Official Support Email */}
-              <a
-                href="mailto:supportmanadrivers@gmail.com"
-                className="w-full py-2.5 px-4 bg-neutral-950 hover:bg-neutral-800 text-white rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-between gap-2 transition-all shadow-xs cursor-pointer tracking-tight"
-              >
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-[#FF5500]" />
-                  <span>supportmanadrivers@gmail.com</span>
-                </div>
-              </a>
-
-              {/* OTP Verified Review Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setFloatingContactOpen(false);
-                  setIsGlobalReviewOpen(true);
-                }}
-                className="w-full py-2.5 px-4 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-between gap-2 transition-all cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                  <span>Submit Review with Driver OTP</span>
-                </div>
-                <span className="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-md font-bold">Verified</span>
-              </button>
-
-              {/* Quick Book Driver CTA */}
-              <button
-                type="button"
-                onClick={() => {
-                  setFloatingContactOpen(false);
-                  handleOpenBooking(drivers[0]);
-                }}
-                className="w-full py-2.5 px-4 bg-[#FF5500] hover:bg-[#e04b00] text-white rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-between gap-2 transition-all shadow-xs cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <Car className="w-4 h-4" />
-                  <span>Book a Driver (30-Min Arrival)</span>
-                </div>
-                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-md font-bold">₹0 Fee</span>
-              </button>
-
-              {/* Copy Support Email */}
-              <button
-                type="button"
-                onClick={handleCopyEmail}
-                className="w-full py-2 px-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-              >
-                {emailCopied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-emerald-700 font-semibold">Copied support email!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 text-neutral-500" />
-                    <span>Copy Support Email</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            <p className="text-[10px] text-neutral-400 text-center leading-tight">
-              Coverage: All 300+ areas in Hyderabad · Direct Driver UPI Pay
-            </p>
-          </div>
-        )}
-      </div>
 
       {/* Booking Modal */}
       <BookingModal

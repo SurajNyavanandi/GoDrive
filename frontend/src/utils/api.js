@@ -1,7 +1,34 @@
 import { initialDrivers } from '../data/mockDrivers';
 import logger from './logger';
 
-const API_BASE = (import.meta.env?.VITE_API_URL || '').replace(/\/$/, '');
+export function getApiUrl(path) {
+  let base = (
+    import.meta.env?.VITE_BACKEND_API_URL ||
+    import.meta.env?.BACKEND_API_URL ||
+    import.meta.env?.VITE_API_URL ||
+    ''
+  ).trim();
+
+  // Strip trailing slashes and trailing /api instances from base URL
+  while (base.endsWith('/')) base = base.slice(0, -1);
+  while (base.endsWith('/api')) base = base.slice(0, -4);
+  while (base.endsWith('/')) base = base.slice(0, -1);
+
+  // Clean path: strip leading /api if present to obtain relative route path
+  let clean = path ? String(path).trim() : '';
+  if (!clean.startsWith('/')) clean = `/${clean}`;
+  while (clean.startsWith('/api/') || clean === '/api') {
+    if (clean === '/api') {
+      clean = '';
+      break;
+    } else {
+      clean = clean.slice(4);
+    }
+  }
+
+  const finalPath = `/api${clean.startsWith('/') ? clean : `/${clean}`}`;
+  return base ? `${base}${finalPath}` : finalPath;
+}
 
 // IN-MEMORY FALLBACK DATASET (Used if backend endpoint fails)
 let memoryDrivers = JSON.parse(JSON.stringify(initialDrivers));
@@ -21,7 +48,7 @@ let memoryReviews = [];
 
 export async function fetchPublicDrivers() {
   try {
-    const res = await fetch(`${API_BASE}/api/drivers`);
+    const res = await fetch(getApiUrl('/api/drivers'));
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
@@ -36,7 +63,7 @@ export async function fetchPublicDrivers() {
 
 export async function loginDriverApi(phone, otp) {
   try {
-    const res = await fetch(`${API_BASE}/api/drivers/login`, {
+    const res = await fetch(getApiUrl('/api/drivers/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, otp }),
@@ -68,7 +95,7 @@ export async function loginDriverApi(phone, otp) {
 
 export async function registerDriverApi(data) {
   try {
-    const res = await fetch(`${API_BASE}/api/drivers/register`, {
+    const res = await fetch(getApiUrl('/api/drivers/register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -101,7 +128,7 @@ export async function registerDriverApi(data) {
 
 export async function subscribeDriverPlanApi(driverId, plan) {
   try {
-    const res = await fetch(`${API_BASE}/api/drivers/${driverId}/subscribe`, {
+    const res = await fetch(getApiUrl(`/api/drivers/${driverId}/subscribe`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plan }),
@@ -122,7 +149,7 @@ export async function subscribeDriverPlanApi(driverId, plan) {
 
 export async function updateDriverSelfProfileApi(driverId, profileData) {
   try {
-    const res = await fetch(`${API_BASE}/api/drivers/${driverId}/profile`, {
+    const res = await fetch(getApiUrl(`/api/drivers/${driverId}/profile`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(profileData),
@@ -143,7 +170,7 @@ export async function updateDriverSelfProfileApi(driverId, profileData) {
 
 export async function uploadDriverDocsApi(formData) {
   try {
-    const res = await fetch(`${API_BASE}/api/drivers/upload-docs`, {
+    const res = await fetch(getApiUrl('/api/drivers/upload-docs'), {
       method: 'POST',
       body: formData,
     });
@@ -166,7 +193,7 @@ export async function uploadDriverDocsApi(formData) {
 
 export async function updateDriverStatusApi(driverId, status) {
   try {
-    const res = await fetch(`${API_BASE}/api/drivers/${driverId}/status`, {
+    const res = await fetch(getApiUrl(`/api/drivers/${driverId}/status`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
@@ -187,7 +214,7 @@ export async function updateDriverStatusApi(driverId, status) {
 
 export async function createBookingApi(bookingData) {
   try {
-    const res = await fetch(`${API_BASE}/api/bookings`, {
+    const res = await fetch(getApiUrl('/api/bookings'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bookingData),
@@ -211,7 +238,7 @@ export async function createBookingApi(bookingData) {
 // ADMIN APIS
 export async function fetchAdminDriversApi() {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/drivers`);
+    const res = await fetch(getApiUrl('/api/admin/drivers'));
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
@@ -226,7 +253,7 @@ export async function fetchAdminDriversApi() {
 
 export async function createDriverApi(driverData) {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/drivers`, {
+    const res = await fetch(getApiUrl('/api/admin/drivers'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(driverData),
@@ -252,7 +279,7 @@ export async function createDriverApi(driverData) {
 
 export async function updateDriverApi(driverId, driverData) {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}`, {
+    const res = await fetch(getApiUrl(`/api/admin/drivers/${driverId}`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(driverData),
@@ -273,7 +300,7 @@ export async function updateDriverApi(driverId, driverData) {
 
 export async function deleteDriverApi(driverId) {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}`, { method: 'DELETE' });
+    const res = await fetch(getApiUrl(`/api/admin/drivers/${driverId}`), { method: 'DELETE' });
     const json = await res.json();
     if (res.ok) return json;
   } catch (err) {
@@ -286,7 +313,7 @@ export async function deleteDriverApi(driverId) {
 
 export async function extendSubscriptionApi(driverId, days = 30) {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}/subscription`, {
+    const res = await fetch(getApiUrl(`/api/admin/drivers/${driverId}/subscription`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ days }),
@@ -307,7 +334,7 @@ export async function extendSubscriptionApi(driverId, days = 30) {
 
 export async function approveDriverApi(id) {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/drivers/${id}/approve`, { method: 'PUT' });
+    const res = await fetch(getApiUrl(`/api/admin/drivers/${id}/approve`), { method: 'PUT' });
     const json = await res.json();
     if (res.ok) return json;
   } catch (err) {
@@ -324,7 +351,7 @@ export async function approveDriverApi(id) {
 
 export async function rejectDriverApi(id, reason) {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/drivers/${id}/reject`, {
+    const res = await fetch(getApiUrl(`/api/admin/drivers/${id}/reject`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason }),
@@ -348,7 +375,7 @@ export async function rejectDriverApi(id, reason) {
 
 export async function blockDriverApi(id, reason) {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/drivers/${id}/block`, {
+    const res = await fetch(getApiUrl(`/api/admin/drivers/${id}/block`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason }),
@@ -371,7 +398,7 @@ export async function blockDriverApi(id, reason) {
 
 export async function unblockDriverApi(id) {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/drivers/${id}/unblock`, {
+    const res = await fetch(getApiUrl(`/api/admin/drivers/${id}/unblock`), {
       method: 'PUT',
     });
     const json = await res.json();
@@ -392,7 +419,7 @@ export async function unblockDriverApi(id) {
 
 export async function restoreDriverApi(driverSnapshot) {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/drivers/restore`, {
+    const res = await fetch(getApiUrl('/api/admin/drivers/restore'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ driver: driverSnapshot }),
@@ -411,7 +438,7 @@ export async function restoreDriverApi(driverSnapshot) {
 
 export async function fetchAdminHistoryApi() {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/history`);
+    const res = await fetch(getApiUrl('/api/admin/history'));
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) return json.data;
@@ -424,7 +451,7 @@ export async function fetchAdminHistoryApi() {
 
 export async function fetchPricingSettingsApi() {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/pricing`);
+    const res = await fetch(getApiUrl('/api/admin/pricing'));
     if (res.ok) {
       const json = await res.json();
       if (json.success && json.data) return json.data;
@@ -437,7 +464,7 @@ export async function fetchPricingSettingsApi() {
 
 export async function updatePricingSettingsApi(settingsData) {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/pricing`, {
+    const res = await fetch(getApiUrl('/api/admin/pricing'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settingsData),
@@ -454,8 +481,8 @@ export async function updatePricingSettingsApi(settingsData) {
 
 export async function fetchReviewsApi(driverId) {
   try {
-    const url = driverId ? `${API_BASE}/api/drivers/reviews?driverId=${driverId}` : `${API_BASE}/api/drivers/reviews`;
-    const res = await fetch(url);
+    const path = driverId ? `/api/drivers/reviews?driverId=${driverId}` : '/api/drivers/reviews';
+    const res = await fetch(getApiUrl(path));
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) return json.data;
@@ -469,7 +496,7 @@ export async function fetchReviewsApi(driverId) {
 
 export async function submitReviewApi(reviewData) {
   try {
-    const res = await fetch(`${API_BASE}/api/drivers/reviews`, {
+    const res = await fetch(getApiUrl('/api/drivers/reviews'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(reviewData),
@@ -492,7 +519,7 @@ export async function submitReviewApi(reviewData) {
 
 export async function fetchAdminBookingsApi() {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/bookings`);
+    const res = await fetch(getApiUrl('/api/admin/bookings'));
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) return json;
