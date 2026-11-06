@@ -180,13 +180,26 @@ export async function uploadDriverDocsApi(formData) {
     logger.warn('API fetch fallback triggered', err?.message);
   }
 
+  let photoUrl = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239CA3AF"%3E%3Cpath d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 14c-2.03 0-3.8-.85-5.05-2.2.06-1.68 3.37-2.6 5.05-2.6s4.99.92 5.05 2.6c-1.25 1.35-3.02 2.2-5.05 2.2z"/%3E%3C/svg%E2%80%9D';
+  let licensePhotoUrl = null;
+  let aadhaarPhotoUrl = null;
+
+  if (formData && typeof formData.get === 'function') {
+    const p = formData.get('photo');
+    if (p && typeof p === 'string') photoUrl = p;
+    const l = formData.get('licensePhoto');
+    if (l && typeof l === 'string') licensePhotoUrl = l;
+    const a = formData.get('aadhaarPhoto');
+    if (a && typeof a === 'string') aadhaarPhotoUrl = a;
+  }
+
   return {
     success: true,
     message: 'Documents uploaded (sandbox mode)',
     urls: {
-      licensePhoto: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=400&q=80',
-      aadhaarPhoto: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=400&q=80',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+      licensePhoto: licensePhotoUrl,
+      aadhaarPhoto: aadhaarPhotoUrl,
+      photo: photoUrl,
     },
   };
 }

@@ -72,7 +72,7 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
     languages: 'Telugu, Hindi, English',
     licenseNo: 'TS-09-2023-0098765',
     aadhaarNo: '9030-2604-1717',
-    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+    photo: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239CA3AF"%3E%3Cpath d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 14c-2.03 0-3.8-.85-5.05-2.2.06-1.68 3.37-2.6 5.05-2.6s4.99.92 5.05 2.6c-1.25 1.35-3.02 2.2-5.05 2.2z"/%3E%3C/svg%E2%80%9D',
     subscriptionPlan: 'free_trial',
   });
 
@@ -375,7 +375,7 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
       languages: 'Telugu, Hindi, English',
       licenseNo: 'TS-09-2023-0098765',
       aadhaarNo: '9030-2604-1717',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+      photo: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239CA3AF"%3E%3Cpath d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 14c-2.03 0-3.8-.85-5.05-2.2.06-1.68 3.37-2.6 5.05-2.6s4.99.92 5.05 2.6c-1.25 1.35-3.02 2.2-5.05 2.2z"/%3E%3C/svg%E2%80%9D',
       subscriptionPlan: 'free_trial',
     });
   };
@@ -748,7 +748,7 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
                             <img
-                              src={driver.photo || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80'}
+                              src={driver.photo || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239CA3AF"%3E%3Cpath d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 14c-2.03 0-3.8-.85-5.05-2.2.06-1.68 3.37-2.6 5.05-2.6s4.99.92 5.05 2.6c-1.25 1.35-3.02 2.2-5.05 2.2z"/%3E%3C/svg%E2%80%9D'}
                               alt={driver.name}
                               className="w-10 h-10 rounded-xl object-cover bg-neutral-100 border border-neutral-200 cursor-pointer hover:opacity-80 transition-opacity"
                               onClick={() => setSelectedDocModal({ title: `${driver.name} - Profile Headshot`, url: driver.photo, type: 'Headshot' })}

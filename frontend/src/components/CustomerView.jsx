@@ -653,7 +653,7 @@ export default function CustomerView({
               <div className="relative overflow-hidden rounded-3xl border border-neutral-200/90 shadow-sm bg-neutral-100 h-[380px] sm:h-[440px] lg:h-[496px]">
                 <img
                   className="absolute top-0 left-0 w-full h-full object-cover transform hover:scale-105 rounded-3xl transition duration-500"
-                  src="https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80"
+                  src="/assets/aistudio/pexels-introspectivedsgn-9195126_1f82dc4d.jpg"
                   alt="Verified Private Driver in Hyderabad"
                 />
               </div>
@@ -734,7 +734,7 @@ export default function CustomerView({
               <div className="relative overflow-hidden rounded-3xl border border-neutral-200/90 shadow-sm bg-neutral-100 h-[380px] sm:h-[450px] lg:h-[512px]">
                 <img
                   className="absolute top-0 left-0 w-full h-full object-cover transform hover:scale-105 rounded-3xl transition duration-500"
-                  src="https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80"
+                  src="/assets/aistudio/pexels-introspectivedsgn-9195126_1f82dc4d.jpg"
                   alt="Hyderabad Car Driver On Duty"
                 />
               </div>
@@ -874,7 +874,7 @@ export default function CustomerView({
             {/* Right Side Monthly Driver Feature Card */}
             <div className="lg:col-span-5 relative rounded-3xl overflow-hidden border border-neutral-200 bg-neutral-900 group shadow-sm min-h-[340px] flex flex-col justify-end p-6">
               <img
-                src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=600&q=80"
+                src="/assets/aistudio/pexels-introspectivedsgn-9195126_1f82dc4d.jpg"
                 alt="Dedicated Monthly Driver"
                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80"
               />

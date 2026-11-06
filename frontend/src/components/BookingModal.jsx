@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { X, Calendar, Clock, MapPin, Star, MessageCircle, AlertTriangle, ShieldCheck, Info } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, Star, MessageCircle, AlertTriangle, ShieldCheck, Info, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
 import { validateAddress, validateIndianMobile } from '../utils/helpers';
 import { calculateCityFare, calculateOutstationFare, MONTHLY_DUTY_TIERS, getMonthlyTier, ALLOWED_CITY_BOOKING_HOURS } from '../utils/pricingEngine';
@@ -62,12 +62,79 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
   // Monthly duty state: 4, 8, or 12 hours
   const [monthlyHoursPerDay, setMonthlyHoursPerDay] = useState(8);
 
-  // Searchable Doorstep Locality
+  // Searchable Doorstep Locality & Live GPS Location State (100% Free, 0 API Keys)
   const [selectedLocality, setSelectedLocality] = useState(HYDERABAD_LOCALITIES[0] || 'Kondapur');
   const [houseNo, setHouseNo] = useState('');
   const [streetLandmark, setStreetLandmark] = useState('');
   const [passengerNotes, setPassengerNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [addressMode, setAddressMode] = useState('manual'); // 'manual' | 'gps'
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [gpsAddressDetails, setGpsAddressDetails] = useState(null);
+
+  const handleDetectLiveLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Browser location is unavailable. Please type your address manually.');
+      return;
+    }
+
+    setIsDetectingLocation(true);
+    toast.loading('Detecting your current location via GPS...', { id: 'gps-fetch' });
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await res.json();
+          toast.dismiss('gps-fetch');
+
+          if (data && data.address) {
+            const addr = data.address;
+            const sub = addr.suburb || addr.neighbourhood || addr.residential || addr.district || addr.city_district || 'Hyderabad';
+            const road = addr.road || addr.pedestrian || addr.street || '';
+            const house = addr.house_number || addr.building || '';
+
+            const matchedLocality = HYDERABAD_LOCALITIES.find(
+              (l) => l.toLowerCase() === sub.toLowerCase() || l.toLowerCase().includes(sub.toLowerCase())
+            );
+
+            if (matchedLocality) {
+              setSelectedLocality(matchedLocality);
+            } else if (sub) {
+              setSelectedLocality(sub);
+            }
+
+            if (house) setHouseNo(`House/Flat ${house}`);
+            if (road) setStreetLandmark(road);
+
+            setGpsAddressDetails(data.display_name);
+            setAddressMode('gps');
+            toast.success('Live GPS location detected! Verified address filled.');
+          } else {
+            toast.success(`GPS Location detected (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+          }
+        } catch {
+          toast.dismiss('gps-fetch');
+          toast.success(`GPS Location detected: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        } finally {
+          setIsDetectingLocation(false);
+        }
+      },
+      (err) => {
+        toast.dismiss('gps-fetch');
+        setIsDetectingLocation(false);
+        if (err.code === 1) {
+          toast.error('Location access denied. Please allow browser location access or type manually.');
+        } else {
+          toast.error('Unable to retrieve GPS coordinates. Please enter manually.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  };
 
   // Dynamic Fare Calculation based on Standard Duty Rates
   const fareBreakdown = useMemo(() => {
@@ -602,12 +669,53 @@ Please confirm your availability!`;
             </div>
           </div>
 
-          {/* Doorstep Pickup Address with Searchable Locality Dropdown */}
+          {/* Doorstep Pickup Address Selection (Manual or Live GPS) */}
           <div className="space-y-3">
-            <label className="block text-xs font-bold text-neutral-800 flex items-center gap-1.5 font-sans">
-              <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Complete Doorstep Pickup Address *</span>
-            </label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-bold text-neutral-800 flex items-center gap-1.5 font-sans">
+                <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Complete Doorstep Pickup Address *</span>
+              </label>
+
+              {/* Address Mode Toggle (100% Free - 0 API Keys) */}
+              <div className="flex items-center gap-1 bg-neutral-100 p-1 rounded-xl text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setAddressMode('manual')}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    addressMode === 'manual'
+                      ? 'bg-white text-neutral-950 shadow-xs border border-neutral-200'
+                      : 'text-neutral-600 hover:text-neutral-950'
+                  }`}
+                >
+                  Manual Entry
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDetectLiveLocation}
+                  disabled={isDetectingLocation}
+                  className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                    addressMode === 'gps'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-emerald-700 hover:bg-emerald-100/70'
+                  }`}
+                >
+                  <Navigation className="w-3 h-3 animate-pulse" />
+                  <span>{isDetectingLocation ? 'Locating...' : 'Detect Live Location'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* GPS Detection Confirmation Banner */}
+            {addressMode === 'gps' && gpsAddressDetails && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-950 flex items-start gap-2">
+                <Navigation className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-emerald-950 block">Live Location Detected:</span>
+                  <span className="text-[11px] text-emerald-800">{gpsAddressDetails}</span>
+                </div>
+              </div>
+            )}
 
             {/* Searchable Select for 300+ Localities */}
             <SearchableSelect
@@ -699,12 +807,17 @@ Please confirm your availability!`;
             />
           </div>
 
-          {/* Customer Precautions & Guidelines Box (Requirement 4 & 7) */}
-          <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-2 text-xs text-amber-950">
+          {/* Platform Liability Disclaimer & Customer Guidelines */}
+          <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-2.5 text-xs text-amber-950">
             <div className="flex items-center gap-1.5 font-bold text-amber-900">
               <ShieldCheck className="w-4 h-4 text-amber-700 shrink-0" />
-              <span>Customer Precautions &amp; Booking Guidelines</span>
+              <span>Platform Liability &amp; Booking Guidelines</span>
             </div>
+            
+            <div className="p-2.5 bg-amber-100/90 border border-amber-300/80 rounded-xl text-[11px] leading-relaxed text-amber-950 font-medium">
+              <strong className="font-bold text-amber-950">Important Platform Disclaimer:</strong> Mana Drivers is purely a technological connecting platform between car owners/customers and independent driver service providers. Mana Drivers is not responsible or liable for any vehicle damage, property loss, accidents, traffic fines, personal injury, or disputes. Customers and drivers contract directly with each other.
+            </div>
+
             <ul className="text-[11px] leading-relaxed text-amber-900 space-y-1 list-disc pl-4">
               <li><strong>Verify Original License:</strong> Always check the driver's original Driving License (LMV) before handing over your car keys.</li>
               <li><strong>Fuel &amp; Tolls:</strong> Customer is responsible for sufficient fuel/charge, FASTag toll fees, and parking charges.</li>

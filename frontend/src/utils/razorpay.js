@@ -1,7 +1,7 @@
 import confetti from 'canvas-confetti';
 import { toast } from 'sonner';
 
-const DEFAULT_RAZORPAY_TEST_KEY_ID = 'rzp_test_TnM27jHHHHOsFP';
+
 
 /**
  * Validates if a registered Razorpay key ID is provided
@@ -65,7 +65,8 @@ export async function triggerDriverRegistrationRazorpay({
 
   const configuredKey =
     import.meta.env.VITE_RAZORPAY_KEY_ID ||
-    DEFAULT_RAZORPAY_TEST_KEY_ID;
+    import.meta.env.RAZORPAY_KEY_ID ||
+    '';
 
   if (isRealRazorpayKey(configuredKey)) {
     const loaded = await loadRazorpayScript();
@@ -138,7 +139,8 @@ export async function triggerDriverSubscriptionRazorpay({ driverName = 'Driver',
 
   const configuredKey =
     import.meta.env.VITE_RAZORPAY_KEY_ID ||
-    DEFAULT_RAZORPAY_TEST_KEY_ID;
+    import.meta.env.RAZORPAY_KEY_ID ||
+    '';
 
   if (isRealRazorpayKey(configuredKey)) {
     const loaded = await loadRazorpayScript();

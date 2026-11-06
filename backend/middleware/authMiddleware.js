@@ -24,7 +24,7 @@ const protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || env.JWT_SECRET || 'your_jwt_secret'
+      process.env.JWT_SECRET || env.JWT_SECRET
     );
 
     const adminEmail = (process.env.ADMIN_EMAIL || env.ADMIN_EMAIL || '').toLowerCase().trim();

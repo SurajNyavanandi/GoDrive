@@ -24,7 +24,7 @@ const razorpayInstance = isConfigured && Razorpay
  * Return public Razorpay Key ID for client initialization
  */
 const getKeyId = () => {
-  return keyId || 'rzp_test_sandbox_mock';
+  return keyId || '';
 };
 
 /**

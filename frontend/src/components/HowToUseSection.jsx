@@ -149,7 +149,7 @@ export default function HowToUseSection({
               <div className="lg:col-span-6 lg:order-2 order-1 bg-neutral-50 p-6 sm:p-8 rounded-2xl border border-neutral-200 space-y-3">
                 <div className="p-4 bg-white rounded-2xl border border-neutral-200 shadow-xs flex items-center gap-4">
                   <img
-                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
+                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310B981'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 14c-2.03 0-3.8-.85-5.05-2.2.06-1.68 3.37-2.6 5.05-2.6s4.99.92 5.05 2.6c-1.25 1.35-3.02 2.2-5.05 2.2z'/%3E%3C/svg%E2%80%9D"
                     alt="Sample Driver"
                     className="w-14 h-14 rounded-full object-cover border-2 border-emerald-500"
                   />

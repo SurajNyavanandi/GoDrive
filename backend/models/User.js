@@ -54,7 +54,7 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 userSchema.methods.getSignedJwtToken = function () {
   return jwt.sign(
     { id: this._id, role: this.role },
-    process.env.JWT_SECRET || 'your_jwt_secret',
+    process.env.JWT_SECRET || '',
     { expiresIn: process.env.JWT_EXPIRE || '30d' }
   );
 };
