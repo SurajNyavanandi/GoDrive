@@ -1,14 +1,15 @@
 const mongoose = require('mongoose');
 const env = require('./env');
+const logger = require('../utils/logger');
 
 /**
- * Connect to MongoDB database instance with graceful in-memory fallback.
+ * Connect to MongoDB database instance with connection pooling.
  */
 const connectDB = async () => {
   mongoose.set('bufferCommands', false);
   const rawUri = process.env.MONGO_URI || process.env.MONGODB_URI || env.MONGO_URI;
   if (!rawUri) {
-    console.log('[Database] Running in local in-memory & JSON storage mode');
+    logger.info('[Database] Running in local in-memory & JSON storage mode');
     return false;
   }
 
@@ -20,13 +21,16 @@ const connectDB = async () => {
 
   try {
     await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 2000,
-      connectTimeoutMS: 2000,
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
     });
-    console.log('MongoDB connected successfully');
+    logger.info('MongoDB connected successfully with connection pooling (pool size: 2-10)');
     return true;
-  } catch (_err) {
-    console.log('[Database] Operating with local in-memory & file storage (Atlas unavailable or IP not whitelisted)');
+  } catch (err) {
+    logger.warn('[Database] Operating with local in-memory & file storage (Atlas unavailable or IP not whitelisted): ' + err.message);
     return false;
   }
 };

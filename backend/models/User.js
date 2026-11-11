@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const env = require('../config/env');
 
 const userSchema = new mongoose.Schema(
   {
@@ -41,8 +42,11 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+// Database indexes for fast querying, filtering, and sorting
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ phone: 1 }, { unique: true, sparse: true });
+userSchema.index({ role: 1 });
+userSchema.index({ createdAt: -1 });
 
 // Encrypt password before saving
 userSchema.pre('save', async function (next) {
@@ -59,12 +63,12 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };
 
-// Generate JWT token
+// Generate JWT token with configured expiration
 userSchema.methods.getSignedJwtToken = function () {
   return jwt.sign(
-    { id: this._id, role: this.role },
-    process.env.JWT_SECRET || '',
-    { expiresIn: process.env.JWT_EXPIRE || '30d' }
+    { id: this._id, role: this.role, email: this.email },
+    process.env.JWT_SECRET || env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRE || env.JWT_EXPIRE || '7d' }
   );
 };
 

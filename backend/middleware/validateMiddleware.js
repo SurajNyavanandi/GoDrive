@@ -1,8 +1,8 @@
 const { z } = require('zod');
-const { errorResponse } = require('../utils/apiResponse');
 
 /**
- * Express middleware to validate request payload against a Zod schema
+ * Express middleware to validate request payload against a Zod schema.
+ * Replaces req[source] with the parsed/sanitized data.
  * @param {z.ZodSchema} schema - Zod schema to validate against
  * @param {'body' | 'query' | 'params'} [source='body'] - Request property to validate
  */
@@ -14,18 +14,23 @@ const validate = (schema, source = 'body') => {
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const formattedErrors = error.errors.map((err) => ({
+        const formattedErrors = error.issues.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
         }));
-        return errorResponse(
-          res,
-          formattedErrors[0]?.message || 'Validation error',
-          400,
-          formattedErrors
-        );
+        return res.status(400).json({
+          success: false,
+          message: formattedErrors[0]?.message || 'Validation error',
+          code: 'VALIDATION_ERROR',
+          field: formattedErrors[0]?.field,
+          errors: process.env.NODE_ENV !== 'production' ? formattedErrors : undefined,
+        });
       }
-      return errorResponse(res, 'Invalid request data', 400);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid request data',
+        code: 'VALIDATION_ERROR',
+      });
     }
   };
 };

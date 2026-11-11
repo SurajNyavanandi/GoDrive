@@ -1,44 +1,95 @@
+const pino = require('pino');
+
 const isProd = process.env.NODE_ENV === 'production';
 
-function getTimestamp() {
-  return new Date().toISOString();
+// Masking helper for sensitive details in string messages
+function maskSensitiveData(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    // Mask mobile numbers (e.g., +91 9849012345 or 9849012345)
+    .replace(/(\+?91[\s-]?)?([6-9]\d{5})(\d{4})/g, '+91 ******$3')
+    // Mask potential OTPs labeled in strings
+    .replace(/(otp[\s:=]+)(\d{4,6})/gi, '$1******')
+    // Mask passwords or tokens labeled in strings
+    .replace(/(password[\s:=]+)(\S+)/gi, '$1******')
+    .replace(/(bearer[\s]+)([a-zA-Z0-9_\-\.]+)/gi, '$1[REDACTED_TOKEN]');
 }
 
+// Pino instance with automatic redaction of sensitive object keys
+const pinoInstance = pino({
+  level: isProd ? 'info' : 'debug',
+  redact: {
+    paths: [
+      'password',
+      'otp',
+      'token',
+      'authorization',
+      '*.password',
+      '*.otp',
+      '*.token',
+      '*.authorization',
+      'headers.authorization',
+      'req.headers.authorization',
+      'creditCard',
+      'card',
+      'cardNumber',
+      'cvv',
+      'secret',
+      '*.secret',
+    ],
+    censor: '[REDACTED]',
+  },
+  timestamp: pino.stdTimeFunctions.isoTime,
+});
+
 const logger = {
+  pino: pinoInstance,
+
   info: (msg, ...args) => {
-    console.log(`[INFO] [${getTimestamp()}] ${msg}`, ...args);
+    pinoInstance.info(args.length ? { extra: args } : {}, maskSensitiveData(String(msg)));
+  },
+
+  warn: (msg, ...args) => {
+    pinoInstance.warn(args.length ? { extra: args } : {}, maskSensitiveData(String(msg)));
+  },
+
+  error: (msg, error) => {
+    const maskedMsg = maskSensitiveData(String(msg));
+    if (error instanceof Error) {
+      pinoInstance.error({ err: { message: error.message, stack: error.stack, code: error.code } }, maskedMsg);
+    } else if (error) {
+      pinoInstance.error({ err: error }, maskedMsg);
+    } else {
+      pinoInstance.error(maskedMsg);
+    }
+  },
+
+  debug: (msg, ...args) => {
+    if (!isProd) {
+      pinoInstance.debug(args.length ? { extra: args } : {}, maskSensitiveData(String(msg)));
+    }
   },
 
   db: (action, details) => {
-    const time = getTimestamp();
     if (!isProd) {
-      console.log(`\x1b[32m[DB Operation]\x1b[0m [${time}] Action: ${action}`, details ? JSON.stringify(details, null, 2) : '');
+      pinoInstance.debug({ dbAction: action, details }, `[DB Operation] Action: ${action}`);
     } else {
-      console.log(`[DB Operation] [${time}] Action: ${action}`);
+      pinoInstance.info({ dbAction: action }, `[DB Operation] Action: ${action}`);
     }
   },
 
   api: (req, res, durationMs) => {
-    const time = getTimestamp();
     const status = res.statusCode;
-    const color = status >= 400 ? '\x1b[31m' : status >= 300 ? '\x1b[33m' : '\x1b[32m';
-    console.log(`${color}[API Request]\x1b[0m [${time}] ${req.method} ${req.originalUrl || req.path} -> Status ${status} (${durationMs}ms)`);
-  },
-
-  warn: (msg, ...args) => {
-    console.warn(`\x1b[33m[WARN]\x1b[0m [${getTimestamp()}] ${msg}`, ...args);
-  },
-
-  error: (msg, error) => {
-    const time = getTimestamp();
-    console.error(`\x1b[31m[ERROR]\x1b[0m [${time}] ${msg}`);
-    if (error) {
-      if (error.stack) {
-        console.error(`\x1b[31m[Stack Trace]\x1b[0m\n`, error.stack);
-      } else {
-        console.error(`\x1b[31m[Error Details]\x1b[0m`, error);
-      }
-    }
+    const level = status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info';
+    pinoInstance[level](
+      {
+        method: req.method,
+        path: req.originalUrl || req.path,
+        statusCode: status,
+        durationMs,
+      },
+      `API ${req.method} ${req.originalUrl || req.path} -> ${status} (${durationMs}ms)`
+    );
   },
 };
 

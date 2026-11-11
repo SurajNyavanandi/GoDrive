@@ -1,17 +1,40 @@
 const express = require('express');
 const router = express.Router();
 const storage = require('../services/storageService');
+const { protectAdmin } = require('../middleware/authMiddleware');
+const { validate } = require('../middleware/validateMiddleware');
+const {
+  driverRegisterSchema,
+  driverProfileUpdateSchema,
+  adminSubscriptionSchema,
+  adminReasonSchema,
+  adminPricingSchema,
+  paginationQuerySchema,
+} = require('../middleware/schemas');
+
+// Enforce server-side Admin Authentication for all admin routes
+router.use(protectAdmin);
 
 /**
  * GET /api/admin/drivers
- * Returns all registered drivers with calculated subscription remaining days & status
+ * Returns all registered drivers with pagination
  */
-router.get('/drivers', (req, res) => {
+router.get('/drivers', validate(paginationQuerySchema, 'query'), (req, res) => {
   try {
-    const drivers = storage.getAllDriversForAdmin();
-    res.json({ success: true, count: drivers.length, data: drivers });
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const result = storage.getAllDriversForAdminPaged(page, limit);
+    res.json({
+      success: true,
+      count: result.data.length,
+      total: result.total,
+      page: result.page,
+      totalPages: result.totalPages,
+      hasMore: result.hasMore,
+      data: result.data,
+    });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
@@ -19,7 +42,7 @@ router.get('/drivers', (req, res) => {
  * POST /api/admin/drivers
  * Admin creates a new driver directly (CRUD Create)
  */
-router.post('/drivers', (req, res) => {
+router.post('/drivers', validate(driverRegisterSchema, 'body'), (req, res) => {
   try {
     const driver = storage.createDriverByAdmin(req.body);
     res.status(201).json({ success: true, message: 'Driver created successfully', driver });
@@ -32,7 +55,7 @@ router.post('/drivers', (req, res) => {
         message: err.message,
       });
     }
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
@@ -40,11 +63,11 @@ router.post('/drivers', (req, res) => {
  * PUT /api/admin/drivers/:id
  * Admin updates driver details (CRUD Update)
  */
-router.put('/drivers/:id', (req, res) => {
+router.put('/drivers/:id', validate(driverProfileUpdateSchema, 'body'), (req, res) => {
   try {
     const updated = storage.updateDriverByAdmin(req.params.id, req.body);
     if (!updated) {
-      return res.status(404).json({ success: false, message: 'Driver not found' });
+      return res.status(404).json({ success: false, message: 'Driver not found', code: 'NOT_FOUND' });
     }
     res.json({ success: true, message: 'Driver updated successfully', driver: updated });
   } catch (err) {
@@ -56,7 +79,7 @@ router.put('/drivers/:id', (req, res) => {
         message: err.message,
       });
     }
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
@@ -68,28 +91,28 @@ router.delete('/drivers/:id', (req, res) => {
   try {
     const success = storage.deleteDriverByAdmin(req.params.id);
     if (!success) {
-      return res.status(404).json({ success: false, message: 'Driver not found' });
+      return res.status(404).json({ success: false, message: 'Driver not found', code: 'NOT_FOUND' });
     }
     res.json({ success: true, message: 'Driver deleted successfully' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
 /**
  * PUT /api/admin/drivers/:id/subscription
- * Admin extends driver subscription (e.g. +30 bonus days)
+ * Admin extends driver subscription
  */
-router.put('/drivers/:id/subscription', (req, res) => {
+router.put('/drivers/:id/subscription', validate(adminSubscriptionSchema, 'body'), (req, res) => {
   try {
     const days = Number(req.body.days) || 30;
     const updated = storage.extendSubscription(req.params.id, days);
     if (!updated) {
-      return res.status(404).json({ success: false, message: 'Driver not found' });
+      return res.status(404).json({ success: false, message: 'Driver not found', code: 'NOT_FOUND' });
     }
     res.json({ success: true, message: `Added ${days} bonus days to ${updated.name}'s subscription`, driver: updated });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
@@ -101,11 +124,11 @@ router.put('/drivers/:id/approve', (req, res) => {
   try {
     const approved = storage.approveDriver(req.params.id);
     if (!approved) {
-      return res.status(404).json({ success: false, message: 'Driver not found' });
+      return res.status(404).json({ success: false, message: 'Driver not found', code: 'NOT_FOUND' });
     }
     res.json({ success: true, message: 'Driver approved with 90-day free trial and is live on homepage', driver: approved });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
@@ -113,16 +136,16 @@ router.put('/drivers/:id/approve', (req, res) => {
  * PUT /api/admin/drivers/:id/reject
  * Admin rejects pending driver application with reason
  */
-router.put('/drivers/:id/reject', (req, res) => {
+router.put('/drivers/:id/reject', validate(adminReasonSchema, 'body'), (req, res) => {
   try {
     const { reason } = req.body;
     const rejected = storage.rejectDriver(req.params.id, reason);
     if (!rejected) {
-      return res.status(404).json({ success: false, message: 'Driver not found' });
+      return res.status(404).json({ success: false, message: 'Driver not found', code: 'NOT_FOUND' });
     }
     res.json({ success: true, message: 'Driver application rejected. Driver can reapply after 3 days.' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
@@ -130,32 +153,32 @@ router.put('/drivers/:id/reject', (req, res) => {
  * PUT /api/admin/drivers/:id/block
  * Admin permanently blocks driver account with reason
  */
-router.put('/drivers/:id/block', (req, res) => {
+router.put('/drivers/:id/block', validate(adminReasonSchema, 'body'), (req, res) => {
   try {
     const { reason } = req.body;
     const blocked = storage.blockDriver(req.params.id, reason);
     if (!blocked) {
-      return res.status(404).json({ success: false, message: 'Driver not found' });
+      return res.status(404).json({ success: false, message: 'Driver not found', code: 'NOT_FOUND' });
     }
     res.json({ success: true, message: 'Driver account has been permanently blocked.' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
 /**
  * PUT /api/admin/drivers/:id/unblock
- * Admin unblocks driver account (reverses mistaken block)
+ * Admin unblocks driver account
  */
 router.put('/drivers/:id/unblock', (req, res) => {
   try {
     const unblocked = storage.unblockDriver(req.params.id);
     if (!unblocked) {
-      return res.status(404).json({ success: false, message: 'Driver not found' });
+      return res.status(404).json({ success: false, message: 'Driver not found', code: 'NOT_FOUND' });
     }
     res.json({ success: true, message: `Driver account for ${unblocked.name} has been unblocked.`, driver: unblocked });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
@@ -167,24 +190,34 @@ router.post('/drivers/restore', (req, res) => {
   try {
     const restored = storage.restoreDriver(req.body.driver);
     if (!restored) {
-      return res.status(400).json({ success: false, message: 'Invalid driver snapshot' });
+      return res.status(400).json({ success: false, message: 'Invalid driver snapshot', code: 'BAD_REQUEST' });
     }
     res.json({ success: true, message: `Driver ${restored.name} restored successfully`, driver: restored });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
 /**
  * GET /api/admin/history
- * Returns chronological admin audit logs
+ * Returns chronological admin audit logs with pagination
  */
-router.get('/history', (req, res) => {
+router.get('/history', validate(paginationQuerySchema, 'query'), (req, res) => {
   try {
-    const history = storage.getAdminHistory();
-    res.json({ success: true, count: history.length, data: history });
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const result = storage.getAdminHistoryPaged(page, limit);
+    res.json({
+      success: true,
+      count: result.data.length,
+      total: result.total,
+      page: result.page,
+      totalPages: result.totalPages,
+      hasMore: result.hasMore,
+      data: result.data,
+    });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
@@ -197,7 +230,7 @@ router.get('/pricing', (req, res) => {
     const pricing = storage.getPricingSettings();
     res.json({ success: true, data: pricing });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
@@ -205,25 +238,35 @@ router.get('/pricing', (req, res) => {
  * PUT /api/admin/pricing
  * Admin updates driver duty rates
  */
-router.put('/pricing', (req, res) => {
+router.put('/pricing', validate(adminPricingSchema, 'body'), (req, res) => {
   try {
     const updated = storage.updatePricingSettings(req.body);
     res.json({ success: true, message: 'Pricing rates updated successfully', data: updated });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 
 /**
  * GET /api/admin/bookings
- * Returns all customer bookings
+ * Returns all customer bookings with pagination
  */
-router.get('/bookings', (req, res) => {
+router.get('/bookings', validate(paginationQuerySchema, 'query'), (req, res) => {
   try {
-    const bookings = storage.getAllBookings();
-    res.json({ success: true, count: bookings.length, data: bookings });
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const result = storage.getAllBookingsPaged(page, limit);
+    res.json({
+      success: true,
+      count: result.data.length,
+      total: result.total,
+      page: result.page,
+      totalPages: result.totalPages,
+      hasMore: result.hasMore,
+      data: result.data,
+    });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message, code: 'INTERNAL_ERROR' });
   }
 });
 

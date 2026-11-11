@@ -1,12 +1,12 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Mana Drivers Backend API",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node --env-file=.env server.js",
-    "watch": "node --watch --env-file=.env server.js",
+    "start": "node server.js",
+    "dev": "node server.js",
+    "watch": "node --watch server.js",
     "build": "echo \"Build complete\" && exit 0"
   },
   "keywords": [],
@@ -24,6 +24,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.10.1",
     "multer": "^2.4.0",
+    "pino": "^9.6.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

@@ -5,13 +5,15 @@ try {
   Razorpay = null;
 }
 const crypto = require('crypto');
-
+const logger = require('../utils/logger');
 const env = require('../config/env');
 
 const keyId = process.env.RAZORPAY_KEY_ID || env.RAZORPAY_KEY_ID;
 const keySecret = process.env.RAZORPAY_KEY_SECRET || env.RAZORPAY_KEY_SECRET;
 
-const isConfigured = keyId && keySecret && !keyId.startsWith('rzp_test_xxx') && keyId !== 'your_razorpay_key_id';
+const isConfigured = Boolean(
+  keyId && keySecret && !keyId.startsWith('rzp_test_xxx') && keyId !== 'your_razorpay_key_id'
+);
 
 const razorpayInstance = isConfigured && Razorpay
   ? new Razorpay({
@@ -46,10 +48,7 @@ const createOrder = async ({
 
   if (!razorpayInstance) {
     const mockOrderId = `order_sim_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    console.log('\n[Razorpay Service - Sandbox Simulation Order]');
-    console.log(`Order ID: ${mockOrderId}`);
-    console.log(`Amount: ${amountInPaise / 100} ${currency} (${amountInPaise} paise)`);
-    console.log(`Receipt: ${receipt}\n`);
+    logger.info(`[Razorpay Service] Sandbox Simulation Order created: ${mockOrderId} (${amountInPaise / 100} ${currency})`);
 
     return {
       success: true,
@@ -85,7 +84,7 @@ const createOrder = async ({
       keyId: getKeyId(),
     };
   } catch (error) {
-    console.error('[Razorpay Create Order Error]:', error.message);
+    logger.error('[Razorpay Create Order Error]:', error);
     throw new Error(`Razorpay Error: ${error.message}`);
   }
 };
@@ -133,7 +132,7 @@ const verifyPaymentSignature = ({ orderId, paymentId, signature }) => {
       orderId,
     };
   } catch (error) {
-    console.error('[Razorpay Signature Error]:', error.message);
+    logger.error('[Razorpay Signature Error]:', error);
     return {
       isValid: false,
       message: error.message,

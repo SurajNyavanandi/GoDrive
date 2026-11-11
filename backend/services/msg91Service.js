@@ -5,11 +5,25 @@ try {
   axios = null;
 }
 
-const authKey = process.env.MSG91_AUTH_KEY;
-const defaultTemplateId = process.env.MSG91_TEMPLATE_ID;
+const crypto = require('crypto');
+const logger = require('../utils/logger');
+const env = require('../config/env');
 
-// In-memory simulation store for local testing without active MSG91 credentials
+const authKey = process.env.MSG91_AUTH_KEY || env.MSG91_AUTH_KEY;
+const defaultTemplateId = process.env.MSG91_TEMPLATE_ID || env.MSG91_TEMPLATE_ID;
+const isProd = process.env.NODE_ENV === 'production';
+
+// In-memory simulation store with expiration, single-use, and attempt limiting
+// Map<cleanMobile, { otp: string, expiresAt: number, attempts: number }>
 const sandboxOtpStore = new Map();
+const MAX_OTP_ATTEMPTS = 5;
+
+/**
+ * Generate a cryptographically secure 6-digit OTP
+ */
+function generateSecureOtp() {
+  return String(crypto.randomInt(100000, 999999));
+}
 
 /**
  * Send an OTP using MSG91 SendOTP API v5
@@ -18,25 +32,28 @@ const sendOtp = async ({
   mobile,
   templateId = defaultTemplateId,
   otp,
-  otpExpiry = 10,
+  otpExpiry = 10, // minutes
 }) => {
   const cleanMobile = String(mobile).replace(/[^0-9]/g, '');
 
   if (!authKey || authKey.startsWith('xxx') || authKey === 'your_msg91_auth_key') {
-    const generatedOtp = otp || '1234';
+    // Generate secure random OTP if not explicitly passed
+    const generatedOtp = otp || (isProd ? generateSecureOtp() : '1234');
     sandboxOtpStore.set(cleanMobile, {
       otp: String(generatedOtp),
       expiresAt: Date.now() + otpExpiry * 60 * 1000,
+      attempts: 0,
     });
 
-    console.log(`\n[MSG91 Sandbox OTP] Mobile: +${cleanMobile} | Simulated OTP: ${generatedOtp}\n`);
+    logger.info(`[MSG91 Sandbox OTP] OTP dispatched for mobile: +${cleanMobile.slice(0, 4)}****`);
 
     return {
       success: true,
       simulated: true,
-      message: `OTP sent successfully. (Demo OTP: ${generatedOtp})`,
+      message: 'OTP sent successfully.',
       mobile: cleanMobile,
-      sandboxOtp: String(generatedOtp),
+      // Never return raw OTP in production
+      sandboxOtp: isProd ? undefined : String(generatedOtp),
       type: 'success',
     };
   }
@@ -64,7 +81,7 @@ const sendOtp = async ({
     };
   } catch (error) {
     const errorMsg = error.response?.data?.message || error.message;
-    console.error('[MSG91 Send OTP Error]:', errorMsg);
+    logger.error('[MSG91 Send OTP Error]', errorMsg);
     throw new Error(`MSG91 Error: ${errorMsg}`);
   }
 };
@@ -75,18 +92,19 @@ const sendOtp = async ({
 const retryOtp = async ({ mobile, retryType = 'text' }) => {
   const cleanMobile = String(mobile).replace(/[^0-9]/g, '');
 
-  if (!authKey || authKey.startsWith('xxx')) {
-    const newOtp = '1234';
+  if (!authKey || authKey.startsWith('xxx') || authKey === 'your_msg91_auth_key') {
+    const newOtp = isProd ? generateSecureOtp() : '1234';
     sandboxOtpStore.set(cleanMobile, {
       otp: newOtp,
       expiresAt: Date.now() + 10 * 60 * 1000,
+      attempts: 0,
     });
 
     return {
       success: true,
       simulated: true,
-      message: `OTP resent successfully. (Demo OTP: ${newOtp})`,
-      sandboxOtp: newOtp,
+      message: 'OTP resent successfully.',
+      sandboxOtp: isProd ? undefined : newOtp,
     };
   }
 
@@ -108,7 +126,7 @@ const retryOtp = async ({ mobile, retryType = 'text' }) => {
 };
 
 /**
- * Verify OTP entered by user
+ * Verify OTP entered by user with attempt limits, expiry, and single-use invalidation
  */
 const verifyOtp = async ({ mobile, otp }) => {
   const cleanMobile = String(mobile).replace(/[^0-9]/g, '');
@@ -116,9 +134,53 @@ const verifyOtp = async ({ mobile, otp }) => {
 
   if (!authKey || authKey.startsWith('xxx') || authKey === 'your_msg91_auth_key') {
     const record = sandboxOtpStore.get(cleanMobile);
-    const isValid = (record && record.otp === cleanOtp) || cleanOtp === '1234' || cleanOtp === '123456';
 
-    if (isValid) {
+    if (!record) {
+      // In dev mode only, allow demo otp
+      if (!isProd && (cleanOtp === '1234' || cleanOtp === '123456')) {
+        return {
+          success: true,
+          simulated: true,
+          message: 'OTP verified successfully (dev bypass)',
+          type: 'success',
+        };
+      }
+      return {
+        success: false,
+        simulated: true,
+        message: 'No OTP requested for this mobile number or OTP has expired.',
+        code: 'OTP_NOT_FOUND',
+      };
+    }
+
+    // Check expiration
+    if (Date.now() > record.expiresAt) {
+      sandboxOtpStore.delete(cleanMobile);
+      return {
+        success: false,
+        simulated: true,
+        message: 'OTP has expired. Please request a new one.',
+        code: 'OTP_EXPIRED',
+      };
+    }
+
+    // Check attempt limit
+    record.attempts = (record.attempts || 0) + 1;
+    if (record.attempts > MAX_OTP_ATTEMPTS) {
+      sandboxOtpStore.delete(cleanMobile);
+      return {
+        success: false,
+        simulated: true,
+        message: 'Too many incorrect attempts. This OTP has been invalidated. Please request a new code.',
+        code: 'MAX_ATTEMPTS_EXCEEDED',
+      };
+    }
+
+    const matchesStored = record.otp === cleanOtp;
+    const matchesDevDemo = !isProd && (cleanOtp === '1234' || cleanOtp === '123456');
+
+    if (matchesStored || matchesDevDemo) {
+      // Single-use: delete immediately
       sandboxOtpStore.delete(cleanMobile);
       return {
         success: true,
@@ -128,11 +190,12 @@ const verifyOtp = async ({ mobile, otp }) => {
       };
     }
 
+    const remaining = MAX_OTP_ATTEMPTS - record.attempts;
     return {
       success: false,
       simulated: true,
-      message: 'Invalid or expired OTP code (Use 1234 for demo)',
-      type: 'error',
+      message: `Invalid OTP code entered. ${remaining} attempt(s) remaining.`,
+      code: 'INVALID_OTP',
     };
   }
 
@@ -154,6 +217,7 @@ const verifyOtp = async ({ mobile, otp }) => {
     return {
       success: false,
       message: errorMsg,
+      code: 'OTP_VERIFICATION_FAILED',
     };
   }
 };

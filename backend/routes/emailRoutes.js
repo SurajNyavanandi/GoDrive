@@ -4,8 +4,10 @@ const {
   sendCustomEmail,
   sendTemplateEmail,
 } = require('../controllers/emailController');
+const { protectAdmin } = require('../middleware/authMiddleware');
 
-router.post('/send', sendCustomEmail);
-router.post('/template', sendTemplateEmail);
+// Protect email dispatch endpoints to prevent open mail relay abuse
+router.post('/send', protectAdmin, sendCustomEmail);
+router.post('/template', protectAdmin, sendTemplateEmail);
 
 module.exports = router;

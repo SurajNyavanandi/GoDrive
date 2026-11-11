@@ -6,6 +6,8 @@ try {
 }
 
 const env = require('../config/env');
+const logger = require('../utils/logger');
+const crypto = require('crypto');
 
 const cloudName = process.env.CLOUDINARY_CLOUD_NAME || env.CLOUDINARY_CLOUD_NAME;
 const apiKey = process.env.CLOUDINARY_API_KEY || env.CLOUDINARY_API_KEY;
@@ -31,6 +33,7 @@ if (isConfigured && cloudinary) {
 
 /**
  * Upload a file buffer to Cloudinary with safe fallback to Base64 data URL
+ * Never trusts client filenames — generates random UUIDs.
  * @param {Buffer} buffer - File buffer from multer memory storage
  * @param {string} mimetype - File mime type
  * @param {string} folder - Target folder in Cloudinary
@@ -43,7 +46,7 @@ const uploadDocument = async (buffer, mimetype, folder = 'mana-drivers/kyc') => 
 
   // Safe fallback if Cloudinary is not configured in environment
   if (!isConfigured) {
-    console.log('[Cloudinary Sandbox] Credentials not configured in .env — using local data URL fallback');
+    logger.info('[Cloudinary Sandbox] Credentials not configured in .env — using local data URL fallback');
     const base64Data = buffer.toString('base64');
     const dataUrl = `data:${mimetype || 'image/jpeg'};base64,${base64Data}`;
     return {
@@ -53,16 +56,19 @@ const uploadDocument = async (buffer, mimetype, folder = 'mana-drivers/kyc') => 
     };
   }
 
+  const randomPublicId = `${crypto.randomUUID()}_${Date.now()}`;
+
   // Upload stream to Cloudinary
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => { // eslint-disable-line no-unused-vars
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder,
+        public_id: randomPublicId,
         resource_type: 'auto',
       },
       (error, result) => {
         if (error) {
-          console.warn('[Cloudinary Upload Error] Falling back to data URL:', error.message);
+          logger.warn('[Cloudinary Upload Error] Falling back to data URL: ' + error.message);
           // Fallback on transient error
           const base64Data = buffer.toString('base64');
           return resolve({

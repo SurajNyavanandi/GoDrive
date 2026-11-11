@@ -147,8 +147,39 @@ function initDB() {
   }
 }
 
+// In-Memory TTL Cache for read-heavy, rarely-changing public datasets
+let publicDriversCache = null;
+let publicDriversCacheExpiry = 0;
+let pricingCache = null;
+let pricingCacheExpiry = 0;
+
+function invalidateCaches() {
+  publicDriversCache = null;
+  publicDriversCacheExpiry = 0;
+  pricingCache = null;
+  pricingCacheExpiry = 0;
+}
+
+function paginateArray(items, page = 1, limit = 20) {
+  const safePage = Math.max(1, parseInt(page, 10) || 1);
+  const safeLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+  const total = items.length;
+  const totalPages = Math.ceil(total / safeLimit) || 1;
+  const startIndex = (safePage - 1) * safeLimit;
+  const data = items.slice(startIndex, startIndex + safeLimit);
+  return {
+    data,
+    total,
+    page: safePage,
+    limit: safeLimit,
+    totalPages,
+    hasMore: safePage < totalPages,
+  };
+}
+
 function saveDB(data, action = 'SAVE_DB') {
   cachedDB = data;
+  invalidateCaches();
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -257,9 +288,13 @@ const enrichDriverSubscriptionInfo = (driver, pricing = null) => {
  * - Must have active subscription or trial (`remainingDays > 0`)
  */
 const getPublicDrivers = () => {
+  const now = Date.now();
+  if (publicDriversCache && publicDriversCacheExpiry > now) {
+    return publicDriversCache;
+  }
   const db = initDB();
   const pricing = db.pricingSettings || defaultPricing;
-  return db.drivers
+  const list = db.drivers
     .map((d) => enrichDriverSubscriptionInfo(d, pricing))
     .filter((d) => d.isApproved && d.remainingDays > 0)
     .sort((a, b) => {
@@ -267,12 +302,27 @@ const getPublicDrivers = () => {
       if (b.subscriptionPlan === 'featured' && a.subscriptionPlan !== 'featured') return 1;
       return 0;
     });
+  publicDriversCache = list;
+  publicDriversCacheExpiry = now + 60 * 1000; // 60-second TTL
+  return list;
+};
+
+const getPublicDriversPaged = (page = 1, limit = 20) => {
+  return paginateArray(getPublicDrivers(), page, limit);
 };
 
 const getAllDriversForAdmin = () => {
   const db = initDB();
   const pricing = db.pricingSettings || defaultPricing;
   return db.drivers.map((d) => enrichDriverSubscriptionInfo(d, pricing));
+};
+
+const getAllDriversForAdminPaged = (page = 1, limit = 20) => {
+  return paginateArray(getAllDriversForAdmin(), page, limit);
+};
+
+const getAdminHistoryPaged = (page = 1, limit = 20) => {
+  return paginateArray(getAdminHistory(), page, limit);
 };
 
 function checkDriverUniqueness(db, driverData, excludeDriverId = null) {
@@ -835,8 +885,14 @@ const blockDriver = (id, reason = 'Blocked due to policy violations') => {
 };
 
 const getPricingSettings = () => {
+  const now = Date.now();
+  if (pricingCache && pricingCacheExpiry > now) {
+    return pricingCache;
+  }
   const db = initDB();
-  return db.pricingSettings || defaultPricing;
+  pricingCache = db.pricingSettings || defaultPricing;
+  pricingCacheExpiry = now + 60 * 1000;
+  return pricingCache;
 };
 
 const updatePricingSettings = (newSettings) => {
@@ -860,6 +916,10 @@ const getReviews = (driverId) => {
   const db = initDB();
   if (!driverId) return db.reviews || [];
   return (db.reviews || []).filter((r) => r.driverId === driverId);
+};
+
+const getReviewsPaged = (driverId, page = 1, limit = 20) => {
+  return paginateArray(getReviews(driverId), page, limit);
 };
 
 const createReview = (reviewData) => {
@@ -935,6 +995,7 @@ const createBooking = (bookingData) => {
     createdAt: new Date().toISOString(),
     status: 'Confirmed',
   };
+  if (!db.bookings) db.bookings = [];
   db.bookings.unshift(newBooking);
   saveDB(db);
   return newBooking;
@@ -942,12 +1003,22 @@ const createBooking = (bookingData) => {
 
 const getAllBookings = () => {
   const db = initDB();
-  return db.bookings;
+  return db.bookings || [];
+};
+
+const getAllBookingsPaged = (page = 1, limit = 20, filterFn = null) => {
+  let list = getAllBookings();
+  if (filterFn) {
+    list = list.filter(filterFn);
+  }
+  return paginateArray(list, page, limit);
 };
 
 module.exports = {
   getPublicDrivers,
+  getPublicDriversPaged,
   getAllDriversForAdmin,
+  getAllDriversForAdminPaged,
   getDriverByPhone,
   registerNewDriver,
   createDriverByAdmin,
@@ -965,11 +1036,14 @@ module.exports = {
   getPricingSettings,
   updatePricingSettings,
   getAdminHistory,
+  getAdminHistoryPaged,
   recordAdminAction,
   getReviews,
+  getReviewsPaged,
   createReview,
   createBooking,
   getAllBookings,
+  getAllBookingsPaged,
   cleanPhone,
   normalizeMobile,
   normalizeAadhaar,

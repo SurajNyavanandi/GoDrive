@@ -1,17 +1,15 @@
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const { successResponse, errorResponse } = require('../utils/apiResponse');
 const { asyncHandler } = require('../utils/errorHandler');
-const mongoose = require('mongoose');
-const jwt = require('jsonwebtoken');
 const env = require('../config/env');
+const logger = require('../utils/logger');
 
 // In-memory fallback user store when MongoDB is offline
 const mockUsers = new Map();
 
-/**
- * Register User
- * POST /api/auth/register
- */
 function normalizeMobile(phone) {
   if (!phone) return '';
   let digits = String(phone).replace(/\D/g, '');
@@ -23,19 +21,23 @@ function normalizeMobile(phone) {
   return digits.length === 10 ? `+91${digits}` : (digits ? `+91${digits}` : '');
 }
 
+/**
+ * Register User
+ * POST /api/auth/register
+ */
 const register = asyncHandler(async (req, res) => {
   const { name, email, password, phone, mobile } = req.body;
 
   if (!name || !email || !password) {
-    return errorResponse(res, 'Please provide name, email, and password', 400);
+    return errorResponse(res, 'Please provide name, email, and password', 400, 'VALIDATION_ERROR');
   }
 
-  const cleanEmail = email.toLowerCase().trim();
+  const cleanEmail = String(email).toLowerCase().trim();
   const rawPhone = phone || mobile;
   const normalizedPhone = rawPhone ? normalizeMobile(rawPhone) : '';
 
   if (rawPhone && (!normalizedPhone || normalizedPhone.length !== 13)) {
-    return errorResponse(res, 'Please provide a valid 10-digit Indian mobile number', 400);
+    return errorResponse(res, 'Please provide a valid 10-digit Indian mobile number', 400, 'INVALID_PHONE');
   }
 
   const configuredAdminEmail = (process.env.ADMIN_EMAIL || env.ADMIN_EMAIL || '').toLowerCase().trim();
@@ -45,35 +47,48 @@ const register = asyncHandler(async (req, res) => {
 
   if (!isDbConnected) {
     if (mockUsers.has(cleanEmail)) {
-      return errorResponse(res, 'An account with this email already exists.', 409);
+      return errorResponse(res, 'An account with this email already exists.', 409, 'DUPLICATE_EMAIL');
     }
     if (normalizedPhone) {
       for (const u of mockUsers.values()) {
         if (u.phone && normalizeMobile(u.phone) === normalizedPhone) {
-          return errorResponse(res, 'This mobile number is already registered.', 409);
+          return errorResponse(res, 'This mobile number is already registered.', 409, 'DUPLICATE_PHONE');
         }
       }
     }
 
+    // Always hash password with bcrypt even in mock/sandbox mode
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const mockUser = {
       _id: `user_mock_${Date.now()}`,
-      name: name.trim(),
+      name: String(name).trim(),
       email: cleanEmail,
       phone: normalizedPhone || null,
       role: isAdmin ? 'admin' : 'user',
+      password: hashedPassword,
     };
-    mockUsers.set(cleanEmail, { ...mockUser, password });
+    mockUsers.set(cleanEmail, mockUser);
 
     const token = jwt.sign(
       { id: mockUser._id, email: mockUser.email, role: mockUser.role },
       process.env.JWT_SECRET || env.JWT_SECRET,
-      { expiresIn: '30d' }
+      { expiresIn: process.env.JWT_EXPIRE || env.JWT_EXPIRE || '7d' }
     );
+
+    logger.info(`User registered in sandbox mode: ${cleanEmail}`);
 
     return successResponse(
       res,
       {
-        user: mockUser,
+        user: {
+          id: mockUser._id,
+          name: mockUser.name,
+          email: mockUser.email,
+          phone: mockUser.phone,
+          role: mockUser.role,
+        },
         token,
         simulated: true,
       },
@@ -82,28 +97,30 @@ const register = asyncHandler(async (req, res) => {
     );
   }
 
-  // Database Level Uniqueness Checks
-  const userWithEmail = await User.findOne({ email: cleanEmail });
+  // Database Level Uniqueness Checks with lean projection
+  const userWithEmail = await User.findOne({ email: cleanEmail }).select('_id').lean();
   if (userWithEmail) {
-    return errorResponse(res, 'An account with this email already exists.', 409);
+    return errorResponse(res, 'An account with this email already exists.', 409, 'DUPLICATE_EMAIL');
   }
 
   if (normalizedPhone) {
-    const userWithPhone = await User.findOne({ phone: normalizedPhone });
+    const userWithPhone = await User.findOne({ phone: normalizedPhone }).select('_id').lean();
     if (userWithPhone) {
-      return errorResponse(res, 'This mobile number is already registered.', 409);
+      return errorResponse(res, 'This mobile number is already registered.', 409, 'DUPLICATE_PHONE');
     }
   }
 
   try {
     const user = await User.create({
-      name: name.trim(),
+      name: String(name).trim(),
       email: cleanEmail,
       password,
       phone: normalizedPhone || undefined,
+      role: isAdmin ? 'admin' : 'user',
     });
 
     const token = user.getSignedJwtToken();
+    logger.info(`User registered successfully: ${cleanEmail}`);
 
     return successResponse(
       res,
@@ -123,9 +140,9 @@ const register = asyncHandler(async (req, res) => {
   } catch (err) {
     if (err.code === 11000) {
       if (err.keyPattern && err.keyPattern.phone) {
-        return errorResponse(res, 'This mobile number is already registered.', 409);
+        return errorResponse(res, 'This mobile number is already registered.', 409, 'DUPLICATE_PHONE');
       }
-      return errorResponse(res, 'An account with this email already exists.', 409);
+      return errorResponse(res, 'An account with this email already exists.', 409, 'DUPLICATE_EMAIL');
     }
     throw err;
   }
@@ -139,37 +156,34 @@ const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return errorResponse(res, 'Please provide email and password', 400);
+    return errorResponse(res, 'Please provide email and password', 400, 'VALIDATION_ERROR');
   }
 
-  const cleanEmail = email.toLowerCase().trim();
+  const cleanEmail = String(email).toLowerCase().trim();
   const configuredAdminEmail = (process.env.ADMIN_EMAIL || env.ADMIN_EMAIL || '').toLowerCase().trim();
   const isAdmin = cleanEmail === configuredAdminEmail;
 
   const isDbConnected = mongoose.connection.readyState === 1;
 
   if (!isDbConnected) {
-    let existing = mockUsers.get(cleanEmail);
+    const existing = mockUsers.get(cleanEmail);
 
-    // If not found, create or accept demo user
     if (!existing) {
-      existing = {
-        _id: `user_mock_${Date.now()}`,
-        name: cleanEmail.split('@')[0] || 'Demo User',
-        email: cleanEmail,
-        password,
-        role: isAdmin ? 'admin' : 'user',
-      };
-      mockUsers.set(cleanEmail, existing);
-    } else if (isAdmin) {
-      existing.role = 'admin';
+      return errorResponse(res, 'Invalid credentials', 401, 'INVALID_CREDENTIALS');
+    }
+
+    const isMatch = await bcrypt.compare(password, existing.password);
+    if (!isMatch) {
+      return errorResponse(res, 'Invalid credentials', 401, 'INVALID_CREDENTIALS');
     }
 
     const token = jwt.sign(
       { id: existing._id, email: existing.email, role: existing.role },
       process.env.JWT_SECRET || env.JWT_SECRET,
-      { expiresIn: '30d' }
+      { expiresIn: process.env.JWT_EXPIRE || env.JWT_EXPIRE || '7d' }
     );
+
+    logger.info(`User logged in (sandbox mode): ${cleanEmail}`);
 
     return successResponse(
       res,
@@ -188,17 +202,19 @@ const login = asyncHandler(async (req, res) => {
     );
   }
 
-  const user = await User.findOne({ email }).select('+password');
+  // Prevent NoSQL injection by ensuring email is a plain string
+  const user = await User.findOne({ email: cleanEmail }).select('+password');
   if (!user) {
-    return errorResponse(res, 'Invalid credentials', 401);
+    return errorResponse(res, 'Invalid credentials', 401, 'INVALID_CREDENTIALS');
   }
 
   const isMatch = await user.matchPassword(password);
   if (!isMatch) {
-    return errorResponse(res, 'Invalid credentials', 401);
+    return errorResponse(res, 'Invalid credentials', 401, 'INVALID_CREDENTIALS');
   }
 
   const token = user.getSignedJwtToken();
+  logger.info(`User logged in successfully: ${cleanEmail}`);
 
   return successResponse(
     res,
