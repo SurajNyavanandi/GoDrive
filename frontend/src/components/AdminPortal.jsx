@@ -18,8 +18,10 @@ import {
   Key,
   History,
   RotateCcw,
+  AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { validateIndianMobile, validateAadhaar } from '../utils/helpers';
 import {
   fetchAdminDriversApi,
   approveDriverApi,
@@ -37,6 +39,7 @@ import {
   updatePricingSettingsApi,
 } from '../utils/api';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
+import SearchableSelect from './common/SearchableSelect';
 
 export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUpdated }) {
   // Admin PIN Auth Security State
@@ -59,6 +62,8 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState(null);
   const [deletingDriverId, setDeletingDriverId] = useState(null);
+  const [adminFieldErrors, setAdminFieldErrors] = useState({});
+  const [isDriverSaving, setIsDriverSaving] = useState(false);
 
   // Form State for Add / Edit
   const [driverForm, setDriverForm] = useState({
@@ -300,6 +305,24 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
   // CRUD 2: Create Driver
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
+    const phoneVal = validateIndianMobile(driverForm.phone);
+    if (!phoneVal.isValid) {
+      setAdminFieldErrors({ phone: phoneVal.error });
+      toast.error(phoneVal.error);
+      return;
+    }
+
+    if (driverForm.aadhaarNo) {
+      const aadhaarVal = validateAadhaar(driverForm.aadhaarNo);
+      if (!aadhaarVal.isValid) {
+        setAdminFieldErrors({ aadhaarNo: aadhaarVal.error });
+        toast.error(aadhaarVal.error);
+        return;
+      }
+    }
+
+    setAdminFieldErrors({});
+    setIsDriverSaving(true);
     try {
       const res = await createDriverApi(driverForm);
       if (res.success) {
@@ -307,14 +330,22 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
         setIsAddModalOpen(false);
         resetForm();
         loadAdminData();
+      } else {
+        if (res.field) {
+          setAdminFieldErrors({ [res.field]: res.message });
+        }
+        toast.error(res.message || 'Failed to create driver');
       }
     } catch {
       toast.error('Failed to create driver');
+    } finally {
+      setIsDriverSaving(false);
     }
   };
 
   // CRUD 3: Open Edit Driver
   const handleOpenEdit = (driver) => {
+    setAdminFieldErrors({});
     setEditingDriver(driver);
     setDriverForm({
       name: driver.name || '',
@@ -335,6 +366,25 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     if (!editingDriver) return;
+
+    const phoneVal = validateIndianMobile(driverForm.phone);
+    if (!phoneVal.isValid) {
+      setAdminFieldErrors({ phone: phoneVal.error });
+      toast.error(phoneVal.error);
+      return;
+    }
+
+    if (driverForm.aadhaarNo) {
+      const aadhaarVal = validateAadhaar(driverForm.aadhaarNo);
+      if (!aadhaarVal.isValid) {
+        setAdminFieldErrors({ aadhaarNo: aadhaarVal.error });
+        toast.error(aadhaarVal.error);
+        return;
+      }
+    }
+
+    setAdminFieldErrors({});
+    setIsDriverSaving(true);
     try {
       const res = await updateDriverApi(editingDriver.id, driverForm);
       if (res.success) {
@@ -342,9 +392,16 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
         setEditingDriver(null);
         resetForm();
         loadAdminData();
+      } else {
+        if (res.field) {
+          setAdminFieldErrors({ [res.field]: res.message });
+        }
+        toast.error(res.message || 'Failed to update driver');
       }
     } catch {
       toast.error('Failed to update driver');
+    } finally {
+      setIsDriverSaving(false);
     }
   };
 
@@ -1503,37 +1560,58 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
                   <input
                     type="tel"
                     required
+                    maxLength={10}
                     value={driverForm.phone}
-                    onChange={(e) => setDriverForm({ ...driverForm, phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
+                    onChange={(e) => {
+                      setAdminFieldErrors((prev) => ({ ...prev, phone: null }));
+                      setDriverForm({ ...driverForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) });
+                    }}
+                    className={`w-full px-3 py-2 bg-neutral-50 border rounded-xl text-xs font-semibold text-neutral-900 ${
+                      adminFieldErrors.phone ? 'border-red-500 bg-red-50/30' : 'border-neutral-200'
+                    }`}
                   />
+                  {adminFieldErrors.phone && (
+                    <p className="mt-1 text-xs text-red-600 font-semibold flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{adminFieldErrors.phone}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Driver Type</label>
-                  <select
-                    value={driverForm.driverType}
-                    onChange={(e) => setDriverForm({ ...driverForm, driverType: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                  >
-                    <option value="freelance">Freelance (Hourly & Outstation)</option>
-                    <option value="permanent">Permanent (Monthly Driver)</option>
-                    <option value="combined">Combined (Both Duties)</option>
-                  </select>
+                  <div className="grid grid-cols-3 gap-1 bg-neutral-100 p-1 rounded-xl">
+                    {[
+                      { value: 'freelance', label: 'Freelance' },
+                      { value: 'permanent', label: 'Permanent' },
+                      { value: 'combined', label: 'Combined' },
+                    ].map((t) => (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => setDriverForm({ ...driverForm, driverType: t.value })}
+                        className={`py-1.5 px-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
+                          driverForm.driverType === t.value
+                            ? 'bg-neutral-900 text-white shadow-2xs'
+                            : 'text-neutral-600 hover:text-neutral-950'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Primary Area</label>
-                  <select
+                  <SearchableSelect
+                    options={HYDERABAD_LOCALITIES}
                     value={driverForm.location}
-                    onChange={(e) => setDriverForm({ ...driverForm, location: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                  >
-                    {HYDERABAD_LOCALITIES.map((loc) => (
-                      <option key={loc} value={loc}>{loc}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setDriverForm({ ...driverForm, location: val })}
+                    placeholder="Select locality..."
+                    searchPlaceholder="Type area name..."
+                  />
                 </div>
               </div>
 
@@ -1551,18 +1629,29 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Subscription Plan</label>
-                  <select
-                    value={driverForm.subscriptionPlan}
-                    onChange={(e) => setDriverForm({ ...driverForm, subscriptionPlan: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                  >
-                    <option value="free_trial">3-Month Free Trial</option>
-                    <option value="starter">Starter Plan (₹49/mo)</option>
-                    <option value="featured">Featured Driver (₹99/mo)</option>
-                  </select>
+                  <div className="grid grid-cols-3 gap-1 bg-neutral-100 p-1 rounded-xl">
+                    {[
+                      { value: 'free_trial', label: 'Free Trial' },
+                      { value: 'starter', label: 'Starter' },
+                      { value: 'featured', label: 'Featured' },
+                    ].map((p) => (
+                      <button
+                        key={p.value}
+                        type="button"
+                        onClick={() => setDriverForm({ ...driverForm, subscriptionPlan: p.value })}
+                        className={`py-1.5 px-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
+                          driverForm.subscriptionPlan === p.value
+                            ? 'bg-neutral-900 text-white shadow-2xs'
+                            : 'text-neutral-600 hover:text-neutral-950'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Experience (Yrs)</label>
@@ -1585,9 +1674,11 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-neutral-950 text-white rounded-full text-xs font-bold"
+                  disabled={isDriverSaving}
+                  className="px-6 py-2.5 bg-neutral-950 hover:bg-neutral-800 disabled:opacity-60 text-white rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
                 >
-                  Save & Publish Driver
+                  {isDriverSaving && <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                  <span>{isDriverSaving ? 'Saving Driver...' : 'Save & Publish Driver'}</span>
                 </button>
               </div>
             </form>
@@ -1630,37 +1721,58 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
                   <input
                     type="tel"
                     required
+                    maxLength={10}
                     value={driverForm.phone}
-                    onChange={(e) => setDriverForm({ ...driverForm, phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
+                    onChange={(e) => {
+                      setAdminFieldErrors((prev) => ({ ...prev, phone: null }));
+                      setDriverForm({ ...driverForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) });
+                    }}
+                    className={`w-full px-3 py-2 bg-neutral-50 border rounded-xl text-xs font-semibold text-neutral-900 ${
+                      adminFieldErrors.phone ? 'border-red-500 bg-red-50/30' : 'border-neutral-200'
+                    }`}
                   />
+                  {adminFieldErrors.phone && (
+                    <p className="mt-1 text-xs text-red-600 font-semibold flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{adminFieldErrors.phone}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Driver Type</label>
-                  <select
-                    value={driverForm.driverType}
-                    onChange={(e) => setDriverForm({ ...driverForm, driverType: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                  >
-                    <option value="freelance">Freelance (Hourly & Outstation)</option>
-                    <option value="permanent">Permanent (Monthly Driver)</option>
-                    <option value="combined">Combined (Both Duties)</option>
-                  </select>
+                  <div className="grid grid-cols-3 gap-1 bg-neutral-100 p-1 rounded-xl">
+                    {[
+                      { value: 'freelance', label: 'Freelance' },
+                      { value: 'permanent', label: 'Permanent' },
+                      { value: 'combined', label: 'Combined' },
+                    ].map((t) => (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => setDriverForm({ ...driverForm, driverType: t.value })}
+                        className={`py-1.5 px-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
+                          driverForm.driverType === t.value
+                            ? 'bg-neutral-900 text-white shadow-2xs'
+                            : 'text-neutral-600 hover:text-neutral-950'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Primary Area</label>
-                  <select
+                  <SearchableSelect
+                    options={HYDERABAD_LOCALITIES}
                     value={driverForm.location}
-                    onChange={(e) => setDriverForm({ ...driverForm, location: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                  >
-                    {HYDERABAD_LOCALITIES.map((loc) => (
-                      <option key={loc} value={loc}>{loc}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setDriverForm({ ...driverForm, location: val })}
+                    placeholder="Select locality..."
+                    searchPlaceholder="Type area name..."
+                  />
                 </div>
               </div>
 
@@ -1678,29 +1790,51 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Subscription Plan</label>
-                  <select
-                    value={driverForm.subscriptionPlan}
-                    onChange={(e) => setDriverForm({ ...driverForm, subscriptionPlan: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                  >
-                    <option value="free_trial">3-Month Free Trial</option>
-                    <option value="starter">Starter Plan (₹49/mo)</option>
-                    <option value="featured">Featured Driver (₹99/mo)</option>
-                  </select>
+                  <div className="grid grid-cols-3 gap-1 bg-neutral-100 p-1 rounded-xl">
+                    {[
+                      { value: 'free_trial', label: 'Free Trial' },
+                      { value: 'starter', label: 'Starter' },
+                      { value: 'featured', label: 'Featured' },
+                    ].map((p) => (
+                      <button
+                        key={p.value}
+                        type="button"
+                        onClick={() => setDriverForm({ ...driverForm, subscriptionPlan: p.value })}
+                        className={`py-1.5 px-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
+                          driverForm.subscriptionPlan === p.value
+                            ? 'bg-neutral-900 text-white shadow-2xs'
+                            : 'text-neutral-600 hover:text-neutral-950'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-neutral-700 mb-1">Duty Status</label>
-                  <select
-                    value={driverForm.status}
-                    onChange={(e) => setDriverForm({ ...driverForm, status: e.target.value })}
-                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                  >
-                    <option value="Available">Available</option>
-                    <option value="Offline">Offline</option>
-                  </select>
+                  <div className="grid grid-cols-2 gap-1 bg-neutral-100 p-1 rounded-xl">
+                    {[
+                      { value: 'Available', label: 'Available', activeClass: 'bg-emerald-600 text-white' },
+                      { value: 'Offline', label: 'Offline', activeClass: 'bg-neutral-800 text-white' },
+                    ].map((s) => (
+                      <button
+                        key={s.value}
+                        type="button"
+                        onClick={() => setDriverForm({ ...driverForm, status: s.value })}
+                        className={`py-1.5 px-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
+                          driverForm.status === s.value
+                            ? `${s.activeClass} shadow-2xs`
+                            : 'text-neutral-600 hover:text-neutral-950'
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1714,9 +1848,11 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-neutral-950 text-white rounded-full text-xs font-bold"
+                  disabled={isDriverSaving}
+                  className="px-6 py-2.5 bg-neutral-950 hover:bg-neutral-800 disabled:opacity-60 text-white rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
                 >
-                  Update Driver Record
+                  {isDriverSaving && <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                  <span>{isDriverSaving ? 'Updating Driver...' : 'Update Driver Record'}</span>
                 </button>
               </div>
             </form>

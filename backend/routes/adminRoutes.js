@@ -24,6 +24,14 @@ router.post('/drivers', (req, res) => {
     const driver = storage.createDriverByAdmin(req.body);
     res.status(201).json({ success: true, message: 'Driver created successfully', driver });
   } catch (err) {
+    if (err.statusCode === 409 || err.code === 'DUPLICATE_ENTRY') {
+      return res.status(409).json({
+        success: false,
+        code: 'DUPLICATE_ENTRY',
+        field: err.field,
+        message: err.message,
+      });
+    }
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -40,6 +48,14 @@ router.put('/drivers/:id', (req, res) => {
     }
     res.json({ success: true, message: 'Driver updated successfully', driver: updated });
   } catch (err) {
+    if (err.statusCode === 409 || err.code === 'DUPLICATE_ENTRY') {
+      return res.status(409).json({
+        success: false,
+        code: 'DUPLICATE_ENTRY',
+        field: err.field,
+        message: err.message,
+      });
+    }
     res.status(500).json({ success: false, message: err.message });
   }
 });

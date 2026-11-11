@@ -7,6 +7,8 @@ const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+const logger = require('./logger');
+
 /**
  * Global Express Error Handling Middleware
  */
@@ -22,17 +24,10 @@ const errorHandler = (err, req, res, next) => { // eslint-disable-line no-unused
         err.message.includes('client is closed') ||
         err.message.includes('not connected')))
   ) {
-    console.log('[Database] Offline fallback active — returning graceful response');
-    if (req.method === 'GET') {
-      return res.json({
-        success: true,
-        message: 'Database offline mock response',
-        data: req.path.endsWith('s') || req.path.endsWith('s/') ? [] : {},
-      });
-    }
+    logger.warn('Database service unavailable');
     return res.status(503).json({
       success: false,
-      message: 'Service temporarily unavailable (database offline). Connect a database URI to enable full persistence.',
+      message: 'Database service is currently unavailable. Please verify database connection settings.',
     });
   }
 

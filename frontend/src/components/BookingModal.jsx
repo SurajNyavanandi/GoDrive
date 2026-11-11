@@ -1,17 +1,20 @@
 import { useState, useMemo, useEffect } from 'react';
-import { X, Calendar, Clock, MapPin, Star, MessageCircle, AlertTriangle, ShieldCheck, Info, Navigation } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, Star, MessageCircle, AlertTriangle, ShieldCheck, Info, Navigation, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { validateAddress, validateIndianMobile } from '../utils/helpers';
 import { calculateCityFare, calculateOutstationFare, MONTHLY_DUTY_TIERS, getMonthlyTier, ALLOWED_CITY_BOOKING_HOURS } from '../utils/pricingEngine';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
 import { fetchReviewsApi } from '../utils/api';
 import SearchableSelect from './common/SearchableSelect';
+import LocationPermissionModal from './common/LocationPermissionModal';
+import { generateGoogleMapsUrl } from '../utils/locationHelper';
 
 export default function BookingModal({ driver, isOpen, onClose, onBookingConfirmed, pricingSettings }) {
   const [driverReviews, setDriverReviews] = useState([]);
   const [showReviewsToggle, setShowReviewsToggle] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [date, setDate] = useState(() => {
     const d = new Date();
     return d.toISOString().split('T')[0];
@@ -71,19 +74,36 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
   const [addressMode, setAddressMode] = useState('manual'); // 'manual' | 'gps'
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [gpsAddressDetails, setGpsAddressDetails] = useState(null);
+  const [gpsCoords, setGpsCoords] = useState(null);
+  const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
+  const [permissionState, setPermissionState] = useState('prompt');
+  const [permissionError, setPermissionError] = useState('');
 
-  const handleDetectLiveLocation = () => {
+  const handleOpenLocationPrompt = () => {
+    setPermissionState('prompt');
+    setPermissionError('');
+    setIsPermissionModalOpen(true);
+  };
+
+  const executeGeolocation = () => {
     if (!navigator.geolocation) {
       toast.error('Browser location is unavailable. Please type your address manually.');
+      setIsPermissionModalOpen(false);
+      setAddressMode('manual');
       return;
     }
 
+    setPermissionState('requesting');
     setIsDetectingLocation(true);
-    toast.loading('Detecting your current location via GPS...', { id: 'gps-fetch' });
+    toast.loading('Acquiring high-accuracy GPS coordinates...', { id: 'gps-fetch' });
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
+        setGpsCoords({ lat: latitude, lng: longitude });
+        setPermissionState('prompt');
+        setIsPermissionModalOpen(false);
+
         try {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
@@ -114,11 +134,15 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
             setAddressMode('gps');
             toast.success('Live GPS location detected! Verified address filled.');
           } else {
-            toast.success(`GPS Location detected (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+            setAddressMode('gps');
+            setGpsAddressDetails(`GPS: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+            toast.success(`GPS coordinates captured (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
           }
         } catch {
           toast.dismiss('gps-fetch');
-          toast.success(`GPS Location detected: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+          setAddressMode('gps');
+          setGpsAddressDetails(`GPS: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+          toast.success(`GPS coordinates captured: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
         } finally {
           setIsDetectingLocation(false);
         }
@@ -127,13 +151,28 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
         toast.dismiss('gps-fetch');
         setIsDetectingLocation(false);
         if (err.code === 1) {
-          toast.error('Location access denied. Please allow browser location access or type manually.');
+          // Permission denied
+          setPermissionState('denied');
+          setPermissionError('Location permission was denied in your browser or device settings.');
+          setIsPermissionModalOpen(true);
+        } else if (err.code === 2) {
+          toast.error('Location position unavailable. Please choose your area manually.');
+          setIsPermissionModalOpen(false);
+          setAddressMode('manual');
         } else {
-          toast.error('Unable to retrieve GPS coordinates. Please enter manually.');
+          toast.error('Location request timed out. Please select your area manually.');
+          setIsPermissionModalOpen(false);
+          setAddressMode('manual');
         }
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
+  };
+
+  const handleManualLocationFallback = () => {
+    setIsPermissionModalOpen(false);
+    setAddressMode('manual');
+    toast.info('Switched to manual Hyderabad address entry');
   };
 
   // Dynamic Fare Calculation based on Standard Duty Rates
@@ -177,7 +216,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
 
   const fullAddress = `${houseNo.trim() ? houseNo.trim() + ', ' : ''}${streetLandmark.trim() ? streetLandmark.trim() + ', ' : ''}${selectedLocality}, Hyderabad`;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!customerName.trim()) {
@@ -188,9 +227,11 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
     // Validate Customer Phone Number
     const phoneRes = validateIndianMobile(customerPhone);
     if (!phoneRes.isValid) {
+      setPhoneError(phoneRes.error);
       toast.error(phoneRes.error);
       return;
     }
+    setPhoneError('');
 
     const today = new Date().toISOString().split('T')[0];
     if (date < today) {
@@ -221,6 +262,8 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
         ? `${outstationDays} Day${outstationDays > 1 ? 's' : ''} ${isInterstate ? 'Interstate' : 'Outstation'} Trip`
         : `${monthlyHoursPerDay} Hours/Day Monthly Chauffeur (${fareBreakdown.tier?.salaryRangeText || 'Negotiable'})`;
 
+    const googleMapsUrl = generateGoogleMapsUrl(addrRes.cleaned, gpsCoords);
+
     const newBooking = {
       id: `BK-${Date.now()}`,
       driverId: driver.id,
@@ -234,6 +277,8 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
       dutyCategory,
       hours: dutyLabel,
       pickupAddress: addrRes.cleaned,
+      mapsUrl: googleMapsUrl,
+      coords: gpsCoords,
       totalCost: finalFare,
       passengerNotes: passengerNotes.trim().slice(0, 300),
       status: 'Confirmed',
@@ -241,7 +286,15 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
     };
 
     // 1. Save to backend database
-    onBookingConfirmed(newBooking);
+    const bookingRes = await onBookingConfirmed(newBooking);
+    if (bookingRes && !bookingRes.success) {
+      setIsSubmitting(false);
+      if (bookingRes.field === 'customerPhone' || bookingRes.code === 'DUPLICATE_ENTRY') {
+        setPhoneError(bookingRes.message);
+      }
+      toast.error(bookingRes.message || 'Failed to confirm booking.');
+      return;
+    }
 
     // 2. Direct Instant WhatsApp Dispatch to Driver with Transparent Fixed Rates
     const rawDriverPhone = (driver.rawPhone || driver.phone || '').replace(/[^0-9]/g, '').replace(/^91/, '');
@@ -253,6 +306,7 @@ I want to book you for personal car driving duty via Mana Drivers:
 • Customer Name: ${customerName.trim()}
 • Customer Mobile: +91 ${cleanCustomerMobile}
 • Pickup Address: ${addrRes.cleaned}
+• Google Maps Location: ${googleMapsUrl}
 • Pickup Date & Time: ${date} at ${time}
 • Duty Schedule: ${dutyLabel}
 • Estimated Fare / Salary: ${dutyCategory === 'monthly' ? fareBreakdown.tier?.salaryRangeText : `₹${finalFare.toLocaleString('en-IN')}`}
@@ -663,10 +717,21 @@ Please confirm your availability!`;
                 maxLength={10}
                 placeholder="98765 43210"
                 value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                className="w-full pl-11 pr-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs sm:text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                onChange={(e) => {
+                  setPhoneError('');
+                  setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10));
+                }}
+                className={`w-full pl-11 pr-3.5 py-2.5 bg-neutral-50 border rounded-xl text-xs sm:text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-emerald-600 ${
+                  phoneError ? 'border-red-500 bg-red-50/30' : 'border-neutral-200'
+                }`}
               />
             </div>
+            {phoneError && (
+              <p className="mt-1 text-xs text-red-600 font-semibold flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{phoneError}</span>
+              </p>
+            )}
           </div>
 
           {/* Doorstep Pickup Address Selection (Manual or Live GPS) */}
@@ -692,7 +757,7 @@ Please confirm your availability!`;
                 </button>
                 <button
                   type="button"
-                  onClick={handleDetectLiveLocation}
+                  onClick={handleOpenLocationPrompt}
                   disabled={isDetectingLocation}
                   className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition-all cursor-pointer ${
                     addressMode === 'gps'
@@ -861,6 +926,17 @@ Please confirm your availability!`;
           </button>
         </form>
       </div>
+
+      {/* Cross-Platform Device Location Permission Modal */}
+      <LocationPermissionModal
+        isOpen={isPermissionModalOpen}
+        onClose={() => setIsPermissionModalOpen(false)}
+        onAllow={executeGeolocation}
+        onManualSelect={handleManualLocationFallback}
+        permissionState={permissionState}
+        errorMessage={permissionError}
+        onRetry={executeGeolocation}
+      />
     </div>
   );
 }

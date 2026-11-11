@@ -1,4 +1,3 @@
-import { initialDrivers } from '../data/mockDrivers';
 import logger from './logger';
 
 export function getApiUrl(path) {
@@ -30,8 +29,8 @@ export function getApiUrl(path) {
   return base ? `${base}${finalPath}` : finalPath;
 }
 
-// IN-MEMORY FALLBACK DATASET (Used if backend endpoint fails)
-let memoryDrivers = JSON.parse(JSON.stringify(initialDrivers));
+// In-memory fallback structures for network drops
+let memoryDrivers = [];
 let memoryBookings = [];
 let memoryPricing = {
   cityBaseHours: 4,
@@ -101,29 +100,14 @@ export async function registerDriverApi(data) {
       body: JSON.stringify(data),
     });
     const json = await res.json();
-    if (res.ok && json.success) return json;
-    if (json.message) return json;
+    return json;
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Registration network error:', err);
+    return {
+      success: false,
+      message: 'Network error submitting registration. Please verify your internet connection and try again.',
+    };
   }
-
-  const newDriver = {
-    ...data,
-    id: `drv-test-${Date.now()}`,
-    rating: 5.0,
-    trips: 0,
-    status: 'Available',
-    subscriptionPlan: 'free_trial',
-    remainingDays: 90,
-    isApproved: false,
-    createdAt: new Date().toISOString(),
-  };
-  memoryDrivers.unshift(newDriver);
-  return {
-    success: true,
-    message: 'Application Submitted Successfully! Included 90 days (3 Months) Free Trial.',
-    driver: newDriver,
-  };
 }
 
 export async function subscribeDriverPlanApi(driverId, plan) {
@@ -233,19 +217,14 @@ export async function createBookingApi(bookingData) {
       body: JSON.stringify(bookingData),
     });
     const json = await res.json();
-    if (res.ok) return json;
+    return json;
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Booking network error:', err);
+    return {
+      success: false,
+      message: 'Network error submitting booking. Please try again.',
+    };
   }
-
-  const newBooking = {
-    ...bookingData,
-    id: `BK-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-    status: 'Confirmed',
-  };
-  memoryBookings.unshift(newBooking);
-  return { success: true, booking: newBooking };
 }
 
 // ADMIN APIS
@@ -272,22 +251,14 @@ export async function createDriverApi(driverData) {
       body: JSON.stringify(driverData),
     });
     const json = await res.json();
-    if (res.ok) return json;
+    return json;
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Create driver network error:', err);
+    return {
+      success: false,
+      message: 'Network error creating driver. Please try again.',
+    };
   }
-
-  const newDriver = {
-    ...driverData,
-    id: `drv-admin-${Date.now()}`,
-    rating: 5.0,
-    trips: 0,
-    isApproved: true,
-    remainingDays: 90,
-    createdAt: new Date().toISOString(),
-  };
-  memoryDrivers.unshift(newDriver);
-  return { success: true, driver: newDriver };
 }
 
 export async function updateDriverApi(driverId, driverData) {
@@ -298,17 +269,14 @@ export async function updateDriverApi(driverId, driverData) {
       body: JSON.stringify(driverData),
     });
     const json = await res.json();
-    if (res.ok) return json;
+    return json;
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Update driver network error:', err);
+    return {
+      success: false,
+      message: 'Network error updating driver. Please try again.',
+    };
   }
-
-  const index = memoryDrivers.findIndex((d) => d.id === driverId);
-  if (index !== -1) {
-    memoryDrivers[index] = { ...memoryDrivers[index], ...driverData };
-    return { success: true, driver: memoryDrivers[index] };
-  }
-  return { success: false, message: 'Driver not found' };
 }
 
 export async function deleteDriverApi(driverId) {

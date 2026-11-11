@@ -10,7 +10,6 @@ import ConversionSuccessView from './components/ConversionSuccessView';
 import ReviewModal from './components/ReviewModal';
 
 import { fetchAdminBookingsApi, createBookingApi, fetchPublicDrivers, fetchPricingSettingsApi } from './utils/api';
-import { initialDrivers } from './data/mockDrivers';
 import Footer from './components/Footer';
 
 export default function App() {
@@ -86,7 +85,7 @@ export default function App() {
           setActiveRole('driver');
         } else if (path === '/book') {
           setActiveRole('customer');
-          setSelectedDriverForBooking(drivers[0] || initialDrivers[0]);
+          setSelectedDriverForBooking(drivers[0] || null);
         } else if (path === '/reviews') {
           setIsGlobalReviewOpen(true);
         }
@@ -100,15 +99,14 @@ export default function App() {
 
   // Load live dynamic drivers, bookings & pricing settings from backend database on mount
   useEffect(() => {
-    let isMounted = true;
-    async function loadLiveData() {
-      try {
-        const [driversData, bookingsRes, pricingData] = await Promise.all([
-          fetchPublicDrivers(),
-          fetchAdminBookingsApi().catch(() => ({ data: [] })),
-          fetchPricingSettingsApi().catch(() => null),
-        ]);
-        if (isMounted) {
+    let active = true;
+    Promise.all([
+      fetchPublicDrivers(),
+      fetchAdminBookingsApi().catch(() => ({ data: [] })),
+      fetchPricingSettingsApi().catch(() => null),
+    ])
+      .then(([driversData, bookingsRes, pricingData]) => {
+        if (active) {
           if (Array.isArray(driversData)) {
             setDrivers(driversData);
           }
@@ -119,15 +117,15 @@ export default function App() {
             setPricingSettings(pricingData);
           }
         }
-      } catch (err) {
+      })
+      .catch((err) => {
         console.error('Failed to load dynamic data from backend:', err);
-      }
-    }
-    loadLiveData();
+      });
+
     return () => {
-      isMounted = false;
+      active = false;
     };
-  }, [activeRole]);
+  }, []);
 
   // URL Path, Query Parameters & UTM Attribution Capture for Google Ads & Meta Ads:
   useEffect(() => {
@@ -161,7 +159,7 @@ export default function App() {
       // 2. Direct Landing URL actions
       setTimeout(() => {
         if (pathname === '/book' || urlParams.get('action') === 'book' || hash === '#book') {
-          setSelectedDriverForBooking(drivers[0] || initialDrivers[0]);
+          setSelectedDriverForBooking(drivers[0] || null);
         } else if (pathname === '/reviews' || hash === '#reviews') {
           setIsGlobalReviewOpen(true);
         } else if (pathname === '/driver/signup' || pathname === '/apply') {
@@ -208,7 +206,7 @@ export default function App() {
   };
 
   const handleOpenBooking = (driver) => {
-    setSelectedDriverForBooking(driver || drivers[0] || initialDrivers[0]);
+    setSelectedDriverForBooking(driver || drivers[0] || null);
     try {
       window.history.pushState({}, '', '/book');
       setCurrentPath('/book');
@@ -258,6 +256,11 @@ export default function App() {
       }
 
       const res = await createBookingApi(bookingWithAttribution);
+      if (!res.success) {
+        toast.error(res.message || 'Failed to confirm booking.');
+        return res;
+      }
+
       const savedBooking = res.booking || bookingWithAttribution;
       setBookings((prev) => [savedBooking, ...prev]);
       setLastConfirmedBooking(savedBooking);
@@ -266,12 +269,11 @@ export default function App() {
       window.history.pushState({}, '', '/booking-success');
       setCurrentPath('/booking-success');
       toast.success('Your driver booking has been confirmed!');
+      return res;
     } catch (err) {
       console.error('Failed to save booking to backend:', err);
-      setBookings((prev) => [newBooking, ...prev]);
-      setLastConfirmedBooking(newBooking);
-      window.history.pushState({}, '', '/booking-success');
-      setCurrentPath('/booking-success');
+      toast.error(err?.message || 'Network error confirming booking.');
+      return { success: false, message: err?.message || 'Network error confirming booking.' };
     }
   };
 

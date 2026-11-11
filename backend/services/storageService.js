@@ -32,23 +32,75 @@ const defaultPricing = {
   monthly12hMaxSalary: 40000,
 };
 
+let cachedDB = null;
+let dbOperationLock = false;
+
+class DuplicateConstraintError extends Error {
+  constructor(message, field, code = 'DUPLICATE_KEY') {
+    super(message);
+    this.name = 'DuplicateConstraintError';
+    this.status = 409;
+    this.statusCode = 409;
+    this.field = field;
+    this.code = code;
+  }
+}
+
+/**
+ * Normalizes an Indian mobile number into consistent +91XXXXXXXXXX format.
+ * Strips spaces, dashes, brackets, leading zeroes, and country code prefixes.
+ * "98765 43210", "+91 98765-43210", "09876543210", "+919876543210" all count as "+919876543210".
+ */
+const normalizeMobile = (phone) => {
+  if (!phone) return '';
+  let digits = String(phone).replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) {
+    digits = digits.slice(2);
+  } else if (digits.length === 11 && digits.startsWith('0')) {
+    digits = digits.slice(1);
+  }
+  return digits.length === 10 ? `+91${digits}` : (digits ? `+91${digits}` : '');
+};
+
+const normalizeAadhaar = (aadhaar) => {
+  if (!aadhaar) return '';
+  return String(aadhaar).replace(/\D/g, '');
+};
+
+const formatAadhaar = (aadhaar) => {
+  const clean = normalizeAadhaar(aadhaar);
+  if (clean.length === 12) {
+    return `${clean.slice(0, 4)}-${clean.slice(4, 8)}-${clean.slice(8, 12)}`;
+  }
+  return aadhaar || '';
+};
+
+const normalizeLicense = (license) => {
+  if (!license) return '';
+  return String(license).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+};
+
 function initDB() {
+  if (cachedDB) {
+    return cachedDB;
+  }
+
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 
-  const initialReviews = [];
+  const emptyData = {
+    drivers: [],
+    bookings: [],
+    pricingSettings: defaultPricing,
+    reviews: [],
+    adminHistory: [],
+  };
 
   if (!fs.existsSync(DB_FILE)) {
-    const defaultData = {
-      drivers: [],
-      bookings: [],
-      pricingSettings: defaultPricing,
-      reviews: initialReviews,
-      adminHistory: [],
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(defaultData, null, 2), 'utf8');
-    return defaultData;
+    fs.writeFileSync(DB_FILE, JSON.stringify(emptyData, null, 2), 'utf8');
+    cachedDB = emptyData;
+    return emptyData;
   }
 
   try {
@@ -72,7 +124,7 @@ function initDB() {
     }
 
     if (!data.reviews || !Array.isArray(data.reviews)) {
-      data.reviews = initialReviews;
+      data.reviews = [];
       modified = true;
     }
 
@@ -85,22 +137,18 @@ function initDB() {
       fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
     }
 
+    cachedDB = data;
     return data;
   } catch (err) {
-    logger.error('Failed to read db.json, re-initializing', err);
-    const defaultData = {
-      drivers: [],
-      bookings: [],
-      pricingSettings: defaultPricing,
-      reviews: initialReviews,
-      adminHistory: [],
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(defaultData, null, 2), 'utf8');
-    return defaultData;
+    logger.error('Failed to read db.json, re-initializing empty database', err);
+    fs.writeFileSync(DB_FILE, JSON.stringify(emptyData, null, 2), 'utf8');
+    cachedDB = emptyData;
+    return emptyData;
   }
 }
 
 function saveDB(data, action = 'SAVE_DB') {
+  cachedDB = data;
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -167,9 +215,8 @@ const getAdminHistory = () => {
 /**
  * Enriches driver object with computed subscription info and grandfathered price
  */
-const enrichDriverSubscriptionInfo = (driver) => {
-  const db = initDB();
-  const currentPricing = db.pricingSettings || defaultPricing;
+const enrichDriverSubscriptionInfo = (driver, pricing = null) => {
+  const currentPricing = pricing || (cachedDB && cachedDB.pricingSettings) || defaultPricing;
   const remainingDays = computeRemainingDays(driver.subscriptionExpiry);
   let subscriptionStatusText = '';
   
@@ -211,8 +258,9 @@ const enrichDriverSubscriptionInfo = (driver) => {
  */
 const getPublicDrivers = () => {
   const db = initDB();
+  const pricing = db.pricingSettings || defaultPricing;
   return db.drivers
-    .map(enrichDriverSubscriptionInfo)
+    .map((d) => enrichDriverSubscriptionInfo(d, pricing))
     .filter((d) => d.isApproved && d.remainingDays > 0)
     .sort((a, b) => {
       if (a.subscriptionPlan === 'featured' && b.subscriptionPlan !== 'featured') return -1;
@@ -223,14 +271,62 @@ const getPublicDrivers = () => {
 
 const getAllDriversForAdmin = () => {
   const db = initDB();
-  return db.drivers.map(enrichDriverSubscriptionInfo);
+  const pricing = db.pricingSettings || defaultPricing;
+  return db.drivers.map((d) => enrichDriverSubscriptionInfo(d, pricing));
 };
 
+function checkDriverUniqueness(db, driverData, excludeDriverId = null) {
+  const normPhone = normalizeMobile(driverData.phone || driverData.rawPhone);
+  const normAadhaar = normalizeAadhaar(driverData.aadhaarNo);
+  const normLicense = normalizeLicense(driverData.licenseNo);
+
+  for (const d of db.drivers) {
+    if (excludeDriverId && d.id === excludeDriverId) continue;
+
+    // Check duplicate mobile
+    if (normPhone && normPhone.length === 13) {
+      const existingPhone = normalizeMobile(d.phone || d.rawPhone);
+      if (existingPhone === normPhone) {
+        throw new DuplicateConstraintError(
+          'This mobile number is already registered.',
+          'phone',
+          'DUPLICATE_MOBILE'
+        );
+      }
+    }
+
+    // Check duplicate Aadhaar card
+    if (normAadhaar && normAadhaar.length === 12) {
+      const existingAadhaar = normalizeAadhaar(d.aadhaarNo);
+      if (existingAadhaar === normAadhaar) {
+        throw new DuplicateConstraintError(
+          'This Aadhaar card number is already registered.',
+          'aadhaarNo',
+          'DUPLICATE_CARD'
+        );
+      }
+    }
+
+    // Check duplicate Driving License
+    if (normLicense && normLicense.length >= 8) {
+      const existingLicense = normalizeLicense(d.licenseNo);
+      if (existingLicense === normLicense) {
+        throw new DuplicateConstraintError(
+          'This driving license is already registered.',
+          'licenseNo',
+          'DUPLICATE_LICENSE'
+        );
+      }
+    }
+  }
+}
+
 const getDriverByPhone = (phone) => {
-  const raw = cleanPhone(phone);
+  const raw = normalizeMobile(phone);
+  const digits = raw.replace(/\D/g, '');
   const db = initDB();
   const driver = db.drivers.find(
-    (d) => cleanPhone(d.rawPhone || d.phone) === raw || (raw.length >= 10 && cleanPhone(d.phone).endsWith(raw.slice(-10)))
+    (d) => normalizeMobile(d.rawPhone || d.phone) === raw || (digits.length >= 10 && normalizeMobile(d.phone).endsWith(digits.slice(-10)))
   );
   return driver ? enrichDriverSubscriptionInfo(driver) : null;
 };
@@ -238,72 +334,80 @@ const getDriverByPhone = (phone) => {
 const registerNewDriver = (driverData) => {
   const db = initDB();
   const currentPricing = db.pricingSettings || defaultPricing;
-  const raw = cleanPhone(driverData.phone);
-  const cleanLicense = String(driverData.licenseNo || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  const cleanAadhaar = String(driverData.aadhaarNo || '').replace(/[^0-9]/g, '');
+  const rawMobile = normalizeMobile(driverData.phone || driverData.rawPhone);
+  const cleanLicense = normalizeLicense(driverData.licenseNo);
+  const cleanAadhaar = normalizeAadhaar(driverData.aadhaarNo);
   const now = Date.now();
   const DAY_MS = 24 * 60 * 60 * 1000;
-  
-  // Strengthen authentication avoiding duplicates (mobile, license, aadhaar)
-  const duplicateLicense = db.drivers.find(
-    (d) => d.isApproved && cleanLicense && String(d.licenseNo || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase() === cleanLicense
-  );
-  if (duplicateLicense) {
-    return { success: false, message: 'A driver with this Driving License is already registered and verified.' };
-  }
-
-  const duplicateAadhaar = db.drivers.find(
-    (d) => d.isApproved && cleanAadhaar && cleanAadhaar.length >= 12 && String(d.aadhaarNo || '').replace(/[^0-9]/g, '') === cleanAadhaar
-  );
-  if (duplicateAadhaar) {
-    return { success: false, message: 'A driver with this Aadhaar Card Number is already registered.' };
-  }
 
   // Check if driver with phone already exists
-  const existingIndex = db.drivers.findIndex((d) => cleanPhone(d.rawPhone || d.phone) === raw);
-  if (existingIndex !== -1) {
-    const existing = db.drivers[existingIndex];
-    if (existing.isApproved) {
-      return { success: false, message: 'A verified driver account with this mobile number already exists. Please log in.' };
+  const existingIndex = db.drivers.findIndex((d) => normalizeMobile(d.rawPhone || d.phone) === rawMobile);
+  const existingDriver = existingIndex !== -1 ? db.drivers[existingIndex] : null;
+
+  if (existingDriver && existingDriver.isApproved) {
+    return {
+      success: false,
+      status: 409,
+      code: 'DUPLICATE_MOBILE',
+      field: 'phone',
+      message: 'This mobile number is already registered.',
+    };
+  }
+
+  // Enforce uniqueness across all other drivers
+  try {
+    checkDriverUniqueness(db, driverData, existingDriver ? existingDriver.id : null);
+  } catch (err) {
+    if (err instanceof DuplicateConstraintError) {
+      return {
+        success: false,
+        status: 409,
+        code: err.code,
+        field: err.field,
+        message: err.message,
+      };
     }
+    throw err;
+  }
+
+  if (existingDriver) {
     // Check 3-day cooldown if rejected
-    if (existing.listingStatus === 'Rejected') {
-      const reapplyTime = existing.reapplyAllowedAt ? new Date(existing.reapplyAllowedAt).getTime() : 0;
+    if (existingDriver.listingStatus === 'Rejected') {
+      const reapplyTime = existingDriver.reapplyAllowedAt ? new Date(existingDriver.reapplyAllowedAt).getTime() : 0;
       if (reapplyTime > now) {
         const daysLeft = Math.ceil((reapplyTime - now) / DAY_MS);
         return {
           success: false,
           code: 'REAPPLY_COOLDOWN',
-          reapplyAllowedAt: existing.reapplyAllowedAt,
-          message: `Application was rejected (${existing.rejectionReason || 'Document verification failed'}). You can re-apply in ${daysLeft} day${daysLeft > 1 ? 's' : ''} on ${new Date(reapplyTime).toLocaleDateString('en-IN')}.`,
+          reapplyAllowedAt: existingDriver.reapplyAllowedAt,
+          message: `Application was rejected (${existingDriver.rejectionReason || 'Document verification failed'}). You can re-apply in ${daysLeft} day${daysLeft > 1 ? 's' : ''} on ${new Date(reapplyTime).toLocaleDateString('en-IN')}.`,
         };
       }
     }
-    // Update existing pending application & allow reapplication
-    const formattedPhone = raw.length === 10 ? `+91 ${raw.slice(0,5)} ${raw.slice(5)}` : driverData.phone;
-    const lockedFee = existing.lockedSubscriptionFee !== undefined
-      ? existing.lockedSubscriptionFee
-      : getStandardPriceForDriverType(driverData.driverType || existing.driverType, currentPricing);
+
+    const lockedFee = existingDriver.lockedSubscriptionFee !== undefined
+      ? existingDriver.lockedSubscriptionFee
+      : getStandardPriceForDriverType(driverData.driverType || existingDriver.driverType, currentPricing);
 
     db.drivers[existingIndex] = {
-      ...existing,
-      name: driverData.name || existing.name,
+      ...existingDriver,
+      name: driverData.name || existingDriver.name,
       driverType: driverData.driverType || 'freelance',
       hourlyRate: Number(driverData.hourlyRate) || 180,
-      monthlySalary: driverData.monthlySalary ? Number(driverData.monthlySalary) : existing.monthlySalary,
-      phone: formattedPhone,
-      rawPhone: raw,
-      location: driverData.location || existing.location,
-      experience: Number(driverData.experience) || existing.experience,
-      languages: driverData.languages || existing.languages,
-      bio: driverData.bio || existing.bio,
-      licenseNo: driverData.licenseNo || existing.licenseNo,
-      licensePhoto: driverData.licensePhoto || existing.licensePhoto,
-      aadhaarNo: driverData.aadhaarNo || existing.aadhaarNo,
-      aadhaarPhoto: driverData.aadhaarPhoto || existing.aadhaarPhoto,
-      workingPreference: driverData.workingPreference || existing.workingPreference,
-      photo: driverData.photo || existing.photo,
-      reviewOtp: existing.reviewOtp || String(Math.floor(1000 + Math.random() * 9000)),
+      monthlySalary: driverData.monthlySalary ? Number(driverData.monthlySalary) : existingDriver.monthlySalary,
+      phone: rawMobile,
+      rawPhone: rawMobile.replace(/\D/g, ''),
+      location: driverData.location || existingDriver.location,
+      experience: Number(driverData.experience) || existingDriver.experience,
+      languages: driverData.languages || existingDriver.languages,
+      bio: driverData.bio || existingDriver.bio,
+      licenseNo: cleanLicense,
+      licensePhoto: driverData.licensePhoto || existingDriver.licensePhoto,
+      aadhaarNo: formatAadhaar(cleanAadhaar),
+      aadhaarPhoto: driverData.aadhaarPhoto || existingDriver.aadhaarPhoto,
+      workingPreference: driverData.workingPreference || existingDriver.workingPreference,
+      photo: driverData.photo || existingDriver.photo,
+      reviewOtp: existingDriver.reviewOtp || String(Math.floor(1000 + Math.random() * 9000)),
       lockedSubscriptionFee: lockedFee,
       isApproved: false,
       status: 'Available',
@@ -316,13 +420,11 @@ const registerNewDriver = (driverData) => {
       subscriptionExpiry: new Date(now + 90 * DAY_MS).toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    saveDB(db);
+    saveDB(db, 'REGISTER_DRIVER_UPDATE');
     return { success: true, driver: enrichDriverSubscriptionInfo(db.drivers[existingIndex]), updated: true };
   }
 
-  const formattedPhone = raw.length === 10 ? `+91 ${raw.slice(0,5)} ${raw.slice(5)}` : driverData.phone;
   const reviewOtp = String(Math.floor(1000 + Math.random() * 9000));
-  // Lock new driver's subscription fee at current plan rate
   const initialLockedFee = getStandardPriceForDriverType(driverData.driverType || 'freelance', currentPricing);
 
   const newDriver = {
@@ -338,27 +440,27 @@ const registerNewDriver = (driverData) => {
     status: 'Available',
     languages: driverData.languages || 'Telugu, Hindi, English',
     experience: Number(driverData.experience) || 3,
-    phone: formattedPhone,
-    rawPhone: raw,
+    phone: rawMobile,
+    rawPhone: rawMobile.replace(/\D/g, ''),
     photo: driverData.photo || driverData.photoPreview || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239CA3AF"%3E%3Cpath d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 14c-2.03 0-3.8-.85-5.05-2.2.06-1.68 3.37-2.6 5.05-2.6s4.99.92 5.05 2.6c-1.25 1.35-3.02 2.2-5.05 2.2z"/%3E%3C/svg%E2%80%9D',
     bio: driverData.bio || 'Verified Hyderabad driver.',
-    licenseNo: driverData.licenseNo,
+    licenseNo: cleanLicense,
     licensePhoto: driverData.licensePhoto,
-    aadhaarNo: driverData.aadhaarNo,
+    aadhaarNo: formatAadhaar(cleanAadhaar),
     aadhaarPhoto: driverData.aadhaarPhoto,
     workingPreference: driverData.workingPreference,
-    reviewOtp, // Constant 4-digit Review OTP for customer trip feedback
-    lockedSubscriptionFee: initialLockedFee, // Grandfathered price
-    isApproved: false, // Pending admin approval
+    reviewOtp,
+    lockedSubscriptionFee: initialLockedFee,
+    isApproved: false,
     listingStatus: 'Pending Admin Verification',
     subscriptionPlan: 'free_trial',
     premiumActivatedAt: new Date().toISOString(),
-    subscriptionExpiry: new Date(now + 90 * DAY_MS).toISOString(), // 90 days (3 months) free trial upon registration
+    subscriptionExpiry: new Date(now + 90 * DAY_MS).toISOString(),
     createdAt: new Date().toISOString(),
   };
 
   db.drivers.unshift(newDriver);
-  saveDB(db);
+  saveDB(db, 'REGISTER_DRIVER_NEW');
 
   return { success: true, driver: enrichDriverSubscriptionInfo(newDriver) };
 };
@@ -369,17 +471,28 @@ const registerNewDriver = (driverData) => {
 const createDriverByAdmin = (driverData) => {
   const db = initDB();
   const currentPricing = db.pricingSettings || defaultPricing;
-  const raw = cleanPhone(driverData.phone);
+  const rawMobile = normalizeMobile(driverData.phone || driverData.rawPhone);
+  const cleanLicense = normalizeLicense(driverData.licenseNo);
+  const cleanAadhaar = normalizeAadhaar(driverData.aadhaarNo);
   const now = Date.now();
   const DAY_MS = 24 * 60 * 60 * 1000;
-  const formattedPhone = raw.length === 10 ? `+91 ${raw.slice(0,5)} ${raw.slice(5)}` : driverData.phone;
+
+  try {
+    checkDriverUniqueness(db, driverData);
+  } catch (err) {
+    if (err instanceof DuplicateConstraintError) {
+      return { success: false, status: 409, code: err.code, field: err.field, message: err.message };
+    }
+    throw err;
+  }
+
   const lockedFee = getStandardPriceForDriverType(driverData.driverType || 'freelance', currentPricing);
 
   const newDriver = {
     id: `drv-admin-${Date.now()}`,
     name: driverData.name || 'New Driver',
-    phone: formattedPhone,
-    rawPhone: raw,
+    phone: rawMobile,
+    rawPhone: rawMobile ? rawMobile.replace(/\D/g, '') : '',
     driverType: driverData.driverType || 'freelance',
     hourlyRate: Number(driverData.hourlyRate) || 180,
     monthlySalary: driverData.monthlySalary ? Number(driverData.monthlySalary) : null,
@@ -391,8 +504,8 @@ const createDriverByAdmin = (driverData) => {
     languages: driverData.languages || 'Telugu, Hindi',
     photo: driverData.photo || driverData.photoPreview || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239CA3AF"%3E%3Cpath d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 14c-2.03 0-3.8-.85-5.05-2.2.06-1.68 3.37-2.6 5.05-2.6s4.99.92 5.05 2.6c-1.25 1.35-3.02 2.2-5.05 2.2z"/%3E%3C/svg%E2%80%9D',
     bio: driverData.bio || 'Verified driver created by admin.',
-    licenseNo: driverData.licenseNo || 'TS09-2023-0000000',
-    aadhaarNo: driverData.aadhaarNo || '0000-0000-0000',
+    licenseNo: cleanLicense || 'TS09-2023-0000000',
+    aadhaarNo: formatAadhaar(cleanAadhaar) || '0000-0000-0000',
     licensePhoto: driverData.licensePhoto || null,
     aadhaarPhoto: driverData.aadhaarPhoto || null,
     isApproved: true,
@@ -405,14 +518,14 @@ const createDriverByAdmin = (driverData) => {
   };
 
   db.drivers.unshift(newDriver);
-  saveDB(db);
+  saveDB(db, 'CREATE_DRIVER_ADMIN');
   recordAdminAction('CREATE_DRIVER', 'DRIVER', newDriver.id, newDriver.name, {
     driverType: newDriver.driverType,
     location: newDriver.location,
     phone: newDriver.phone,
     lockedSubscriptionFee: lockedFee,
   });
-  return enrichDriverSubscriptionInfo(newDriver);
+  return { success: true, driver: enrichDriverSubscriptionInfo(newDriver) };
 };
 
 /**
@@ -423,10 +536,27 @@ const updateDriverByAdmin = (id, updateData) => {
   const index = db.drivers.findIndex((d) => d.id === id);
   if (index === -1) return null;
 
+  try {
+    checkDriverUniqueness(db, updateData, id);
+  } catch (err) {
+    if (err instanceof DuplicateConstraintError) {
+      return { success: false, status: 409, code: err.code, field: err.field, message: err.message };
+    }
+    throw err;
+  }
+
   const existing = db.drivers[index];
+  const rawMobile = updateData.phone ? normalizeMobile(updateData.phone) : existing.phone;
+  const cleanAadhaar = updateData.aadhaarNo ? formatAadhaar(updateData.aadhaarNo) : existing.aadhaarNo;
+  const cleanLicense = updateData.licenseNo ? normalizeLicense(updateData.licenseNo) : existing.licenseNo;
+
   const updated = {
     ...existing,
     ...updateData,
+    phone: rawMobile,
+    rawPhone: rawMobile ? rawMobile.replace(/\D/g, '') : existing.rawPhone,
+    aadhaarNo: cleanAadhaar,
+    licenseNo: cleanLicense,
     hourlyRate: updateData.hourlyRate !== undefined ? Number(updateData.hourlyRate) : existing.hourlyRate,
     monthlySalary: updateData.monthlySalary !== undefined ? (updateData.monthlySalary ? Number(updateData.monthlySalary) : null) : existing.monthlySalary,
     experience: updateData.experience !== undefined ? Number(updateData.experience) : existing.experience,
@@ -434,7 +564,7 @@ const updateDriverByAdmin = (id, updateData) => {
   };
 
   db.drivers[index] = updated;
-  saveDB(db);
+  saveDB(db, 'UPDATE_DRIVER_ADMIN');
   recordAdminAction('UPDATE_DRIVER', 'DRIVER', id, updated.name, {
     changes: updateData,
   }, {
@@ -442,9 +572,10 @@ const updateDriverByAdmin = (id, updateData) => {
     driverType: existing.driverType,
     hourlyRate: existing.hourlyRate,
     location: existing.location,
-    status: existing.status,
+    phone: existing.phone,
+    subscriptionPlan: existing.subscriptionPlan,
   });
-  return enrichDriverSubscriptionInfo(updated);
+  return { success: true, driver: enrichDriverSubscriptionInfo(updated) };
 };
 
 /**
@@ -577,10 +708,27 @@ const updateDriverSelfProfile = (id, profileData) => {
   const index = db.drivers.findIndex((d) => d.id === id);
   if (index === -1) return null;
 
+  try {
+    checkDriverUniqueness(db, profileData, id);
+  } catch (err) {
+    if (err instanceof DuplicateConstraintError) {
+      return { success: false, status: 409, code: err.code, field: err.field, message: err.message };
+    }
+    throw err;
+  }
+
   const existing = db.drivers[index];
+  const rawMobile = profileData.phone ? normalizeMobile(profileData.phone) : existing.phone;
+  const cleanAadhaar = profileData.aadhaarNo ? formatAadhaar(profileData.aadhaarNo) : existing.aadhaarNo;
+  const cleanLicense = profileData.licenseNo ? normalizeLicense(profileData.licenseNo) : existing.licenseNo;
+
   const updated = {
     ...existing,
     name: profileData.name || existing.name,
+    phone: rawMobile,
+    rawPhone: rawMobile ? rawMobile.replace(/\D/g, '') : existing.rawPhone,
+    aadhaarNo: cleanAadhaar,
+    licenseNo: cleanLicense,
     driverType: profileData.driverType || existing.driverType,
     hourlyRate: profileData.hourlyRate ? Number(profileData.hourlyRate) : existing.hourlyRate,
     monthlySalary: profileData.monthlySalary ? Number(profileData.monthlySalary) : existing.monthlySalary,
@@ -592,8 +740,8 @@ const updateDriverSelfProfile = (id, profileData) => {
   };
 
   db.drivers[index] = updated;
-  saveDB(db);
-  return enrichDriverSubscriptionInfo(updated);
+  saveDB(db, 'UPDATE_DRIVER_SELF_PROFILE');
+  return { success: true, driver: enrichDriverSubscriptionInfo(updated) };
 };
 
 const updateDriverStatus = (id, status) => {
@@ -759,9 +907,31 @@ const createReview = (reviewData) => {
 
 const createBooking = (bookingData) => {
   const db = initDB();
+  const normalizedPhone = bookingData.customerPhone ? normalizeMobile(bookingData.customerPhone) : '';
+
+  // Prevent rapid duplicate bookings (same normalized phone, same driver, within last 60 seconds)
+  if (normalizedPhone && bookingData.driverId && Array.isArray(db.bookings)) {
+    const now = Date.now();
+    const duplicate = db.bookings.find((b) => {
+      const matchPhone = normalizeMobile(b.customerPhone || '') === normalizedPhone;
+      const matchDriver = String(b.driverId) === String(bookingData.driverId);
+      const isRecent = b.createdAt && (now - new Date(b.createdAt).getTime() < 60000);
+      return matchPhone && matchDriver && isRecent;
+    });
+
+    if (duplicate) {
+      throw new DuplicateConstraintError(
+        'A booking with this mobile number for this driver was just submitted. Please check your existing bookings.',
+        'customerPhone',
+        'DUPLICATE_BOOKING'
+      );
+    }
+  }
+
   const newBooking = {
     id: `bk-${Date.now()}`,
     ...bookingData,
+    customerPhone: normalizedPhone || bookingData.customerPhone,
     createdAt: new Date().toISOString(),
     status: 'Confirmed',
   };
@@ -801,4 +971,10 @@ module.exports = {
   createBooking,
   getAllBookings,
   cleanPhone,
+  normalizeMobile,
+  normalizeAadhaar,
+  formatAadhaar,
+  normalizeLicense,
+  checkDriverUniqueness,
+  DuplicateConstraintError,
 };

@@ -52,16 +52,18 @@ async function startServer() {
   });
   app.use('/api', limiter);
 
-  // CORS Configuration: Loaded dynamically from .env (CORS_ORIGIN) with default domains
-  const configuredCors = (process.env.CORS_ORIGIN || env.CORS_ORIGIN || '*').trim();
+  // CORS Configuration: Enforce allowed production origins via CORS_ORIGIN
+  const configuredCors = (process.env.CORS_ORIGIN || env.CORS_ORIGIN || '').trim();
   const allowedOrigins = [
     'https://manadrivers.com',
     'https://www.manadrivers.com',
     'http://manadrivers.com',
     'http://www.manadrivers.com',
-    'http://localhost:3000',
-    'http://localhost:5173',
   ];
+
+  if (process.env.NODE_ENV !== 'production') {
+    allowedOrigins.push('http://localhost:3000', 'http://localhost:5173');
+  }
 
   if (configuredCors && configuredCors !== '*') {
     configuredCors.split(',').map((o) => o.trim()).forEach((orig) => {
@@ -74,21 +76,23 @@ async function startServer() {
   app.use(
     cors({
       origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or server-to-server)
+        // Allow requests with no origin (like mobile apps, health checks, or server-to-server)
         if (!origin) return callback(null, true);
 
         if (
-          configuredCors === '*' ||
+          (configuredCors === '*' && process.env.NODE_ENV !== 'production') ||
           allowedOrigins.includes(origin) ||
-          origin.endsWith('.manadrivers.com') ||
-          origin.includes('run.app') ||
-          process.env.NODE_ENV !== 'production'
+          origin.endsWith('.manadrivers.com')
         ) {
           return callback(null, true);
         }
 
-        logger.warn(`CORS request received from origin: ${origin}`);
-        return callback(null, true); // Allow for seamless launch, log origin
+        if (process.env.NODE_ENV === 'production') {
+          logger.warn(`CORS rejected origin: ${origin}`);
+          return callback(new Error(`CORS Error: Origin ${origin} not allowed`));
+        }
+
+        return callback(null, true);
       },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],

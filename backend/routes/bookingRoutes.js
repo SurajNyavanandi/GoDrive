@@ -26,13 +26,18 @@ router.post('/', (req, res) => {
       });
     }
 
-    // Format / sanitize phone if provided
+    // Validate & normalize customer phone if provided
     let customerPhone = 'Customer (Web)';
     if (req.body.customerPhone && req.body.customerPhone !== 'Customer (Web)') {
-      const digits = String(req.body.customerPhone).replace(/\D/g, '');
-      if (digits.length === 10 && /^[6-9]/.test(digits)) {
-        customerPhone = `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+      const normalized = storage.normalizeMobile(req.body.customerPhone);
+      if (!normalized || !/^\+91[6-9]\d{9}$/.test(normalized)) {
+        return res.status(400).json({
+          success: false,
+          field: 'customerPhone',
+          message: 'Please provide a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.',
+        });
       }
+      customerPhone = normalized;
     }
 
     // Cost validation (reject negative or huge abnormal numbers)
@@ -59,6 +64,14 @@ router.post('/', (req, res) => {
     const booking = storage.createBooking(bookingPayload);
     res.status(201).json({ success: true, message: 'Booking confirmed successfully', booking });
   } catch (err) {
+    if (err.statusCode === 409 || err.code === 'DUPLICATE_ENTRY') {
+      return res.status(409).json({
+        success: false,
+        code: 'DUPLICATE_ENTRY',
+        field: err.field,
+        message: err.message,
+      });
+    }
     res.status(500).json({ success: false, message: err.message });
   }
 });

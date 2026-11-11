@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   UserPlus,
   Clock,
@@ -16,6 +16,12 @@ import {
   IndianRupee,
   KeyRound,
   Copy,
+  MapPin,
+  Navigation,
+  Share2,
+  MessageSquare,
+  FileCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
@@ -28,6 +34,7 @@ import {
   uploadDriverDocsApi,
   subscribeDriverPlanApi,
   updateDriverSelfProfileApi,
+  getApiUrl,
 } from '../utils/api';
 import {
   validateIndianMobile,
@@ -38,6 +45,8 @@ import {
   validateExperience,
   validateName,
 } from '../utils/helpers';
+import { validatePhotoFile, compressPhoto } from '../utils/imageCompressor';
+import { openLocationInGoogleMaps, shareLocationOnWhatsApp } from '../utils/locationHelper';
 
 export default function DriverPortal({ onBackToHome, pricingSettings }) {
   // Mode: 'login' | 'register' | 'dashboard'
@@ -93,37 +102,129 @@ export default function DriverPortal({ onBackToHome, pricingSettings }) {
   const [uploadStatusText, setUploadStatusText] = useState('');
   const [subscribeLoading, setSubscribeLoading] = useState(false);
 
-  // Mandatory Driver Code of Conduct & Disclaimer Checkboxes (Requirement 4)
+  // Mandatory Driver Code of Conduct & Disclaimer Checkboxes
   const [conductNonAlcoholic, setConductNonAlcoholic] = useState(false);
   const [conductNoAbuse, setConductNoAbuse] = useState(false);
   const [conductDisclaimer, setConductDisclaimer] = useState(false);
 
-  // Handle Photo File Uploads (License, Aadhaar, Headshot)
-  const handleFileUpload = (e, field) => {
-    const file = e.target.files[0];
+  // Photo Size Information (Stored in MB before upload)
+  const [photoSizes, setPhotoSizes] = useState({
+    photo: null,
+    licensePhoto: null,
+    aadhaarPhoto: null,
+    editPhoto: null,
+  });
+
+  // Field validation and duplicate server error states
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  // Assigned Bookings & Delivery / Site Locations for Logged-In Driver
+  const [driverBookings, setDriverBookings] = useState([]);
+
+  useEffect(() => {
+    if (!loggedInDriver) return;
+    let isMounted = true;
+    async function loadDriverBookings() {
+      try {
+        const res = await fetch(getApiUrl(`/api/bookings?driverId=${loggedInDriver.id}`));
+        if (res.ok) {
+          const json = await res.json();
+          if (isMounted && json.success && Array.isArray(json.data) && json.data.length > 0) {
+            setDriverBookings(json.data);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch driver bookings:', err);
+      }
+
+      // Default sample duty site location for immediate testing
+      if (isMounted) {
+        setDriverBookings([
+          {
+            id: `BK-DEMO-101`,
+            driverId: loggedInDriver.id,
+            driverName: loggedInDriver.name,
+            customerName: 'Vikramaditya Reddy',
+            customerPhone: '+91 98491 55667',
+            date: new Date().toISOString().split('T')[0],
+            time: '14:30',
+            hours: '4 Hours City Duty',
+            dutyCategory: 'city',
+            pickupAddress: 'Tower 4, Mindspace IT Park, Hitec City, Hyderabad',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Mindspace+IT+Park+Hitec+City+Hyderabad',
+            totalCost: 700,
+            status: 'Confirmed',
+          },
+        ]);
+      }
+    }
+    loadDriverBookings();
+    return () => {
+      isMounted = false;
+    };
+  }, [loggedInDriver]);
+
+  // Handle Photo File Uploads (License, Aadhaar, Headshot) with 5 MB Limit & Compression
+  const handleFileUpload = async (e, field) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be under 5MB');
+    const labelName =
+      field === 'licensePhoto'
+        ? 'Driving License'
+        : field === 'aadhaarPhoto'
+        ? 'Aadhaar Card'
+        : 'Profile Headshot';
+
+    // 1. Validate file size up to 5 MB and valid image MIME type
+    const validation = validatePhotoFile(file, 5);
+    if (!validation.valid) {
+      toast.error(validation.error);
+      e.target.value = '';
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setFormData((prev) => ({
+    toast.loading(`Analyzing & compressing ${labelName} (${validation.sizeMB})...`, { id: 'photo-proc' });
+
+    try {
+      const result = await compressPhoto(file);
+      toast.dismiss('photo-proc');
+
+      setPhotoSizes((prev) => ({
         ...prev,
-        [field]: file,
-        [`${field}Preview`]: reader.result,
+        [field]: {
+          originalSizeMB: result.originalSizeMB,
+          compressedSizeMB: result.compressedSizeMB,
+          wasCompressed: result.wasCompressed,
+        },
       }));
-      const labelName =
-        field === 'licensePhoto'
-          ? 'Driving License'
-          : field === 'aadhaarPhoto'
-          ? 'Aadhaar Card'
-          : 'Profile Headshot Photo';
-      toast.success(`${labelName} attached`);
-    };
-    reader.readAsDataURL(file);
+
+      if (field === 'editPhoto') {
+        setEditForm((prev) => ({
+          ...prev,
+          photo: result.dataUrl,
+          photoFile: result.file,
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          [field]: result.file,
+          [`${field}Preview`]: result.dataUrl,
+        }));
+      }
+
+      if (result.wasCompressed) {
+        toast.success(
+          `${labelName} attached! (${result.originalSizeMB} optimized to ${result.compressedSizeMB})`
+        );
+      } else {
+        toast.success(`${labelName} attached! (${result.originalSizeMB})`);
+      }
+    } catch (err) {
+      toast.dismiss('photo-proc');
+      toast.error(`Error processing ${labelName}: ${err.message || 'Please try another photo'}`);
+    }
   };
 
   // Login Handlers (Direct Login for Approved Drivers, Popups for Unregistered / Pending)
@@ -298,46 +399,48 @@ export default function DriverPortal({ onBackToHome, pricingSettings }) {
   // Registration Submit Handler with Document & Profile Headshot Upload
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    const newFieldErrors = {};
 
     const nameRes = validateName(formData.name);
     if (!nameRes.isValid) {
-      toast.error(nameRes.error);
-      return;
+      newFieldErrors.name = nameRes.error;
     }
 
     const phoneRes = validateIndianMobile(formData.phone);
     if (!phoneRes.isValid) {
-      toast.error(phoneRes.error);
-      return;
+      newFieldErrors.phone = phoneRes.error;
     }
 
     const expRes = validateExperience(formData.experience);
     if (!expRes.isValid) {
-      toast.error(expRes.error);
-      return;
+      newFieldErrors.experience = expRes.error;
     }
 
     const licenseRes = validateDrivingLicense(formData.licenseNo);
     if (!licenseRes.isValid) {
-      toast.error(licenseRes.error);
-      return;
+      newFieldErrors.licenseNo = licenseRes.error;
     }
 
     if (!formData.licensePhoto && !formData.licensePhotoPreview) {
-      toast.error('Driving License Photo is mandatory.');
-      return;
+      newFieldErrors.licensePhoto = 'Driving License Photo is mandatory.';
     }
 
     const aadhaarRes = validateAadhaar(formData.aadhaarNo);
     if (!aadhaarRes.isValid) {
-      toast.error(aadhaarRes.error);
-      return;
+      newFieldErrors.aadhaarNo = aadhaarRes.error;
     }
 
     if (!formData.aadhaarPhoto && !formData.aadhaarPhotoPreview) {
-      toast.error('Aadhaar Card Photo is mandatory.');
+      newFieldErrors.aadhaarPhoto = 'Aadhaar Card Photo is mandatory.';
+    }
+
+    if (Object.keys(newFieldErrors).length > 0) {
+      setFieldErrors(newFieldErrors);
+      const firstError = Object.values(newFieldErrors)[0];
+      toast.error(firstError);
       return;
     }
+    setFieldErrors({});
 
     if (!conductNonAlcoholic || !conductNoAbuse || !conductDisclaimer) {
       toast.error('Please accept all Code of Conduct and Platform Disclaimer checkboxes to register.');
@@ -432,16 +535,13 @@ export default function DriverPortal({ onBackToHome, pricingSettings }) {
             }
             toast.success('Registration payment verified & 3-Month Free Trial activated!');
           } else {
+            if (res.field) {
+              setFieldErrors({ [res.field]: res.message });
+            }
             toast.error(res.message || 'Failed to submit driver application');
           }
-        } catch {
-          toast.error('Registration saved locally');
-          setRegisterSuccessBanner(true);
-          try {
-            window.history.pushState({}, '', '/driver/success');
-          } catch {
-            // ignore
-          }
+        } catch (err) {
+          toast.error(err?.message || 'Error submitting registration');
         } finally {
           setRegisterLoading(false);
         }
@@ -762,6 +862,140 @@ export default function DriverPortal({ onBackToHome, pricingSettings }) {
               </div>
             </div>
           </div>
+
+          {/* ASSIGNED DUTIES & SITE LOCATIONS (WhatsApp & Google Maps Sharing) */}
+          <div className="bg-white rounded-3xl border border-neutral-200 p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-neutral-100">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <Navigation className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-neutral-950 text-base font-sans">
+                    Assigned Duties &amp; Site Locations ({driverBookings.length})
+                  </h3>
+                  <p className="text-xs text-neutral-500">
+                    Open customer pickup/delivery sites in Google Maps or share location directly via WhatsApp.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {driverBookings.length === 0 ? (
+              <div className="p-8 text-center bg-neutral-50 rounded-2xl border border-neutral-200/80 space-y-1">
+                <p className="text-sm font-bold text-neutral-900">No Scheduled Duties Yet</p>
+                <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+                  When car owners book you, their site/pickup locations, schedule, and direct WhatsApp links will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {driverBookings.map((duty) => (
+                  <div
+                    key={duty.id}
+                    className="p-5 rounded-2xl border border-neutral-200 bg-neutral-50/70 space-y-3.5 hover:border-neutral-300 transition-all shadow-2xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-mono font-bold bg-neutral-200 text-neutral-800 px-2 py-0.5 rounded-full">
+                          {duty.id}
+                        </span>
+                        <h4 className="font-bold text-neutral-950 text-base font-sans mt-1">
+                          {duty.customerName || 'Car Owner'}
+                        </h4>
+                        <p className="text-xs text-neutral-500">
+                          {duty.customerPhone || 'Contact details pending'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-base font-black text-neutral-950">₹{duty.totalCost}</span>
+                        <p className="text-[10px] font-semibold text-emerald-700">{duty.hours || duty.dutyCategory}</p>
+                      </div>
+                    </div>
+
+                    {/* Site / Delivery Location Box */}
+                    <div className="p-3 bg-white rounded-xl border border-neutral-200 space-y-1.5">
+                      <div className="flex items-start gap-2">
+                        <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
+                            Pickup / Site Location:
+                          </span>
+                          <span className="text-xs font-semibold text-neutral-900 leading-snug block">
+                            {duty.pickupAddress}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] text-neutral-500 pl-6">
+                        <Clock className="w-3.5 h-3.5 text-neutral-400" />
+                        <span>{duty.date} at {duty.time}</span>
+                      </div>
+                    </div>
+
+                    {/* Quick Location Action Buttons (Google Maps & WhatsApp) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {/* Open in Google Maps */}
+                      <button
+                        type="button"
+                        onClick={() => openLocationInGoogleMaps(duty.pickupAddress, duty.coords)}
+                        className="py-2.5 px-3 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                        title="Open valid Google Maps route"
+                      >
+                        <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Open in Google Maps</span>
+                      </button>
+
+                      {/* Share Site Location on WhatsApp */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          shareLocationOnWhatsApp({
+                            location: duty.pickupAddress,
+                            mapsUrl: duty.mapsUrl,
+                            tripId: duty.id,
+                            customerName: duty.customerName,
+                            customerPhone: duty.customerPhone,
+                            date: duty.date,
+                            time: duty.time,
+                          })
+                        }
+                        className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                        title="Share valid Google Maps location link on WhatsApp"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>WhatsApp Location</span>
+                      </button>
+                    </div>
+
+                    {/* Direct Contact with Customer via WhatsApp */}
+                    {duty.customerPhone && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            shareLocationOnWhatsApp({
+                              location: duty.pickupAddress,
+                              mapsUrl: duty.mapsUrl,
+                              tripId: duty.id,
+                              customerName: duty.customerName,
+                              customerPhone: duty.customerPhone,
+                              date: duty.date,
+                              time: duty.time,
+                              directPhone: duty.customerPhone,
+                            })
+                          }
+                          className="w-full py-2 px-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-900 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Direct Message Customer on WhatsApp</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1052,11 +1286,22 @@ export default function DriverPortal({ onBackToHome, pricingSettings }) {
                     type="tel"
                     placeholder="9876543210"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                    onChange={(e) => {
+                      setFieldErrors((prev) => ({ ...prev, phone: null }));
+                      setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) });
+                    }}
                     maxLength={10}
-                    className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    className={`w-full px-4 py-3 bg-neutral-50 border rounded-2xl text-sm font-semibold text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900 ${
+                      fieldErrors.phone ? 'border-red-500 bg-red-50/30' : 'border-neutral-200'
+                    }`}
                     required
                   />
+                  {fieldErrors.phone && (
+                    <p className="mt-1.5 text-xs text-red-600 font-semibold flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{fieldErrors.phone}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1100,17 +1345,22 @@ export default function DriverPortal({ onBackToHome, pricingSettings }) {
                     Upload Driver Profile Headshot Photo
                   </label>
                 </div>
-                <p className="text-xs text-neutral-500">
-                  This photo will be displayed on the public homepage driver directory.
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-neutral-500">
+                    This photo will be displayed on the public homepage driver directory.
+                  </p>
+                  <span className="text-[10px] font-mono font-semibold text-neutral-400">
+                    Max: 5.0 MB
+                  </span>
+                </div>
 
                 <div className="flex items-center gap-4">
                   <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white border border-dashed border-neutral-300 hover:border-neutral-900 rounded-2xl cursor-pointer text-xs font-semibold text-neutral-800 transition-colors">
                     <Upload className="w-4 h-4 text-neutral-500" />
-                    <span>{formData.photo ? 'Change Profile Headshot' : 'Choose Headshot Photo'}</span>
+                    <span>{formData.photo ? 'Change Profile Headshot' : 'Choose Headshot Photo (Max 5 MB)'}</span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp,image/jpg"
                       onChange={(e) => handleFileUpload(e, 'photo')}
                       className="hidden"
                     />
@@ -1126,6 +1376,19 @@ export default function DriverPortal({ onBackToHome, pricingSettings }) {
                     </div>
                   )}
                 </div>
+
+                {photoSizes.photo && (
+                  <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                    <FileCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>File Size: {photoSizes.photo.originalSizeMB}</span>
+                    {photoSizes.photo.wasCompressed && (
+                      <span className="text-[10px] text-emerald-600 font-sans">
+                        (Optimized to {photoSizes.photo.compressedSizeMB})
+                      </span>
+                    )}
+                    <span className="text-[10px] text-neutral-400 font-sans ml-auto">Limit: 5 MB</span>
+                  </div>
+                )}
               </div>
 
               {/* MANDATORY KYC DOCUMENTS */}
@@ -1148,31 +1411,56 @@ export default function DriverPortal({ onBackToHome, pricingSettings }) {
                       placeholder="TS-09-2023-0098765"
                       maxLength={18}
                       value={formData.licenseNo}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        setFieldErrors((prev) => ({ ...prev, licenseNo: null }));
                         setFormData({
                           ...formData,
                           licenseNo: formatDrivingLicenseInput(e.target.value),
-                        })
-                      }
-                      className="w-full px-3 py-2.5 bg-white border border-neutral-300 rounded-xl text-xs font-mono font-bold text-neutral-950"
+                        });
+                      }}
+                      className={`w-full px-3 py-2.5 bg-white border rounded-xl text-xs font-mono font-bold text-neutral-950 ${
+                        fieldErrors.licenseNo ? 'border-red-500 bg-red-50/30' : 'border-neutral-300'
+                      }`}
                       required
                     />
+                    {fieldErrors.licenseNo && (
+                      <p className="mt-1 text-xs text-red-600 font-semibold flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{fieldErrors.licenseNo}</span>
+                      </p>
+                    )}
 
                     <div>
-                      <span className="block text-[11px] font-semibold text-neutral-600 mb-1">
-                        Upload Driving License Photo *
-                      </span>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="block text-[11px] font-semibold text-neutral-600">
+                          Upload Driving License Photo *
+                        </span>
+                        <span className="text-[10px] font-mono text-neutral-400">Max: 5 MB</span>
+                      </div>
                       <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-dashed border-neutral-300 hover:border-neutral-900 rounded-xl cursor-pointer text-xs font-medium text-neutral-700 transition-colors">
                         <Upload className="w-4 h-4 text-neutral-500" />
-                        <span>{formData.licensePhoto ? 'Change Photo' : 'Choose License Photo'}</span>
+                        <span>{formData.licensePhoto ? 'Change Photo' : 'Choose License Photo (Max 5 MB)'}</span>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/webp,image/jpg"
                           onChange={(e) => handleFileUpload(e, 'licensePhoto')}
                           className="hidden"
                         />
                       </label>
                     </div>
+
+                    {photoSizes.licensePhoto && (
+                      <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                        <FileCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Size: {photoSizes.licensePhoto.originalSizeMB}</span>
+                        {photoSizes.licensePhoto.wasCompressed && (
+                          <span className="text-[10px] text-emerald-600 font-sans">
+                            ({photoSizes.licensePhoto.compressedSizeMB})
+                          </span>
+                        )}
+                        <span className="text-[10px] text-neutral-400 font-sans ml-auto">Limit: 5 MB</span>
+                      </div>
+                    )}
 
                     {formData.licensePhotoPreview && (
                       <div className="mt-2 rounded-xl overflow-hidden border border-neutral-200 h-24 bg-neutral-100">
@@ -1195,26 +1483,53 @@ export default function DriverPortal({ onBackToHome, pricingSettings }) {
                       placeholder="5432-8765-4321"
                       maxLength={14}
                       value={formData.aadhaarNo}
-                      onChange={(e) => setFormData({ ...formData, aadhaarNo: formatAadhaarInput(e.target.value) })}
-                      className="w-full px-3 py-2.5 bg-white border border-neutral-300 rounded-xl text-xs font-mono font-bold text-neutral-950"
+                      onChange={(e) => {
+                        setFieldErrors((prev) => ({ ...prev, aadhaarNo: null }));
+                        setFormData({ ...formData, aadhaarNo: formatAadhaarInput(e.target.value) });
+                      }}
+                      className={`w-full px-3 py-2.5 bg-white border rounded-xl text-xs font-mono font-bold text-neutral-950 ${
+                        fieldErrors.aadhaarNo ? 'border-red-500 bg-red-50/30' : 'border-neutral-300'
+                      }`}
                       required
                     />
+                    {fieldErrors.aadhaarNo && (
+                      <p className="mt-1 text-xs text-red-600 font-semibold flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{fieldErrors.aadhaarNo}</span>
+                      </p>
+                    )}
 
                     <div>
-                      <span className="block text-[11px] font-semibold text-neutral-600 mb-1">
-                        Upload Aadhaar Card Photo *
-                      </span>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="block text-[11px] font-semibold text-neutral-600">
+                          Upload Aadhaar Card Photo *
+                        </span>
+                        <span className="text-[10px] font-mono text-neutral-400">Max: 5 MB</span>
+                      </div>
                       <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-dashed border-neutral-300 hover:border-neutral-900 rounded-xl cursor-pointer text-xs font-medium text-neutral-700 transition-colors">
                         <Upload className="w-4 h-4 text-neutral-500" />
-                        <span>{formData.aadhaarPhoto ? 'Change Photo' : 'Choose Aadhaar Photo'}</span>
+                        <span>{formData.aadhaarPhoto ? 'Change Photo' : 'Choose Aadhaar Photo (Max 5 MB)'}</span>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/webp,image/jpg"
                           onChange={(e) => handleFileUpload(e, 'aadhaarPhoto')}
                           className="hidden"
                         />
                       </label>
                     </div>
+
+                    {photoSizes.aadhaarPhoto && (
+                      <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                        <FileCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Size: {photoSizes.aadhaarPhoto.originalSizeMB}</span>
+                        {photoSizes.aadhaarPhoto.wasCompressed && (
+                          <span className="text-[10px] text-emerald-600 font-sans">
+                            ({photoSizes.aadhaarPhoto.compressedSizeMB})
+                          </span>
+                        )}
+                        <span className="text-[10px] text-neutral-400 font-sans ml-auto">Limit: 5 MB</span>
+                      </div>
+                    )}
 
                     {formData.aadhaarPhotoPreview && (
                       <div className="mt-2 rounded-xl overflow-hidden border border-neutral-200 h-24 bg-neutral-100">
@@ -1351,19 +1666,15 @@ export default function DriverPortal({ onBackToHome, pricingSettings }) {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
-                  Primary Area
+                  Primary Area in Hyderabad
                 </label>
-                <select
+                <SearchableSelect
+                  options={HYDERABAD_LOCALITIES}
                   value={editForm.location}
-                  onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                >
-                  {HYDERABAD_LOCALITIES.map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setEditForm({ ...editForm, location: val })}
+                  placeholder="Select primary area..."
+                  searchPlaceholder="Type area name (e.g. Kondapur, Gachibowli)..."
+                />
               </div>
 
               <div>
@@ -1380,16 +1691,57 @@ export default function DriverPortal({ onBackToHome, pricingSettings }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1">
-                  Profile Photo URL / Image Link
-                </label>
-                <input
-                  type="url"
-                  value={editForm.photo}
-                  onChange={(e) => setEditForm({ ...editForm, photo: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
-                  placeholder="https://..."
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700">
+                    Profile Headshot Photo
+                  </label>
+                  <span className="text-[10px] font-mono text-neutral-400">Max: 5.0 MB</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-neutral-50 hover:bg-neutral-100 border border-dashed border-neutral-300 rounded-xl cursor-pointer text-xs font-semibold text-neutral-800 transition-colors">
+                    <Upload className="w-4 h-4 text-neutral-500" />
+                    <span>Upload New Photo (Max 5 MB)</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/jpg"
+                      onChange={(e) => handleFileUpload(e, 'editPhoto')}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {editForm.photo && (
+                    <img
+                      src={editForm.photo}
+                      alt="Headshot Preview"
+                      className="w-10 h-10 rounded-xl object-cover border border-neutral-200 bg-neutral-100 shrink-0"
+                    />
+                  )}
+                </div>
+
+                {photoSizes.editPhoto && (
+                  <div className="mt-1 flex items-center gap-1.5 text-[11px] font-mono text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                    <FileCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>File Size: {photoSizes.editPhoto.originalSizeMB}</span>
+                    {photoSizes.editPhoto.wasCompressed && (
+                      <span className="text-[10px] text-emerald-600 font-sans">
+                        (Optimized to {photoSizes.editPhoto.compressedSizeMB})
+                      </span>
+                    )}
+                    <span className="text-[10px] text-neutral-400 font-sans ml-auto">Limit: 5 MB</span>
+                  </div>
+                )}
+
+                <div className="mt-2">
+                  <span className="block text-[10px] font-semibold text-neutral-500 mb-0.5">Or paste direct photo URL:</span>
+                  <input
+                    type="url"
+                    value={editForm.photo}
+                    onChange={(e) => setEditForm({ ...editForm, photo: e.target.value })}
+                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-semibold text-neutral-900"
+                    placeholder="https://..."
+                  />
+                </div>
               </div>
 
               <div>

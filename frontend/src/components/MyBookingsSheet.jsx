@@ -1,4 +1,5 @@
 import { X, Calendar, MapPin, Trash2, CheckCircle2 } from 'lucide-react';
+import { openLocationInGoogleMaps, shareLocationOnWhatsApp } from '../utils/locationHelper';
 
 export default function MyBookingsSheet({ isOpen, onClose, bookings, onCancelBooking }) {
   if (!isOpen) return null;
@@ -71,6 +72,38 @@ export default function MyBookingsSheet({ isOpen, onClose, bookings, onCancelBoo
                   </div>
                 </div>
 
+                {/* Location Actions: Google Maps & WhatsApp Share */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => openLocationInGoogleMaps(booking.pickupAddress, booking.coords)}
+                    className="flex-1 py-2 px-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    title="Open exact location in Google Maps"
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Open Maps</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      shareLocationOnWhatsApp({
+                        location: booking.pickupAddress,
+                        mapsUrl: booking.mapsUrl,
+                        tripId: booking.id,
+                        customerName: booking.customerName,
+                        customerPhone: booking.customerPhone,
+                        date: booking.date,
+                        time: booking.time,
+                      })
+                    }
+                    className="flex-1 py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    title="Share location via WhatsApp"
+                  >
+                    <span>💬 Share Location</span>
+                  </button>
+                </div>
+
                 <div className="flex items-center justify-between pt-1 text-xs">
                   <span className="text-[11px] text-emerald-700 font-medium flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -78,7 +111,7 @@ export default function MyBookingsSheet({ isOpen, onClose, bookings, onCancelBoo
                   </span>
                   <button
                     onClick={() => onCancelBooking(booking.id)}
-                    className="text-xs text-neutral-400 hover:text-rose-600 transition-colors font-medium flex items-center gap-1"
+                    className="text-xs text-neutral-400 hover:text-rose-600 transition-colors font-medium flex items-center gap-1 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Cancel trip</span>

@@ -72,24 +72,46 @@ export async function copyToClipboard(text) {
 }
 
 /**
- * Indian Mobile Number Validator (10 digits starting with 6-9, non-repetitive)
+ * Normalizes Indian Mobile numbers to standard +91XXXXXXXXXX
+ * Strips spaces, dashes, brackets, and prefixes (0 or 91)
+ */
+export function normalizeIndianMobile(phone) {
+  if (!phone) return '';
+  let digits = String(phone).replace(/\D/g, '');
+  if (digits.startsWith('91') && digits.length === 12) {
+    digits = digits.slice(2);
+  } else if (digits.startsWith('0') && digits.length === 11) {
+    digits = digits.slice(1);
+  }
+  return digits.length === 10 ? `+91${digits}` : '';
+}
+
+/**
+ * Indian Mobile Number Validator (handles 98765 43210, +91 98765-43210, etc.)
  */
 export function validateIndianMobile(phone) {
-  const clean = String(phone || '').replace(/\D/g, '');
-  if (!clean) {
-    return { isValid: false, error: 'Mobile number is required', cleaned: '' };
+  if (!phone) {
+    return { isValid: false, error: 'Mobile number is required', cleaned: '', normalized: '' };
   }
-  if (clean.length !== 10) {
-    return { isValid: false, error: 'Mobile number must be exactly 10 digits', cleaned: clean };
+  let digits = String(phone).replace(/\D/g, '');
+  if (digits.startsWith('91') && digits.length === 12) {
+    digits = digits.slice(2);
+  } else if (digits.startsWith('0') && digits.length === 11) {
+    digits = digits.slice(1);
   }
-  if (!/^[6-9]/.test(clean)) {
-    return { isValid: false, error: 'Mobile number must start with 6, 7, 8, or 9', cleaned: clean };
+
+  if (digits.length !== 10) {
+    return { isValid: false, error: 'Mobile number must be a 10-digit Indian number (e.g. 98765 43210)', cleaned: digits, normalized: '' };
+  }
+  if (!/^[6-9]/.test(digits)) {
+    return { isValid: false, error: 'Mobile number must start with 6, 7, 8, or 9', cleaned: digits, normalized: '' };
   }
   // Check for repetitive fake numbers like 9999999999 or 8888888888
-  if (/^(\d)\1{9}$/.test(clean)) {
-    return { isValid: false, error: 'Please enter a genuine mobile number', cleaned: clean };
+  if (/^(\d)\1{9}$/.test(digits)) {
+    return { isValid: false, error: 'Please enter a genuine mobile number', cleaned: digits, normalized: '' };
   }
-  return { isValid: true, cleaned: clean };
+  const normalized = `+91${digits}`;
+  return { isValid: true, cleaned: digits, normalized };
 }
 
 /**

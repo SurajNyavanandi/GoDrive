@@ -11,11 +11,29 @@ const { uploadDocument, isConfigured } = require('../services/cloudinaryService'
  */
 router.post(
   '/upload-docs',
-  upload.fields([
-    { name: 'aadhaarPhoto', maxCount: 1 },
-    { name: 'licensePhoto', maxCount: 1 },
-    { name: 'photo', maxCount: 1 },
-  ]),
+  (req, res, next) => {
+    upload.fields([
+      { name: 'aadhaarPhoto', maxCount: 1 },
+      { name: 'licensePhoto', maxCount: 1 },
+      { name: 'photo', maxCount: 1 },
+    ])(req, res, (err) => {
+      if (err) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({
+            success: false,
+            code: 'FILE_TOO_LARGE',
+            message: 'File size exceeds the 5 MB limit. Please upload photos under 5 MB.',
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          code: 'INVALID_FILE',
+          message: err.message || 'Only image files (JPEG, PNG, WebP) and documents under 5 MB are allowed.',
+        });
+      }
+      next();
+    });
+  },
   async (req, res) => {
     try {
       const urls = {};
@@ -116,7 +134,7 @@ router.post('/login', async (req, res) => {
  */
 router.post('/register', (req, res) => {
   try {
-    const { name, phone, licenseNo, aadhaarNo, experience } = req.body;
+    const { name, phone, licenseNo, aadhaarNo } = req.body;
 
     if (!name || !phone || !licenseNo || !aadhaarNo) {
       return res.status(400).json({
@@ -126,20 +144,43 @@ router.post('/register', (req, res) => {
     }
 
     const cleanName = String(name).trim();
-    const cleanPhone = String(phone).replace(/\D/g, '');
-    const cleanLicense = String(licenseNo).trim().toUpperCase();
-    const cleanAadhaar = String(aadhaarNo).replace(/\D/g, '');
+    const normalizedPhone = storage.normalizeMobile(phone);
+    if (!normalizedPhone || !/^\+91[6-9]\d{9}$/.test(normalizedPhone)) {
+      return res.status(400).json({
+        success: false,
+        field: 'phone',
+        message: 'Please provide a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.',
+      });
+    }
+
+    const rawAadhaar = String(aadhaarNo).replace(/\D/g, '');
+    if (rawAadhaar.length !== 12) {
+      return res.status(400).json({
+        success: false,
+        field: 'aadhaarNo',
+        message: 'Please provide a valid 12-digit Aadhaar card number.',
+      });
+    }
+
+    const cleanLicense = storage.normalizeLicense(licenseNo);
+    if (cleanLicense.length < 5) {
+      return res.status(400).json({
+        success: false,
+        field: 'licenseNo',
+        message: 'Please provide a valid Driving License Number.',
+      });
+    }
 
     const result = storage.registerNewDriver({
       ...req.body,
       name: cleanName,
-      phone: cleanPhone,
+      phone: normalizedPhone,
       licenseNo: cleanLicense,
-      aadhaarNo: `${cleanAadhaar.slice(0, 4)}-${cleanAadhaar.slice(4, 8)}-${cleanAadhaar.slice(8, 12)}`,
+      aadhaarNo: storage.formatAadhaar(rawAadhaar),
     });
 
     if (!result.success) {
-      return res.status(400).json(result);
+      return res.status(result.status || 400).json(result);
     }
 
     res.status(201).json({
@@ -148,6 +189,14 @@ router.post('/register', (req, res) => {
       driver: result.driver,
     });
   } catch (err) {
+    if (err.statusCode === 409 || err.code === 'DUPLICATE_ENTRY') {
+      return res.status(409).json({
+        success: false,
+        code: 'DUPLICATE_ENTRY',
+        field: err.field,
+        message: err.message,
+      });
+    }
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -185,6 +234,14 @@ router.put('/:id/profile', (req, res) => {
     }
     res.json({ success: true, message: 'Profile updated successfully', driver: updated });
   } catch (err) {
+    if (err.statusCode === 409 || err.code === 'DUPLICATE_ENTRY') {
+      return res.status(409).json({
+        success: false,
+        code: 'DUPLICATE_ENTRY',
+        field: err.field,
+        message: err.message,
+      });
+    }
     res.status(500).json({ success: false, message: err.message });
   }
 });

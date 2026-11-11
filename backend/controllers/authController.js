@@ -12,14 +12,32 @@ const mockUsers = new Map();
  * Register User
  * POST /api/auth/register
  */
+function normalizeMobile(phone) {
+  if (!phone) return '';
+  let digits = String(phone).replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) {
+    digits = digits.slice(2);
+  } else if (digits.length === 11 && digits.startsWith('0')) {
+    digits = digits.slice(1);
+  }
+  return digits.length === 10 ? `+91${digits}` : (digits ? `+91${digits}` : '');
+}
+
 const register = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, phone, mobile } = req.body;
 
   if (!name || !email || !password) {
     return errorResponse(res, 'Please provide name, email, and password', 400);
   }
 
   const cleanEmail = email.toLowerCase().trim();
+  const rawPhone = phone || mobile;
+  const normalizedPhone = rawPhone ? normalizeMobile(rawPhone) : '';
+
+  if (rawPhone && (!normalizedPhone || normalizedPhone.length !== 13)) {
+    return errorResponse(res, 'Please provide a valid 10-digit Indian mobile number', 400);
+  }
+
   const configuredAdminEmail = (process.env.ADMIN_EMAIL || env.ADMIN_EMAIL || '').toLowerCase().trim();
   const isAdmin = cleanEmail === configuredAdminEmail;
 
@@ -27,13 +45,21 @@ const register = asyncHandler(async (req, res) => {
 
   if (!isDbConnected) {
     if (mockUsers.has(cleanEmail)) {
-      return errorResponse(res, 'An account with this email already exists', 400);
+      return errorResponse(res, 'An account with this email already exists.', 409);
+    }
+    if (normalizedPhone) {
+      for (const u of mockUsers.values()) {
+        if (u.phone && normalizeMobile(u.phone) === normalizedPhone) {
+          return errorResponse(res, 'This mobile number is already registered.', 409);
+        }
+      }
     }
 
     const mockUser = {
       _id: `user_mock_${Date.now()}`,
       name: name.trim(),
       email: cleanEmail,
+      phone: normalizedPhone || null,
       role: isAdmin ? 'admin' : 'user',
     };
     mockUsers.set(cleanEmail, { ...mockUser, password });
@@ -56,33 +82,53 @@ const register = asyncHandler(async (req, res) => {
     );
   }
 
-  const userExists = await User.findOne({ email });
-  if (userExists) {
-    return errorResponse(res, 'An account with this email already exists', 400);
+  // Database Level Uniqueness Checks
+  const userWithEmail = await User.findOne({ email: cleanEmail });
+  if (userWithEmail) {
+    return errorResponse(res, 'An account with this email already exists.', 409);
   }
 
-  const user = await User.create({
-    name,
-    email,
-    password,
-  });
+  if (normalizedPhone) {
+    const userWithPhone = await User.findOne({ phone: normalizedPhone });
+    if (userWithPhone) {
+      return errorResponse(res, 'This mobile number is already registered.', 409);
+    }
+  }
 
-  const token = user.getSignedJwtToken();
+  try {
+    const user = await User.create({
+      name: name.trim(),
+      email: cleanEmail,
+      password,
+      phone: normalizedPhone || undefined,
+    });
 
-  return successResponse(
-    res,
-    {
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+    const token = user.getSignedJwtToken();
+
+    return successResponse(
+      res,
+      {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+        },
+        token,
       },
-      token,
-    },
-    'User registered successfully',
-    201
-  );
+      'User registered successfully',
+      201
+    );
+  } catch (err) {
+    if (err.code === 11000) {
+      if (err.keyPattern && err.keyPattern.phone) {
+        return errorResponse(res, 'This mobile number is already registered.', 409);
+      }
+      return errorResponse(res, 'An account with this email already exists.', 409);
+    }
+    throw err;
+  }
 });
 
 /**
