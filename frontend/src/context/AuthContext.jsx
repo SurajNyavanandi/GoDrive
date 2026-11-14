@@ -34,8 +34,11 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
-    const { token: newToken, user: userData } = response.data.data;
+    const { token: newToken, refreshToken: newRefreshToken, user: userData } = response.data.data;
     localStorage.setItem('vt_auth_token', newToken);
+    if (newRefreshToken) {
+      localStorage.setItem('vt_refresh_token', newRefreshToken);
+    }
     setToken(newToken);
     setUser(userData);
     return userData;
@@ -43,8 +46,11 @@ export function AuthProvider({ children }) {
 
   const register = async (name, email, password) => {
     const response = await api.post('/auth/register', { name, email, password });
-    const { token: newToken, user: userData } = response.data.data;
+    const { token: newToken, refreshToken: newRefreshToken, user: userData } = response.data.data;
     localStorage.setItem('vt_auth_token', newToken);
+    if (newRefreshToken) {
+      localStorage.setItem('vt_refresh_token', newRefreshToken);
+    }
     setToken(newToken);
     setUser(userData);
     return userData;
@@ -52,6 +58,9 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('vt_auth_token');
+    localStorage.removeItem('token');
+    localStorage.removeItem('vt_refresh_token');
+    localStorage.removeItem('refreshToken');
     setToken(null);
     setUser(null);
   };

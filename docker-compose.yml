@@ -1,0 +1,79 @@
+services:
+  # ------------------------------------------
+  # 1. MongoDB Database Service
+  # ------------------------------------------
+  mongo:
+    image: mongo:7.0
+    container_name: godrive-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: manadrivers
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - godrive-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ------------------------------------------
+  # 2. Node.js Express Backend API
+  # ------------------------------------------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: godrive-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MONGO_URI=mongodb://mongo:27017/manadrivers
+      - JWT_SECRET=${JWT_SECRET:-production_secure_jwt_secret_mana_drivers_2026}
+      - JWT_EXPIRE=7d
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@manadrivers.com}
+      - ADMIN_API_KEY=${ADMIN_API_KEY}
+      - ALLOWED_ORIGINS=http://localhost,http://localhost:80,http://localhost:3000,http://localhost:8080
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - godrive-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ------------------------------------------
+  # 3. React Vite + Nginx Frontend
+  # ------------------------------------------
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: godrive-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - godrive-net
+
+volumes:
+  mongo_data:
+    driver: local
+
+networks:
+  godrive-net:
+    driver: bridge

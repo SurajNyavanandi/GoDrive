@@ -6,6 +6,7 @@ const {
 } = require('../services/razorpayService');
 const { successResponse, errorResponse } = require('../utils/apiResponse');
 const { asyncHandler } = require('../utils/errorHandler');
+const logger = require('../utils/logger');
 
 /**
  * Get Public Razorpay Key ID
@@ -75,7 +76,7 @@ const handleWebhook = asyncHandler(async (req, res) => {
   }
 
   const event = req.body.event;
-  console.log(`[Razorpay Webhook Event Received]: ${event}`);
+  logger.info(`[Razorpay Webhook Event Received]: ${event}`);
 
   return successResponse(res, { received: true, event }, 'Webhook acknowledged', 200);
 });

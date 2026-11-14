@@ -123,6 +123,28 @@ body {
   will-change: transform;
 }
 
+.animate-marquee-carousel {
+  display: flex;
+  width: max-content;
+  animation: marquee 45s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-carousel:hover {
+  animation-play-state: paused;
+}
+
+.animate-marquee-reviews {
+  display: flex;
+  width: max-content;
+  animation: marquee 50s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-reviews:hover {
+  animation-play-state: paused;
+}
+
 .animate-marquee:hover {
   animation-play-state: paused;
 }

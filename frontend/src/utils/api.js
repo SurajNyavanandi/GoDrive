@@ -2,9 +2,9 @@ import logger from './logger';
 
 export function getApiUrl(path) {
   let base = (
+    import.meta.env?.VITE_API_URL ||
     import.meta.env?.VITE_BACKEND_API_URL ||
     import.meta.env?.BACKEND_API_URL ||
-    import.meta.env?.VITE_API_URL ||
     ''
   ).trim();
 
@@ -29,37 +29,84 @@ export function getApiUrl(path) {
   return base ? `${base}${finalPath}` : finalPath;
 }
 
-// In-memory fallback structures for network drops
-let memoryDrivers = [];
-let memoryBookings = [];
-let memoryPricing = {
-  cityBaseHours: 4,
-  cityBaseFare: 700,
-  cityExtraHourlyRate: 100,
-  nightSurchargePerHour: 150,
-  outstationFlatRate: 2000,
-  outstationInterstateRate: 2500,
-  monthly8hSalary: 25000,
-  monthly10hSalary: 28000,
-  monthly12hSalary: 30000,
-};
-let memoryReviews = [];
+export function getAdminHeaders(extraHeaders = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...extraHeaders,
+  };
+  if (typeof window !== 'undefined') {
+    const token =
+      localStorage.getItem('mana_admin_token') ||
+      localStorage.getItem('vt_auth_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('godrive_admin_token');
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const adminKey =
+      localStorage.getItem('vt_admin_key') ||
+      localStorage.getItem('admin_key') ||
+      localStorage.getItem('godrive_admin_key') ||
+      import.meta.env?.VITE_ADMIN_KEY ||
+      import.meta.env?.VITE_ADMIN_API_KEY;
+    if (adminKey) {
+      headers['x-admin-key'] = adminKey;
+    }
+  }
+  return headers;
+}
 
+/**
+ * Safely parse JSON responses to prevent "Unexpected end of JSON input" crashes
+ * on empty bodies or HTML error pages.
+ */
+export async function safeParseJson(res, defaultMessage = 'Unexpected response from server') {
+  try {
+    const text = await res.text();
+    if (!text || !text.trim()) {
+      return {
+        success: false,
+        status: res?.status || 500,
+        code: res?.status === 404 ? 'NOT_FOUND' : 'EMPTY_RESPONSE',
+        message:
+          res?.status === 404
+            ? 'API service endpoint not found (404). Ensure backend server is active.'
+            : defaultMessage,
+      };
+    }
+    return JSON.parse(text);
+  } catch {
+    return {
+      success: false,
+      status: res?.status || 500,
+      code: 'INVALID_JSON',
+      message: res?.status === 404 ? 'API route not found (404)' : defaultMessage,
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PUBLIC DRIVERS
+// ---------------------------------------------------------------------------
 export async function fetchPublicDrivers() {
   try {
     const res = await fetch(getApiUrl('/api/drivers'));
     if (res.ok) {
-      const json = await res.json();
+      const json = await safeParseJson(res);
       if (json.success && Array.isArray(json.data)) {
         return json.data;
       }
     }
-  } catch {
-    // fallback
+    return [];
+  } catch (err) {
+    logger.warn('Failed to fetch public drivers from API:', err?.message);
+    return [];
   }
-  return memoryDrivers.filter((d) => d.isApproved !== false);
 }
 
+// ---------------------------------------------------------------------------
+// DRIVER AUTHENTICATION & PORTAL
+// ---------------------------------------------------------------------------
 export async function loginDriverApi(phone, otp) {
   try {
     const res = await fetch(getApiUrl('/api/drivers/login'), {
@@ -67,28 +114,14 @@ export async function loginDriverApi(phone, otp) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, otp }),
     });
-    const json = await res.json();
-    return json;
-  } catch {
-    const cleanPhone = String(phone).replace(/\D/g, '');
-    const driver = memoryDrivers.find(
-      (d) => String(d.phone).replace(/\D/g, '').endsWith(cleanPhone.slice(-10))
-    );
-    if (!driver) {
-      return { success: false, code: 'UNREGISTERED', message: 'Mobile number not registered.' };
-    }
-    if (driver.isApproved === false) {
-      if (driver.listingStatus === 'Rejected') {
-        return {
-          success: false,
-          code: 'REJECTED',
-          driver,
-          message: `Application rejected: ${driver.rejectionReason || 'Incomplete verification'}. You can re-apply after 3 days.`,
-        };
-      }
-      return { success: false, code: 'PENDING_APPROVAL', driver, message: 'Your profile is pending admin approval.' };
-    }
-    return { success: true, driver, message: 'Login successful (sandbox)' };
+    return await safeParseJson(res, 'Driver login failed. Please check your credentials.');
+  } catch (err) {
+    logger.error('Driver login network error:', err);
+    return {
+      success: false,
+      code: 'NETWORK_ERROR',
+      message: 'Network error connecting to driver portal. Please check your connection.',
+    };
   }
 }
 
@@ -99,116 +132,89 @@ export async function registerDriverApi(data) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    const json = await res.json();
-    return json;
+    return await safeParseJson(res, 'Driver registration failed. Please try again.');
   } catch (err) {
-    logger.error('Registration network error:', err);
+    logger.error('Driver registration network error:', err);
     return {
       success: false,
-      message: 'Network error submitting registration. Please verify your internet connection and try again.',
+      code: 'NETWORK_ERROR',
+      message: 'Network error registering driver profile. Please try again.',
     };
   }
 }
 
-export async function subscribeDriverPlanApi(driverId, plan) {
-  try {
-    const res = await fetch(getApiUrl(`/api/drivers/${driverId}/subscribe`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan }),
-    });
-    const json = await res.json();
-    if (res.ok) return json;
-  } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
-  }
-
-  const driver = memoryDrivers.find((d) => d.id === driverId);
-  if (driver) {
-    driver.subscriptionPlan = plan;
-    driver.remainingDays = (driver.remainingDays || 0) + 30;
-  }
-  return { success: true, message: 'Subscription updated' };
-}
-
-export async function updateDriverSelfProfileApi(driverId, profileData) {
+export async function updateDriverProfileApi(driverId, profileData) {
   try {
     const res = await fetch(getApiUrl(`/api/drivers/${driverId}/profile`), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(profileData),
     });
-    const json = await res.json();
-    if (res.ok) return json;
+    return await safeParseJson(res, 'Profile update failed.');
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Update driver profile network error:', err);
+    return {
+      success: false,
+      message: 'Network error updating profile. Please try again.',
+    };
   }
-
-  const index = memoryDrivers.findIndex((d) => d.id === driverId);
-  if (index !== -1) {
-    memoryDrivers[index] = { ...memoryDrivers[index], ...profileData };
-    return { success: true, driver: memoryDrivers[index] };
-  }
-  return { success: false, message: 'Driver not found' };
 }
+
+export const updateDriverSelfProfileApi = updateDriverProfileApi;
+
+export async function updateDriverStatusApi(driverId, status) {
+  try {
+    const res = await fetch(getApiUrl(`/api/drivers/${driverId}/status`), {
+      method: 'PATCH',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ status }),
+    });
+    return await safeParseJson(res, 'Status update failed.');
+  } catch (err) {
+    logger.error('Update driver status network error:', err);
+    return { success: false, message: 'Network error updating status.' };
+  }
+}
+
+export async function subscribeDriverApi(driverId, plan, paymentDetails = {}) {
+  try {
+    const res = await fetch(getApiUrl(`/api/drivers/${driverId}/subscribe`), {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify({ plan, paymentDetails }),
+    });
+    return await safeParseJson(res, 'Subscription update failed.');
+  } catch (err) {
+    logger.error('Driver subscription network error:', err);
+    return {
+      success: false,
+      message: 'Network error processing subscription. Please contact support.',
+    };
+  }
+}
+
+export const subscribeDriverPlanApi = subscribeDriverApi;
 
 export async function uploadDriverDocsApi(formData) {
   try {
     const res = await fetch(getApiUrl('/api/drivers/upload-docs'), {
       method: 'POST',
+      headers: getAdminHeaders(),
       body: formData,
     });
-    const json = await res.json();
-    if (res.ok) return json;
+    return await safeParseJson(res, 'Document upload failed.');
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Driver docs upload network error:', err);
+    return {
+      success: false,
+      message: 'Network error uploading documents. Please try again.',
+    };
   }
-
-  let photoUrl = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239CA3AF"%3E%3Cpath d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 14c-2.03 0-3.8-.85-5.05-2.2.06-1.68 3.37-2.6 5.05-2.6s4.99.92 5.05 2.6c-1.25 1.35-3.02 2.2-5.05 2.2z"/%3E%3C/svg%E2%80%9D';
-  let licensePhotoUrl = null;
-  let aadhaarPhotoUrl = null;
-
-  if (formData && typeof formData.get === 'function') {
-    const p = formData.get('photo');
-    if (p && typeof p === 'string') photoUrl = p;
-    const l = formData.get('licensePhoto');
-    if (l && typeof l === 'string') licensePhotoUrl = l;
-    const a = formData.get('aadhaarPhoto');
-    if (a && typeof a === 'string') aadhaarPhotoUrl = a;
-  }
-
-  return {
-    success: true,
-    message: 'Documents uploaded (sandbox mode)',
-    urls: {
-      licensePhoto: licensePhotoUrl,
-      aadhaarPhoto: aadhaarPhotoUrl,
-      photo: photoUrl,
-    },
-  };
 }
 
-export async function updateDriverStatusApi(driverId, status) {
-  try {
-    const res = await fetch(getApiUrl(`/api/drivers/${driverId}/status`), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    const json = await res.json();
-    if (res.ok) return json;
-  } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
-  }
-
-  const driver = memoryDrivers.find((d) => d.id === driverId);
-  if (driver) {
-    driver.status = status;
-    return { success: true, driver };
-  }
-  return { success: false, message: 'Driver not found' };
-}
-
+// ---------------------------------------------------------------------------
+// BOOKINGS
+// ---------------------------------------------------------------------------
 export async function createBookingApi(bookingData) {
   try {
     const res = await fetch(getApiUrl('/api/bookings'), {
@@ -216,8 +222,7 @@ export async function createBookingApi(bookingData) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bookingData),
     });
-    const json = await res.json();
-    return json;
+    return await safeParseJson(res, 'Booking submission failed.');
   } catch (err) {
     logger.error('Booking network error:', err);
     return {
@@ -227,31 +232,35 @@ export async function createBookingApi(bookingData) {
   }
 }
 
+// ---------------------------------------------------------------------------
 // ADMIN APIS
+// ---------------------------------------------------------------------------
 export async function fetchAdminDriversApi() {
   try {
-    const res = await fetch(getApiUrl('/api/admin/drivers'));
+    const res = await fetch(getApiUrl('/api/admin/drivers'), {
+      headers: getAdminHeaders(),
+    });
     if (res.ok) {
-      const json = await res.json();
+      const json = await safeParseJson(res);
       if (json.success && Array.isArray(json.data)) {
         return json;
       }
     }
+    return { success: false, data: [] };
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.warn('Failed to fetch admin drivers:', err?.message);
+    return { success: false, data: [] };
   }
-  return { success: true, data: [...memoryDrivers] };
 }
 
 export async function createDriverApi(driverData) {
   try {
     const res = await fetch(getApiUrl('/api/admin/drivers'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(driverData),
     });
-    const json = await res.json();
-    return json;
+    return await safeParseJson(res, 'Driver creation failed.');
   } catch (err) {
     logger.error('Create driver network error:', err);
     return {
@@ -265,11 +274,10 @@ export async function updateDriverApi(driverId, driverData) {
   try {
     const res = await fetch(getApiUrl(`/api/admin/drivers/${driverId}`), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(driverData),
     });
-    const json = await res.json();
-    return json;
+    return await safeParseJson(res, 'Driver update failed.');
   } catch (err) {
     logger.error('Update driver network error:', err);
     return {
@@ -281,198 +289,158 @@ export async function updateDriverApi(driverId, driverData) {
 
 export async function deleteDriverApi(driverId) {
   try {
-    const res = await fetch(getApiUrl(`/api/admin/drivers/${driverId}`), { method: 'DELETE' });
-    const json = await res.json();
-    if (res.ok) return json;
+    const res = await fetch(getApiUrl(`/api/admin/drivers/${driverId}`), {
+      method: 'DELETE',
+      headers: getAdminHeaders(),
+    });
+    return await safeParseJson(res, 'Driver deletion failed.');
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Delete driver network error:', err);
+    return { success: false, message: 'Network error deleting driver.' };
   }
-
-  memoryDrivers = memoryDrivers.filter((d) => d.id !== driverId);
-  return { success: true, message: 'Driver removed' };
 }
 
 export async function extendSubscriptionApi(driverId, days = 30) {
   try {
     const res = await fetch(getApiUrl(`/api/admin/drivers/${driverId}/subscription`), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ days }),
     });
-    const json = await res.json();
-    if (res.ok) return json;
+    return await safeParseJson(res, 'Subscription extension failed.');
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Extend subscription network error:', err);
+    return { success: false, message: 'Network error extending subscription.' };
   }
-
-  const driver = memoryDrivers.find((d) => d.id === driverId);
-  if (driver) {
-    driver.remainingDays = (driver.remainingDays || 0) + days;
-    return { success: true, message: `Added ${days} days` };
-  }
-  return { success: false, message: 'Driver not found' };
 }
 
 export async function approveDriverApi(id) {
   try {
-    const res = await fetch(getApiUrl(`/api/admin/drivers/${id}/approve`), { method: 'PUT' });
-    const json = await res.json();
-    if (res.ok) return json;
+    const res = await fetch(getApiUrl(`/api/admin/drivers/${id}/approve`), {
+      method: 'PUT',
+      headers: getAdminHeaders(),
+    });
+    return await safeParseJson(res, 'Driver approval failed.');
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Approve driver network error:', err);
+    return { success: false, message: 'Network error approving driver.' };
   }
-
-  const driver = memoryDrivers.find((d) => d.id === id);
-  if (driver) {
-    driver.isApproved = true;
-    return { success: true, message: 'Driver approved and activated' };
-  }
-  return { success: false, message: 'Driver not found' };
 }
 
 export async function rejectDriverApi(id, reason) {
   try {
     const res = await fetch(getApiUrl(`/api/admin/drivers/${id}/reject`), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ reason }),
     });
-    const json = await res.json();
-    if (res.ok) return json;
+    return await safeParseJson(res, 'Driver rejection failed.');
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Reject driver network error:', err);
+    return { success: false, message: 'Network error rejecting driver.' };
   }
-
-  const driver = memoryDrivers.find((d) => d.id === id);
-  if (driver) {
-    driver.isApproved = false;
-    driver.listingStatus = 'Rejected';
-    driver.rejectionReason = reason || 'Incomplete details';
-    driver.rejectedAt = new Date().toISOString();
-    driver.reapplyAllowedAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
-  }
-  return { success: true, message: 'Driver application rejected' };
 }
 
 export async function blockDriverApi(id, reason) {
   try {
     const res = await fetch(getApiUrl(`/api/admin/drivers/${id}/block`), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ reason }),
     });
-    const json = await res.json();
-    if (res.ok) return json;
+    return await safeParseJson(res, 'Driver blocking failed.');
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Block driver network error:', err);
+    return { success: false, message: 'Network error blocking driver.' };
   }
-
-  const driver = memoryDrivers.find((d) => d.id === id);
-  if (driver) {
-    driver.isApproved = false;
-    driver.status = 'Blocked';
-    driver.listingStatus = 'Blocked';
-    driver.blockReason = reason || 'Blocked due to policy violations';
-  }
-  return { success: true, message: 'Driver account blocked' };
 }
 
 export async function unblockDriverApi(id) {
   try {
     const res = await fetch(getApiUrl(`/api/admin/drivers/${id}/unblock`), {
       method: 'PUT',
+      headers: getAdminHeaders(),
     });
-    const json = await res.json();
-    if (res.ok) return json;
+    return await safeParseJson(res, 'Driver unblocking failed.');
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Unblock driver network error:', err);
+    return { success: false, message: 'Network error unblocking driver.' };
   }
-
-  const driver = memoryDrivers.find((d) => d.id === id);
-  if (driver) {
-    driver.isApproved = true;
-    driver.status = 'Available';
-    driver.listingStatus = driver.driverType === 'permanent' ? 'Verified Monthly Chauffeur' : 'Verified Driver';
-    delete driver.blockReason;
-  }
-  return { success: true, message: 'Driver unblocked' };
 }
 
 export async function restoreDriverApi(driverSnapshot) {
   try {
     const res = await fetch(getApiUrl('/api/admin/drivers/restore'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ driver: driverSnapshot }),
     });
-    const json = await res.json();
-    if (res.ok) return json;
+    return await safeParseJson(res, 'Driver restoration failed.');
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Restore driver network error:', err);
+    return { success: false, message: 'Network error restoring driver.' };
   }
-
-  if (driverSnapshot) {
-    memoryDrivers.unshift(driverSnapshot);
-  }
-  return { success: true, message: 'Driver restored' };
 }
 
 export async function fetchAdminHistoryApi() {
   try {
-    const res = await fetch(getApiUrl('/api/admin/history'));
+    const res = await fetch(getApiUrl('/api/admin/history'), {
+      headers: getAdminHeaders(),
+    });
     if (res.ok) {
-      const json = await res.json();
+      const json = await safeParseJson(res);
       if (json.success && Array.isArray(json.data)) return json.data;
     }
+    return [];
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.warn('Failed to fetch admin history:', err?.message);
+    return [];
   }
-  return [];
 }
 
 export async function fetchPricingSettingsApi() {
   try {
-    const res = await fetch(getApiUrl('/api/admin/pricing'));
+    const res = await fetch(getApiUrl('/api/admin/pricing'), {
+      headers: getAdminHeaders(),
+    });
     if (res.ok) {
-      const json = await res.json();
+      const json = await safeParseJson(res);
       if (json.success && json.data) return json.data;
     }
+    return null;
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.warn('Failed to fetch pricing settings:', err?.message);
+    return null;
   }
-  return memoryPricing;
 }
 
 export async function updatePricingSettingsApi(settingsData) {
   try {
     const res = await fetch(getApiUrl('/api/admin/pricing'), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(settingsData),
     });
-    const json = await res.json();
-    if (res.ok && json.success) return json;
+    return await safeParseJson(res, 'Pricing update failed.');
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Update pricing settings network error:', err);
+    return { success: false, message: 'Network error updating pricing settings.' };
   }
-
-  memoryPricing = { ...memoryPricing, ...settingsData };
-  return { success: true, data: memoryPricing, message: 'Pricing updated in sandbox' };
 }
 
 export async function fetchReviewsApi(driverId) {
   try {
-    const path = driverId ? `/api/drivers/reviews?driverId=${driverId}` : '/api/drivers/reviews';
+    const path = driverId ? `/api/drivers/reviews?driverId=${encodeURIComponent(driverId)}` : '/api/drivers/reviews';
     const res = await fetch(getApiUrl(path));
     if (res.ok) {
-      const json = await res.json();
+      const json = await safeParseJson(res);
       if (json.success && Array.isArray(json.data)) return json.data;
     }
+    return [];
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.warn('Failed to fetch reviews:', err?.message);
+    return [];
   }
-  if (driverId) return memoryReviews.filter((r) => r.driverId === driverId);
-  return memoryReviews;
 }
 
 export async function submitReviewApi(reviewData) {
@@ -482,31 +450,82 @@ export async function submitReviewApi(reviewData) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(reviewData),
     });
-    const json = await res.json();
-    if (res.ok && json.success) return json;
+    return await safeParseJson(res, 'Review submission failed.');
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.error('Submit review network error:', err);
+    return { success: false, message: 'Network error submitting review.' };
   }
-
-  const newReview = {
-    id: `rev-${Date.now()}`,
-    ...reviewData,
-    rating: Number(reviewData.rating) || 5,
-    createdAt: new Date().toISOString(),
-  };
-  memoryReviews.unshift(newReview);
-  return { success: true, data: newReview, message: 'Review submitted successfully' };
 }
 
 export async function fetchAdminBookingsApi() {
   try {
-    const res = await fetch(getApiUrl('/api/admin/bookings'));
+    const res = await fetch(getApiUrl('/api/admin/bookings'), {
+      headers: getAdminHeaders(),
+    });
     if (res.ok) {
-      const json = await res.json();
+      const json = await safeParseJson(res);
       if (json.success && Array.isArray(json.data)) return json;
     }
+    return { success: false, data: [] };
   } catch (err) {
-    logger.warn('API fetch fallback triggered', err?.message);
+    logger.warn('Failed to fetch admin bookings:', err?.message);
+    return { success: false, data: [] };
   }
-  return { success: true, data: [...memoryBookings] };
+}
+
+// ---------------------------------------------------------------------------
+// ADMIN AUTHENTICATION
+// ---------------------------------------------------------------------------
+export async function adminLoginApi({ email, password }) {
+  try {
+    const res = await fetch(getApiUrl('/api/admin/login'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    return await safeParseJson(res, 'Admin login failed.');
+  } catch (err) {
+    logger.error('Admin login network error:', err);
+    return {
+      success: false,
+      code: 'NETWORK_ERROR',
+      message: 'Network error connecting to login service.',
+    };
+  }
+}
+
+export async function requestAdminPasswordSetupApi(email) {
+  try {
+    const res = await fetch(getApiUrl('/api/admin/request-password-setup'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return await safeParseJson(res, 'Password setup request failed.');
+  } catch (err) {
+    logger.error('Admin password setup request network error:', err);
+    return {
+      success: false,
+      code: 'NETWORK_ERROR',
+      message: 'Network error requesting password setup code.',
+    };
+  }
+}
+
+export async function setAdminPasswordApi({ email, token, password }) {
+  try {
+    const res = await fetch(getApiUrl('/api/admin/set-password'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, token, password }),
+    });
+    return await safeParseJson(res, 'Configuring password failed.');
+  } catch (err) {
+    logger.error('Admin set password network error:', err);
+    return {
+      success: false,
+      code: 'NETWORK_ERROR',
+      message: 'Network error configuring password.',
+    };
+  }
 }

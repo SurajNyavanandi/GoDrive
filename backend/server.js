@@ -4,16 +4,33 @@ const helmet = require('helmet');
 const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const env = require('./config/env');
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes');
-const { getHealthStatus } = require('./controllers/healthController');
+const { getHealthStatus, getLiveness, getReadiness } = require('./controllers/healthController');
 const { errorHandler, notFoundHandler } = require('./utils/errorHandler');
 const logger = require('./utils/logger');
 const { generalLimiter } = require('./middleware/rateLimiter');
 
-const PORT = Number(process.env.PORT || env.PORT) || 3000;
+// Recursive helper to sanitize MongoDB query injection operators ($ and .)
+function sanitizeMongoOperators(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeMongoOperators);
+  }
+  const clean = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (key.startsWith('$') || key.includes('.')) {
+      continue; // drop injected mongo operator keys
+    }
+    clean[key] = sanitizeMongoOperators(value);
+  }
+  return clean;
+}
+
+const PORT = env.PORT;
 let serverInstance = null;
 
 async function startServer() {
@@ -21,6 +38,9 @@ async function startServer() {
 
   // Enable trust proxy for reverse proxies (Render, Nginx, Cloudflare)
   app.set('trust proxy', 1);
+
+  // Disable X-Powered-By to prevent framework information disclosure
+  app.disable('x-powered-by');
 
   // Initialize Database Connection with connection pooling
   await connectDB();
@@ -33,18 +53,22 @@ async function startServer() {
     })
   );
 
-  // 2. High-performance gzip response compression
-  app.use(compression());
+  // 2. High-performance gzip response compression with threshold & MIME filter
+  app.use(
+    compression({
+      threshold: 1024,
+      filter: (req, res) => {
+        if (req.headers['x-no-compression']) {
+          return false;
+        }
+        return compression.filter(req, res);
+      },
+    })
+  );
 
   // 3. CORS Configuration: Registered before routes so preflight OPTIONS succeed
-  const isProduction = process.env.NODE_ENV === 'production';
-  const rawAllowed = (
-    process.env.ALLOWED_ORIGINS ||
-    process.env.CORS_ORIGIN ||
-    env.ALLOWED_ORIGINS ||
-    env.CORS_ORIGIN ||
-    ''
-  ).trim();
+  const isProduction = env.isProduction;
+  const rawAllowed = (env.ALLOWED_ORIGINS || env.CORS_ORIGIN || '').trim();
 
   let allowedOrigins = [];
   if (rawAllowed && rawAllowed !== '*') {
@@ -58,6 +82,15 @@ async function startServer() {
     ];
   } else {
     allowedOrigins = ['https://manadrivers.com', 'https://www.manadrivers.com'];
+  }
+
+  const clientUrl = (env.CLIENT_URL || '').trim();
+  const frontendUrl = (env.FRONTEND_URL || '').trim();
+  if (clientUrl && !allowedOrigins.includes(clientUrl)) {
+    allowedOrigins.push(clientUrl);
+  }
+  if (frontendUrl && !allowedOrigins.includes(frontendUrl)) {
+    allowedOrigins.push(frontendUrl);
   }
 
   app.use(
@@ -74,7 +107,8 @@ async function startServer() {
         if (
           allowedOrigins.includes(origin) ||
           (!isProduction && (origin.includes('localhost') || origin.includes('127.0.0.1'))) ||
-          origin.endsWith('.manadrivers.com')
+          origin.endsWith('.manadrivers.com') ||
+          origin.endsWith('.vercel.app')
         ) {
           return callback(null, true);
         }
@@ -84,14 +118,29 @@ async function startServer() {
       },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'x-admin-key', 'x-api-key'],
+      exposedHeaders: ['X-Request-Id', 'x-rtb-fingerprint-id', 'request-id'],
       credentials: true,
       maxAge: 86400, // 24-hour preflight cache
     })
   );
 
-  // 4. Request Body Size Limits (1MB to prevent memory exhaustion DoS)
-  app.use(express.json({ limit: '1mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  // 4. Request Body Size Limits (100KB default to prevent memory exhaustion DoS)
+  app.use(express.json({ limit: '100kb' }));
+  app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+
+  // Sanitize MongoDB operators from request body and query params
+  app.use((req, res, next) => {
+    if (req.body && typeof req.body === 'object') {
+      req.body = sanitizeMongoOperators(req.body);
+    }
+    if (req.query && typeof req.query === 'object') {
+      req.query = sanitizeMongoOperators(req.query);
+    }
+    if (req.params && typeof req.params === 'object') {
+      req.params = sanitizeMongoOperators(req.params);
+    }
+    next();
+  });
 
   // 5. Rewrite /api/api/* to /api/* to seamlessly handle double-prefixed requests
   app.use((req, res, next) => {
@@ -101,8 +150,17 @@ async function startServer() {
     next();
   });
 
-  // 6. Direct Root Health Check Endpoint
+  // Request ID middleware for distributed tracing
+  app.use((req, res, next) => {
+    req.id = req.headers['x-request-id'] || crypto.randomUUID();
+    res.setHeader('X-Request-Id', req.id);
+    next();
+  });
+
+  // 6. Direct Root Health Check Endpoints (Liveness & Readiness Probes)
   app.get('/health', getHealthStatus);
+  app.get('/health/live', getLiveness);
+  app.get('/health/ready', getReadiness);
 
   // 7. General API Rate Limiter
   app.use('/api', generalLimiter);
@@ -139,12 +197,23 @@ async function startServer() {
   if (isProduction && fs.existsSync(distPath)) {
     app.use(express.static(distPath));
     app.use((req, res, next) => {
-      if (req.method === 'GET' && !req.path.startsWith('/api') && req.path !== '/health') {
+      if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/health')) {
         return res.sendFile(path.join(distPath, 'index.html'));
       }
       next();
     });
-  } else {
+  } else if (isProduction) {
+    // Pure API Web Service mode (Render Web Service without local frontend build)
+    app.get('/', (req, res) => {
+      res.json({
+        success: true,
+        service: 'Mana Drivers API',
+        environment: 'production',
+        health: '/health',
+        apiDocs: '/api',
+      });
+    });
+  } else if (!env.isTest) {
     // Development mode: Dynamically load Vite dev server middleware
     try {
       let viteModule;
@@ -154,7 +223,8 @@ async function startServer() {
         const vitePath = require.resolve('vite', {
           paths: [frontendDir, path.resolve(__dirname, '..'), __dirname],
         });
-        viteModule = await import(vitePath);
+        const { pathToFileURL } = require('url');
+        viteModule = await import(pathToFileURL(vitePath).href);
       }
       const { createServer: createViteServer } = viteModule;
       const vite = await createViteServer({
@@ -167,11 +237,11 @@ async function startServer() {
 
       // SPA fallback for HTML navigation in development mode
       app.use(async (req, res, next) => {
-        if (req.method === 'GET' && !req.path.startsWith('/api') && req.path !== '/health') {
+        if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/health')) {
           try {
             const indexHtmlPath = path.resolve(frontendDir, 'index.html');
             if (fs.existsSync(indexHtmlPath)) {
-              let template = fs.readFileSync(indexHtmlPath, 'utf-8');
+              let template = await fs.promises.readFile(indexHtmlPath, 'utf-8');
               template = await vite.transformIndexHtml(req.originalUrl, template);
               return res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
             }
@@ -186,7 +256,7 @@ async function startServer() {
       if (fs.existsSync(distPath)) {
         app.use(express.static(distPath));
         app.use((req, res, next) => {
-          if (req.method === 'GET' && !req.path.startsWith('/api') && req.path !== '/health') {
+          if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/health')) {
             return res.sendFile(path.join(distPath, 'index.html'));
           }
           next();
@@ -199,11 +269,28 @@ async function startServer() {
   app.use(notFoundHandler);
   app.use(errorHandler);
 
-  // Start HTTP server
-  if (process.env.NODE_ENV !== 'test') {
-    serverInstance = app.listen(PORT, '0.0.0.0', () => {
-      logger.info(`Mana Drivers server listening at http://0.0.0.0:${PORT}`);
-    });
+  // Start HTTP server with automatic fallback if primary port is in use
+  if (!env.isTest) {
+    const startListening = (port, fallbackPort = 5000) => {
+      serverInstance = app.listen(port, '0.0.0.0', () => {
+        logger.info(`Mana Drivers server listening at http://0.0.0.0:${port}`);
+      });
+      // Configure timeouts for Render reverse proxy (AWS ALB/Nginx has 60s idle timeout)
+      serverInstance.keepAliveTimeout = 65000;
+      serverInstance.headersTimeout = 66000;
+      serverInstance.on('error', (err) => {
+        if (err.code === 'EADDRINUSE' && fallbackPort && port !== fallbackPort) {
+          logger.warn(
+            `Port ${port} in use (e.g. by standalone Vite dev server). Automatically starting backend on port ${fallbackPort}...`
+          );
+          startListening(fallbackPort, null);
+        } else {
+          logger.error('HTTP server startup error:', err);
+          handleShutdown('serverError');
+        }
+      });
+    };
+    startListening(PORT, PORT === 5000 ? 5001 : 5000);
   }
 
   return app;
@@ -250,7 +337,11 @@ process.on('uncaughtException', (err) => {
   handleShutdown('uncaughtException');
 });
 
-startServer().catch((err) => {
-  logger.error('Failed to start server:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  startServer().catch((err) => {
+    logger.error('Failed to start server:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = { startServer, handleShutdown };

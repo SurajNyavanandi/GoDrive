@@ -27,7 +27,7 @@ tmp/
 .env.*.local
 backend/.env*
 frontend/.env*
-!.env.example
+.env.example
 !backend/.env.example
 !frontend/.env.example
 

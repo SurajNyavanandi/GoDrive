@@ -8,6 +8,7 @@ import BookingModal from './components/BookingModal';
 import MyBookingsSheet from './components/MyBookingsSheet';
 import ConversionSuccessView from './components/ConversionSuccessView';
 import ReviewModal from './components/ReviewModal';
+import NotFound from './components/common/NotFound';
 
 import { fetchAdminBookingsApi, createBookingApi, fetchPublicDrivers, fetchPricingSettingsApi } from './utils/api';
 import Footer from './components/Footer';
@@ -36,6 +37,25 @@ export default function App() {
     }
     return localStorage.getItem('godrive_role') || 'customer';
   });
+
+  const isUnknownPath =
+    currentPath !== '/' &&
+    ![
+      '/hourly',
+      '/city',
+      '/outstation',
+      '/monthly',
+      '/permanent',
+      '/apply',
+      '/driver/signup',
+      '/booking-success',
+      '/driver/success',
+      '/book',
+      '/reviews',
+      '/admin',
+      '/driver',
+    ].includes(currentPath) &&
+    activeRole === 'customer';
 
   // Dynamic drivers, bookings & pricing settings from backend database
   const [drivers, setDrivers] = useState([]);
@@ -314,6 +334,8 @@ export default function App() {
             onBackToHome={() => navigateTo('/', 'customer')}
             onOpenDriverLogin={() => navigateTo('/driver/signup', 'driver')}
           />
+        ) : isUnknownPath ? (
+          <NotFound onBackHome={() => navigateTo('/', 'customer')} />
         ) : (
           <>
             {activeRole === 'customer' && (

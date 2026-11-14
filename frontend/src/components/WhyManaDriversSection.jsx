@@ -97,46 +97,90 @@ export default function WhyManaDriversSection({ onBookNow, onBecomeDriver }) {
           </p>
         </div>
 
-        {/* 8 Benefits Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {benefits.map((item, idx) => {
-            const Icon = item.icon;
-            return (
-              <div
-                key={idx}
-                className="bg-white rounded-3xl p-6 border border-neutral-200/90 hover:border-neutral-400 hover:shadow-xl transition-all duration-300 flex flex-col justify-between space-y-5 group"
-              >
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 rounded-2xl bg-neutral-950 text-white flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Icon className="w-6 h-6 text-[#FF5500]" />
+        {/* 8 Benefits Infinite Carousel */}
+        <div className="w-full overflow-hidden mask-gradient-x py-2 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+          <div className="animate-marquee-carousel gap-6">
+            {/* First Set of 8 Benefit Cards */}
+            {benefits.map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={`benefit-a-${idx}`}
+                  className="w-[300px] sm:w-[350px] shrink-0 bg-white rounded-3xl p-6 border border-neutral-200/90 hover:border-neutral-400 hover:shadow-xl transition-all duration-300 flex flex-col justify-between space-y-4 group"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-11 h-11 rounded-2xl bg-neutral-950 text-white flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <Icon className="w-5 h-5 text-[#FF5500]" />
+                      </div>
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${item.badgeColor}`}>
+                        {item.tag}
+                      </span>
                     </div>
-                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${item.badgeColor}`}>
-                      {item.tag}
-                    </span>
-                  </div>
 
-                  <div>
-                    <h3 className="text-lg font-bold text-neutral-950 font-sans tracking-tight">
-                      {item.title}
-                    </h3>
-                    <p className="text-xs font-bold text-emerald-600 font-sans mt-0.5">
-                      {item.highlight}
+                    <div>
+                      <h3 className="text-base font-bold text-neutral-950 font-sans tracking-tight">
+                        {item.title}
+                      </h3>
+                      <p className="text-xs font-bold text-emerald-600 font-sans mt-0.5">
+                        {item.highlight}
+                      </p>
+                    </div>
+
+                    <p className="text-xs text-neutral-600 leading-relaxed font-normal">
+                      {item.description}
                     </p>
                   </div>
 
-                  <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-normal">
-                    {item.description}
-                  </p>
+                  <div className="pt-3 border-t border-neutral-100 flex items-center gap-1.5 text-xs font-semibold text-neutral-900 group-hover:text-[#FF5500] transition-colors">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Verified Service Benefit</span>
+                  </div>
                 </div>
+              );
+            })}
 
-                <div className="pt-3 border-t border-neutral-100 flex items-center gap-1.5 text-xs font-semibold text-neutral-900 group-hover:text-[#FF5500] transition-colors">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>Verified Service Benefit</span>
+            {/* Duplicated Set of 8 Benefit Cards for Smooth Seamless Infinite Loop */}
+            {benefits.map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={`benefit-b-${idx}`}
+                  aria-hidden="true"
+                  className="w-[300px] sm:w-[350px] shrink-0 bg-white rounded-3xl p-6 border border-neutral-200/90 hover:border-neutral-400 hover:shadow-xl transition-all duration-300 flex flex-col justify-between space-y-4 group"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-11 h-11 rounded-2xl bg-neutral-950 text-white flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <Icon className="w-5 h-5 text-[#FF5500]" />
+                      </div>
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${item.badgeColor}`}>
+                        {item.tag}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-bold text-neutral-950 font-sans tracking-tight">
+                        {item.title}
+                      </h3>
+                      <p className="text-xs font-bold text-emerald-600 font-sans mt-0.5">
+                        {item.highlight}
+                      </p>
+                    </div>
+
+                    <p className="text-xs text-neutral-600 leading-relaxed font-normal">
+                      {item.description}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-neutral-100 flex items-center gap-1.5 text-xs font-semibold text-neutral-900 group-hover:text-[#FF5500] transition-colors">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Verified Service Benefit</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         {/* Direct Action Banner */}

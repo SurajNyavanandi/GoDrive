@@ -19,6 +19,8 @@ import {
   History,
   RotateCcw,
   AlertCircle,
+  Mail,
+  LogOut,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { validateIndianMobile, validateAadhaar } from '../utils/helpers';
@@ -37,14 +39,28 @@ import {
   extendSubscriptionApi,
   fetchPricingSettingsApi,
   updatePricingSettingsApi,
+  adminLoginApi,
+  requestAdminPasswordSetupApi,
+  setAdminPasswordApi,
 } from '../utils/api';
-import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
+import { HYDERABAD_LOCALITIES } from '../utils/constants';
 import SearchableSelect from './common/SearchableSelect';
 
 export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUpdated }) {
-  // Admin PIN Auth Security State
-  const [adminAuthed, setAdminAuthed] = useState(false);
-  const [adminPinInput, setAdminPinInput] = useState('');
+  // Authentication State
+  const [adminAuthed, setAdminAuthed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return Boolean(localStorage.getItem('mana_admin_token') || localStorage.getItem('vt_auth_token'));
+    }
+    return false;
+  });
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'setup_request' | 'setup_verify'
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [codeInput, setCodeInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
 
   // Tabs: 'all' | 'trial' | 'paid' | 'expired' | 'pending' | 'bookings' | 'pricing' | 'history'
   const [activeTab, setActiveTab] = useState('all');
@@ -75,8 +91,8 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
     experience: '5',
     status: 'Available',
     languages: 'Telugu, Hindi, English',
-    licenseNo: 'TS-09-2023-0098765',
-    aadhaarNo: '9030-2604-1717',
+    licenseNo: '',
+    aadhaarNo: '',
     photo: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239CA3AF"%3E%3Cpath d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 14c-2.03 0-3.8-.85-5.05-2.2.06-1.68 3.37-2.6 5.05-2.6s4.99.92 5.05 2.6c-1.25 1.35-3.02 2.2-5.05 2.2z"/%3E%3C/svg%E2%80%9D',
     subscriptionPlan: 'free_trial',
   });
@@ -129,6 +145,7 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
   }, []);
 
   useEffect(() => {
+    if (!adminAuthed) return;
     let mounted = true;
     const fetchInitial = async () => {
       setLoading(true);
@@ -149,7 +166,7 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
     };
     fetchInitial();
     return () => { mounted = false; };
-  }, []);
+  }, [adminAuthed]);
 
   const handleApprove = async (driverId, name) => {
     try {
@@ -462,67 +479,300 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
     });
   }, [historyList, historyFilter]);
 
+  const handleSignIn = async (e) => {
+    e.preventDefault();
+    if (!emailInput || !passwordInput) {
+      toast.error('Please enter both email and password');
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const res = await adminLoginApi({
+        email: emailInput.trim(),
+        password: passwordInput,
+      });
+      if (res.success && res.data?.token) {
+        localStorage.setItem('mana_admin_token', res.data.token);
+        setAdminAuthed(true);
+        toast.success('Signed in successfully');
+      } else {
+        toast.error(res.message || 'Invalid email or password');
+      }
+    } catch {
+      toast.error('Network error during sign in');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSendSetupCode = async (e) => {
+    e.preventDefault();
+    if (!emailInput) {
+      toast.error('Please enter your email address');
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const res = await requestAdminPasswordSetupApi(emailInput.trim());
+      if (res.success) {
+        toast.success('Verification code dispatched to your email');
+        setAuthMode('setup_verify');
+      } else {
+        toast.error(res.message || 'Unable to send verification code');
+      }
+    } catch {
+      toast.error('Network error requesting verification code');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSetNewPassword = async (e) => {
+    e.preventDefault();
+    if (!codeInput || !newPasswordInput) {
+      toast.error('Please enter verification code and new password');
+      return;
+    }
+    if (newPasswordInput.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    if (newPasswordInput !== confirmPasswordInput) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const res = await setAdminPasswordApi({
+        email: emailInput.trim(),
+        token: codeInput.trim(),
+        password: newPasswordInput,
+      });
+      if (res.success && res.data?.token) {
+        localStorage.setItem('mana_admin_token', res.data.token);
+        setAdminAuthed(true);
+        toast.success('Password updated successfully');
+      } else {
+        toast.error(res.message || 'Failed to update password');
+      }
+    } catch {
+      toast.error('Network error setting password');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   if (!adminAuthed) {
     return (
       <div className="max-w-md mx-auto px-4 pt-36 pb-20 font-sans">
         <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-xl text-center space-y-6">
           <div className="w-14 h-14 bg-neutral-950 text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
-            <Lock className="w-7 h-7" />
+            <Lock className="w-7 h-7 text-neutral-200" />
           </div>
 
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-100 text-neutral-800 text-[10px] font-extrabold uppercase tracking-widest">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>ADMIN ACCESS RESTRICTED</span>
-            </div>
-            <h2 className="text-2xl font-bold text-neutral-950 font-sans">
-              Admin Console Authorization
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold text-neutral-950 font-sans tracking-tight">
+              {authMode === 'login' ? 'Sign In' : 'Account Verification'}
             </h2>
             <p className="text-xs text-neutral-500 leading-relaxed">
-              Enter the security PIN or password to authorize admin operations and driver approvals.
+              {authMode === 'login'
+                ? 'Enter your email and password to continue'
+                : authMode === 'setup_request'
+                ? 'Enter your email to receive a verification code'
+                : 'Enter the verification code and set your password'}
             </p>
           </div>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (adminPinInput === '261125' || adminPinInput === '2026' || adminPinInput.toLowerCase() === 'admin') {
-                setAdminAuthed(true);
-                toast.success('Admin authorization granted');
-              } else {
-                toast.error('Invalid Admin Password');
-              }
-            }}
-            className="space-y-4 pt-2"
-          >
-            <div>
-              <input
-                type="password"
-                placeholder="Enter Admin Password"
-                value={adminPinInput}
-                onChange={(e) => setAdminPinInput(e.target.value)}
-                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-300 rounded-2xl text-center text-sm font-bold tracking-widest text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                required
-                autoFocus
-              />
-            </div>
+          {authMode === 'login' && (
+            <form onSubmit={handleSignIn} className="space-y-4 pt-2 text-left">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                  Enter Gmail / Email
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
+                  <input
+                    type="email"
+                    placeholder="name@gmail.com"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-sm text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
 
-            <button
-              type="submit"
-              className="w-full py-3.5 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider rounded-full transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Key className="w-4 h-4 text-amber-400" />
-              <span>Authorize Admin Access</span>
-            </button>
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                  Enter Password
+                </label>
+                <div className="relative">
+                  <Key className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
+                  <input
+                    type="password"
+                    placeholder="Enter Password"
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-sm text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    required
+                  />
+                </div>
+              </div>
 
-            <button
-              type="button"
-              onClick={onBackToHome}
-              className="w-full text-center text-xs font-semibold text-neutral-500 hover:text-neutral-900 pt-2 cursor-pointer"
-            >
-              ← Return to Mana Drivers
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="w-full py-3 bg-neutral-950 hover:bg-neutral-800 disabled:bg-neutral-400 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-2"
+              >
+                {authLoading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Key className="w-4 h-4 text-amber-400" />
+                    <span>Sign In</span>
+                  </>
+                )}
+              </button>
+
+              <div className="pt-2 flex flex-col gap-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('setup_request')}
+                  className="text-xs text-neutral-600 hover:text-neutral-950 font-medium transition-colors cursor-pointer"
+                >
+                  Create or Reset Password via Email
+                </button>
+                <button
+                  type="button"
+                  onClick={onBackToHome}
+                  className="text-xs text-neutral-400 hover:text-neutral-700 pt-1 cursor-pointer"
+                >
+                  ← Return to Home
+                </button>
+              </div>
+            </form>
+          )}
+
+          {authMode === 'setup_request' && (
+            <form onSubmit={handleSendSetupCode} className="space-y-4 pt-2 text-left">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
+                  Enter Gmail / Email
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
+                  <input
+                    type="email"
+                    placeholder="name@gmail.com"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-sm text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="w-full py-3 bg-neutral-950 hover:bg-neutral-800 disabled:bg-neutral-400 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {authLoading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <span>Send Verification Code</span>
+                )}
+              </button>
+
+              <div className="pt-2 flex flex-col gap-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('login')}
+                  className="text-xs text-neutral-600 hover:text-neutral-950 font-medium transition-colors cursor-pointer"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            </form>
+          )}
+
+          {authMode === 'setup_verify' && (
+            <form onSubmit={handleSetNewPassword} className="space-y-3 pt-2 text-left">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                  Verification Code
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter 6-digit code"
+                  value={codeInput}
+                  onChange={(e) => setCodeInput(e.target.value)}
+                  className="w-full px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-center text-sm font-bold tracking-widest text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                  Enter Password
+                </label>
+                <input
+                  type="password"
+                  placeholder="At least 6 characters"
+                  value={newPasswordInput}
+                  onChange={(e) => setNewPasswordInput(e.target.value)}
+                  className="w-full px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-sm text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={confirmPasswordInput}
+                  onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                  className="w-full px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-sm text-neutral-950 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="w-full py-3 bg-neutral-950 hover:bg-neutral-800 disabled:bg-neutral-400 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-2"
+              >
+                {authLoading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <span>Set Password & Sign In</span>
+                )}
+              </button>
+
+              <div className="pt-2 flex flex-col gap-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('setup_request')}
+                  className="text-xs text-neutral-600 hover:text-neutral-950 font-medium transition-colors cursor-pointer"
+                >
+                  Resend Code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('login')}
+                  className="text-xs text-neutral-400 hover:text-neutral-700 cursor-pointer"
+                >
+                  Cancel & Back to Sign In
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     );
@@ -576,6 +826,20 @@ export default function AdminPortal({ onBackToHome, pricingSettings, onPricingUp
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.removeItem('mana_admin_token');
+              localStorage.removeItem('vt_auth_token');
+              setAdminAuthed(false);
+              toast.success('Signed out successfully');
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-neutral-100 hover:bg-red-50 hover:text-red-600 rounded-full text-xs font-medium text-neutral-600 transition-all cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign Out</span>
           </button>
         </div>
       </div>

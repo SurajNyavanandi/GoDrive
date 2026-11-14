@@ -9,9 +9,9 @@ const env = require('../config/env');
 const logger = require('../utils/logger');
 const crypto = require('crypto');
 
-const cloudName = process.env.CLOUDINARY_CLOUD_NAME || env.CLOUDINARY_CLOUD_NAME;
-const apiKey = process.env.CLOUDINARY_API_KEY || env.CLOUDINARY_API_KEY;
-const apiSecret = process.env.CLOUDINARY_API_SECRET || env.CLOUDINARY_API_SECRET;
+const cloudName = env.CLOUDINARY_CLOUD_NAME;
+const apiKey = env.CLOUDINARY_API_KEY;
+const apiSecret = env.CLOUDINARY_API_SECRET;
 
 const isConfigured = Boolean(
   cloudinary &&

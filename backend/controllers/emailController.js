@@ -39,14 +39,20 @@ const sendTemplateEmail = asyncHandler(async (req, res) => {
       result = await sendWelcomeEmail({ to, name, appName });
       break;
     case 'otp':
-      result = await sendOtpEmail({ to, otp: otp || '849201', appName });
+      if (!otp) {
+        return errorResponse(res, 'The "otp" parameter is required for OTP email template', 400, 'VALIDATION_ERROR');
+      }
+      result = await sendOtpEmail({ to, otp, appName });
       break;
     case 'reset':
     case 'password_reset':
+      if (!resetUrl) {
+        return errorResponse(res, 'The "resetUrl" parameter is required for password reset email template', 400, 'VALIDATION_ERROR');
+      }
       result = await sendPasswordResetEmail({
         to,
         name,
-        resetUrl: resetUrl || 'https://example.com/reset-password?token=sample_token',
+        resetUrl,
         appName,
       });
       break;

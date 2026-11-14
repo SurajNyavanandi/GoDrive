@@ -1,6 +1,7 @@
 const pino = require('pino');
+const env = require('../config/env');
 
-const isProd = process.env.NODE_ENV === 'production';
+const isProd = env.isProduction;
 
 // Masking helper for sensitive details in string messages
 function maskSensitiveData(str) {
@@ -17,7 +18,7 @@ function maskSensitiveData(str) {
 
 // Pino instance with automatic redaction of sensitive object keys
 const pinoInstance = pino({
-  level: isProd ? 'info' : 'debug',
+  level: env.LOG_LEVEL || (isProd ? 'info' : 'debug'),
   redact: {
     paths: [
       'password',
@@ -36,6 +37,12 @@ const pinoInstance = pino({
       'cvv',
       'secret',
       '*.secret',
+      'aadhaarNo',
+      '*.aadhaarNo',
+      'reviewOtp',
+      '*.reviewOtp',
+      'apiKey',
+      '*.apiKey',
     ],
     censor: '[REDACTED]',
   },
@@ -53,15 +60,15 @@ const logger = {
     pinoInstance.warn(args.length ? { extra: args } : {}, maskSensitiveData(String(msg)));
   },
 
-  error: (msg, error) => {
+  error: (msg, error, meta = {}) => {
     const maskedMsg = maskSensitiveData(String(msg));
+    const extra = { ...meta };
     if (error instanceof Error) {
-      pinoInstance.error({ err: { message: error.message, stack: error.stack, code: error.code } }, maskedMsg);
+      extra.err = { message: error.message, stack: error.stack, code: error.code };
     } else if (error) {
-      pinoInstance.error({ err: error }, maskedMsg);
-    } else {
-      pinoInstance.error(maskedMsg);
+      extra.err = error;
     }
+    pinoInstance.error(extra, maskedMsg);
   },
 
   debug: (msg, ...args) => {
@@ -83,12 +90,13 @@ const logger = {
     const level = status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info';
     pinoInstance[level](
       {
+        reqId: req.id || req.headers?.['x-request-id'] || 'no-req-id',
         method: req.method,
         path: req.originalUrl || req.path,
         statusCode: status,
         durationMs,
       },
-      `API ${req.method} ${req.originalUrl || req.path} -> ${status} (${durationMs}ms)`
+      `API [${req.id || 'req'}] ${req.method} ${req.originalUrl || req.path} -> ${status} (${durationMs}ms)`
     );
   },
 };

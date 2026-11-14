@@ -1,4 +1,20 @@
 const logger = require('./logger');
+const env = require('../config/env');
+
+/**
+ * Operational Application Error
+ */
+class AppError extends Error {
+  constructor(message, statusCode = 500, code = 'INTERNAL_ERROR') {
+    super(message);
+    this.name = 'AppError';
+    this.statusCode = statusCode;
+    this.status = statusCode;
+    this.code = code;
+    this.isOperational = true;
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
 
 /**
  * Async handler wrapper to forward errors to next()
@@ -39,6 +55,42 @@ const errorHandler = (err, req, res, next) => { // eslint-disable-line no-unused
       success: false,
       message: err.message,
       code: 'CORS_FORBIDDEN',
+      error: {
+        code: 'CORS_FORBIDDEN',
+        message: err.message,
+      },
+    });
+  }
+
+  // Handle Mongoose malformed ObjectId CastError with 400 Bad Request
+  if (err.name === 'CastError') {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid format for identifier: '${err.value}'`,
+      code: 'INVALID_ID',
+      field: err.path,
+      error: {
+        code: 'INVALID_ID',
+        message: `Invalid format for identifier: '${err.value}'`,
+        field: err.path,
+      },
+    });
+  }
+
+  // Handle Mongoose schema validation error with 400 Bad Request
+  if (err.name === 'ValidationError') {
+    const messages = Object.values(err.errors || {}).map((e) => e.message);
+    const primaryMsg = messages[0] || 'Database validation failed';
+    return res.status(400).json({
+      success: false,
+      message: primaryMsg,
+      code: 'VALIDATION_ERROR',
+      details: messages,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: primaryMsg,
+        details: messages,
+      },
     });
   }
 
@@ -59,7 +111,7 @@ const errorHandler = (err, req, res, next) => { // eslint-disable-line no-unused
       ? 'TOO_MANY_REQUESTS'
       : 'INTERNAL_SERVER_ERROR');
 
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = env.isProduction;
   const clientMessage = isProduction && statusCode === 500
     ? 'An internal server error occurred.'
     : err.message || 'An unexpected error occurred.';
@@ -68,7 +120,16 @@ const errorHandler = (err, req, res, next) => { // eslint-disable-line no-unused
     success: false,
     message: clientMessage,
     code,
+    error: {
+      code,
+      message: clientMessage,
+      ...(err.field ? { field: err.field } : {}),
+    },
   };
+
+  if (err.field) {
+    payload.field = err.field;
+  }
 
   if (!isProduction && err.stack) {
     payload.stack = err.stack;
@@ -90,6 +151,7 @@ const notFoundHandler = (req, res) => {
 };
 
 module.exports = {
+  AppError,
   asyncHandler,
   errorHandler,
   notFoundHandler,

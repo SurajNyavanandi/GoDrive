@@ -18,6 +18,12 @@ const authLoginSchema = z
   })
   .strict();
 
+const authRefreshSchema = z
+  .object({
+    refreshToken: z.string().min(1, 'Refresh token is required'),
+  })
+  .strict();
+
 // OTP Schemas
 const otpSendSchema = z
   .object({
@@ -111,6 +117,8 @@ const driverRegisterSchema = z
     licensePhoto: z.string().optional(),
     aadhaarPhoto: z.string().optional(),
     bio: z.string().optional(),
+    isApproved: z.boolean().optional(),
+    workingPreference: z.string().optional(),
   })
   .strict();
 
@@ -132,6 +140,8 @@ const driverProfileUpdateSchema = z
     aadhaarNo: z.string().optional(),
     status: z.string().optional(),
     subscriptionPlan: z.string().optional(),
+    isApproved: z.boolean().optional(),
+    workingPreference: z.string().optional(),
   })
   .strict();
 
@@ -144,6 +154,7 @@ const driverStatusSchema = z
 const driverSubscribeSchema = z
   .object({
     plan: z.string().min(1),
+    paymentDetails: z.any().optional(),
   })
   .strict();
 
@@ -198,9 +209,68 @@ const adminPricingSchema = z
   })
   .strict();
 
+// Email Schemas
+const emailSendSchema = z
+  .object({
+    to: z.string().email('Valid recipient email required').or(z.array(z.string().email())),
+    subject: z.string().min(1, 'Subject is required').max(200),
+    html: z.string().optional(),
+    text: z.string().optional(),
+    from: z.string().email().optional(),
+  })
+  .strict();
+
+const emailTemplateSchema = z
+  .object({
+    template: z.enum(['welcome', 'otp', 'reset', 'password_reset']),
+    to: z.string().email('Valid recipient email required'),
+    name: z.string().optional(),
+    otp: z.string().optional(),
+    resetUrl: z.string().url().optional(),
+    appName: z.string().optional(),
+  })
+  .strict();
+
+// Parameter & Restoration Schemas
+const idParamSchema = z
+  .object({
+    id: z.string().min(1, 'Identifier parameter is required').max(100),
+  });
+
+const adminRestoreSchema = z
+  .object({
+    driver: z.record(z.any()).refine((d) => d && d.id, {
+      message: 'Driver snapshot with valid id is required for restoration',
+    }),
+  })
+  .strict();
+
+// Admin Authentication Schemas
+const adminLoginSchema = z
+  .object({
+    email: z.string().email('Valid email is required'),
+    password: z.string().min(1, 'Password is required'),
+  })
+  .strict();
+
+const adminRequestPasswordSetupSchema = z
+  .object({
+    email: z.string().email('Valid email is required'),
+  })
+  .strict();
+
+const adminSetPasswordSchema = z
+  .object({
+    email: z.string().email('Valid email is required'),
+    token: z.string().min(4, 'Verification code is required').max(100),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+  })
+  .strict();
+
 module.exports = {
   authRegisterSchema,
   authLoginSchema,
+  authRefreshSchema,
   otpSendSchema,
   otpRetrySchema,
   otpVerifySchema,
@@ -218,4 +288,11 @@ module.exports = {
   adminSubscriptionSchema,
   adminReasonSchema,
   adminPricingSchema,
+  emailSendSchema,
+  emailTemplateSchema,
+  idParamSchema,
+  adminRestoreSchema,
+  adminLoginSchema,
+  adminRequestPasswordSetupSchema,
+  adminSetPasswordSchema,
 };

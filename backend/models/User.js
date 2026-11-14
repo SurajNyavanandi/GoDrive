@@ -36,26 +36,48 @@ const userSchema = new mongoose.Schema(
       sparse: true,
       trim: true,
     },
+    resetPasswordToken: {
+      type: String,
+      select: false,
+    },
+    resetPasswordExpire: {
+      type: Date,
+      select: false,
+    },
   },
   {
     timestamps: true,
+    toJSON: {
+      transform: (doc, ret) => {
+        ret.id = ret._id ? ret._id.toString() : ret.id;
+        delete ret.__v;
+        delete ret.password;
+        return ret;
+      },
+    },
+    toObject: {
+      transform: (doc, ret) => {
+        ret.id = ret._id ? ret._id.toString() : ret.id;
+        delete ret.__v;
+        delete ret.password;
+        return ret;
+      },
+    },
   }
 );
 
 // Database indexes for fast querying, filtering, and sorting
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ phone: 1 }, { unique: true, sparse: true });
 userSchema.index({ role: 1 });
 userSchema.index({ createdAt: -1 });
 
-// Encrypt password before saving
-userSchema.pre('save', async function (next) {
+// Encrypt password before saving using standard bcrypt cost factor (10 for prod/dev, 4 for test)
+userSchema.pre('save', async function () {
   if (!this.isModified('password')) {
-    return next();
+    return;
   }
-  const salt = await bcrypt.genSalt(10);
+  const saltRounds = env.isTest ? 4 : 10;
+  const salt = await bcrypt.genSalt(saltRounds);
   this.password = await bcrypt.hash(this.password, salt);
-  next();
 });
 
 // Compare user password
@@ -67,8 +89,17 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 userSchema.methods.getSignedJwtToken = function () {
   return jwt.sign(
     { id: this._id, role: this.role, email: this.email },
-    process.env.JWT_SECRET || env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE || env.JWT_EXPIRE || '7d' }
+    env.JWT_SECRET,
+    { expiresIn: env.JWT_EXPIRE || '7d' }
+  );
+};
+
+// Generate JWT refresh token with 30-day expiration
+userSchema.methods.getSignedRefreshToken = function () {
+  return jwt.sign(
+    { id: this._id, role: this.role, email: this.email, type: 'refresh' },
+    env.JWT_SECRET,
+    { expiresIn: '30d' }
   );
 };
 

@@ -8,8 +8,8 @@ try {
 const env = require('../config/env');
 const logger = require('../utils/logger');
 
-const apiKey = process.env.RESEND_API_KEY || env.RESEND_API_KEY;
-const defaultFromEmail = process.env.RESEND_FROM_EMAIL || env.RESEND_FROM_EMAIL || 'support@manadrivers.com';
+const apiKey = env.RESEND_API_KEY;
+const defaultFromEmail = env.RESEND_FROM_EMAIL || 'support@manadrivers.com';
 
 // Initialize Resend SDK instance if valid API key is present
 const resendClient = apiKey && !apiKey.startsWith('re_xxx') && Resend ? new Resend(apiKey) : null;
@@ -126,10 +126,32 @@ const sendPasswordResetEmail = async ({ to, resetUrl, name = 'User', appName = '
   return sendEmail({ to, subject, html, text });
 };
 
+/**
+ * Send Account Password Setup Code email (discreet, professional)
+ */
+const sendAdminPasswordSetupEmail = async ({ to, code, expiresInMinutes = 15, appName = 'Mana Drivers' }) => {
+  const subject = `Your Account Verification Code`;
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+      <h2 style="color: #0f172a; font-size: 20px; font-weight: 700; margin-bottom: 12px;">Account Password Setup</h2>
+      <p style="color: #475569; font-size: 14px; margin-bottom: 20px;">Use the following verification code to configure or reset your access password:</p>
+      <div style="background: #0f172a; color: #ffffff; letter-spacing: 6px; font-size: 28px; font-weight: 700; text-align: center; padding: 18px; border-radius: 8px; margin-bottom: 20px;">
+        ${code}
+      </div>
+      <p style="color: #64748b; font-size: 13px; margin: 0 0 8px 0;">This code expires in ${expiresInMinutes} minutes. If you did not request this verification code, please ignore this email.</p>
+      <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0 0;">© ${new Date().getFullYear()} ${appName}. All rights reserved.</p>
+    </div>
+  `;
+  const text = `Your account verification code is: ${code}. It expires in ${expiresInMinutes} minutes.`;
+
+  return sendEmail({ to, subject, html, text });
+};
+
 module.exports = {
   resendClient,
   sendEmail,
   sendWelcomeEmail,
   sendOtpEmail,
   sendPasswordResetEmail,
+  sendAdminPasswordSetupEmail,
 };

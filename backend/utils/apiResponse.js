@@ -1,3 +1,5 @@
+const env = require('../config/env');
+
 /**
  * Standardized API Response Helpers
  */
@@ -25,13 +27,33 @@ const successResponse = (res, data = null, message = 'Operation successful', sta
 };
 
 /**
- * Sends a standardized error JSON response { success: false, message, code }
- * In production, never return stack traces or internal error details.
- * @param {import('express').Response} res
- * @param {string} [message='An unexpected error occurred']
- * @param {number} [statusCode=500]
- * @param {string} [code=null]
- * @param {*} [details=null]
+ * Sends a standardized paginated JSON response
+ */
+const paginatedResponse = (res, data, total, page, limit, statusCode = 200) => {
+  const safeLimit = Math.max(1, limit || 20);
+  const totalPages = Math.ceil(total / safeLimit) || 1;
+  const count = Array.isArray(data) ? data.length : 0;
+  return res.status(statusCode).json({
+    success: true,
+    data,
+    meta: {
+      total,
+      page,
+      limit: safeLimit,
+      totalPages,
+      hasMore: page < totalPages,
+      count,
+    },
+    count,
+    total,
+    page,
+    totalPages,
+    hasMore: page < totalPages,
+  });
+};
+
+/**
+ * Sends a standardized error JSON response { success: false, message, code, error: { code, message } }
  */
 const errorResponse = (res, message = 'An unexpected error occurred', statusCode = 500, code = null, details = null) => {
   const defaultCode =
@@ -50,13 +72,18 @@ const errorResponse = (res, message = 'An unexpected error occurred', statusCode
       ? 'TOO_MANY_REQUESTS'
       : 'INTERNAL_ERROR');
 
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = env.isProduction;
   const clientMessage = isProduction && statusCode === 500 ? 'An internal server error occurred.' : message;
 
   const responsePayload = {
     success: false,
     message: clientMessage,
     code: defaultCode,
+    error: {
+      code: defaultCode,
+      message: clientMessage,
+      ...(details ? { details } : {}),
+    },
   };
 
   if (!isProduction && details) {
@@ -68,5 +95,6 @@ const errorResponse = (res, message = 'An unexpected error occurred', statusCode
 
 module.exports = {
   successResponse,
+  paginatedResponse,
   errorResponse,
 };

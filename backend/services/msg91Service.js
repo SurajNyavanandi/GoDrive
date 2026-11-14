@@ -9,9 +9,9 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 const env = require('../config/env');
 
-const authKey = process.env.MSG91_AUTH_KEY || env.MSG91_AUTH_KEY;
-const defaultTemplateId = process.env.MSG91_TEMPLATE_ID || env.MSG91_TEMPLATE_ID;
-const isProd = process.env.NODE_ENV === 'production';
+const authKey = env.MSG91_AUTH_KEY;
+const defaultTemplateId = env.MSG91_TEMPLATE_ID;
+const isProd = env.isProduction;
 
 // In-memory simulation store with expiration, single-use, and attempt limiting
 // Map<cleanMobile, { otp: string, expiresAt: number, attempts: number }>

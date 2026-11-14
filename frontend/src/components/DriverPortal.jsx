@@ -24,7 +24,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
+import { HYDERABAD_LOCALITIES } from '../utils/constants';
 import SearchableSelect from './common/SearchableSelect';
 import { triggerDriverRegistrationRazorpay } from '../utils/razorpay';
 import {

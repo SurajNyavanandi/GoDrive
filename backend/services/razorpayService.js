@@ -8,8 +8,8 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 const env = require('../config/env');
 
-const keyId = process.env.RAZORPAY_KEY_ID || env.RAZORPAY_KEY_ID;
-const keySecret = process.env.RAZORPAY_KEY_SECRET || env.RAZORPAY_KEY_SECRET;
+const keyId = env.RAZORPAY_KEY_ID;
+const keySecret = env.RAZORPAY_KEY_SECRET;
 
 const isConfigured = Boolean(
   keyId && keySecret && !keyId.startsWith('rzp_test_xxx') && keyId !== 'your_razorpay_key_id'
@@ -147,7 +147,7 @@ const verifyPaymentSignature = ({ orderId, paymentId, signature }) => {
  * @param {string} options.signature - Header 'x-razorpay-signature'
  * @param {string} [options.secret] - Webhook secret
  */
-const verifyWebhookSignature = ({ rawBody, signature, secret = process.env.RAZORPAY_WEBHOOK_SECRET }) => {
+const verifyWebhookSignature = ({ rawBody, signature, secret = env.RAZORPAY_WEBHOOK_SECRET }) => {
   if (!secret) {
     return { isValid: true, simulated: true, message: 'Webhook secret omitted (sandbox)' };
   }

@@ -19,12 +19,8 @@ export default function Header({
   const isLightHeader = activeRole === 'admin' || activeRole === 'driver';
 
   const navLinks = [
-    { name: 'Services', href: '#services' },
-    { name: 'Why Us', href: '#why-us' },
-    { name: 'How It Works', href: '#how-to-use' },
     { name: 'Drivers', href: '#drivers' },
-    { name: 'Reviews', href: '#reviews' },
-    { name: 'FAQ', href: '#faq' },
+    { name: 'How It Works', href: '#how-to-use' },
   ];
 
   const handleNavClick = (e, href) => {
@@ -148,7 +144,7 @@ export default function Header({
               }`}
             >
               <Briefcase className="w-3.5 h-3.5 text-[#FF5500]" />
-              <span>{activeRole === 'customer' ? 'Driver Portal' : 'Find Drivers'}</span>
+              <span>{activeRole === 'customer' ? 'Join as a Driver' : 'Find Drivers'}</span>
             </button>
 
             {/* Mobile Menu Hamburger */}
@@ -220,7 +216,7 @@ export default function Header({
                   }`}
                 >
                   <Briefcase className="w-4 h-4 text-[#FF5500]" />
-                  <span>{activeRole === 'customer' ? 'Switch to Driver Portal' : 'Switch to Customer View'}</span>
+                  <span>{activeRole === 'customer' ? 'Join as a Driver' : 'Find Drivers'}</span>
                 </button>
               </div>
             </div>

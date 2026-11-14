@@ -3,7 +3,7 @@ import { X, Calendar, Clock, MapPin, Star, MessageCircle, AlertTriangle, ShieldC
 import { toast } from 'sonner';
 import { validateAddress, validateIndianMobile } from '../utils/helpers';
 import { calculateCityFare, calculateOutstationFare, MONTHLY_DUTY_TIERS, getMonthlyTier, ALLOWED_CITY_BOOKING_HOURS } from '../utils/pricingEngine';
-import { HYDERABAD_LOCALITIES } from '../data/mockDrivers';
+import { HYDERABAD_LOCALITIES } from '../utils/constants';
 import { fetchReviewsApi } from '../utils/api';
 import SearchableSelect from './common/SearchableSelect';
 import LocationPermissionModal from './common/LocationPermissionModal';
@@ -214,7 +214,14 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
 
   if (!isOpen || !driver) return null;
 
-  const fullAddress = `${houseNo.trim() ? houseNo.trim() + ', ' : ''}${streetLandmark.trim() ? streetLandmark.trim() + ', ' : ''}${selectedLocality}, Hyderabad`;
+  const isLocationDetected = Boolean(addressMode === 'gps' && (gpsCoords || gpsAddressDetails));
+
+  const manualAddressParts = [houseNo.trim(), streetLandmark.trim()].filter(Boolean).join(', ');
+  const fullAddress = isLocationDetected
+    ? (manualAddressParts
+        ? `${manualAddressParts}, ${gpsAddressDetails || `${selectedLocality}, Hyderabad`}`
+        : (gpsAddressDetails || `${selectedLocality}, Hyderabad`))
+    : `${manualAddressParts ? manualAddressParts + ', ' : ''}${selectedLocality}, Hyderabad`;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -244,11 +251,22 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
       return;
     }
 
-    // Validate Doorstep Address
-    const addrRes = validateAddress(fullAddress);
-    if (!addrRes.isValid) {
-      toast.error(addrRes.error);
-      return;
+    // Validate Doorstep Address:
+    // When live GPS location is detected, manual house/flat and street entry is optional
+    let resolvedPickupAddress;
+    if (isLocationDetected) {
+      resolvedPickupAddress = fullAddress;
+    } else {
+      if (!houseNo.trim() || !streetLandmark.trim()) {
+        toast.error('Please enter your house/flat number and street/landmark, or use Detect Live Location');
+        return;
+      }
+      const addrRes = validateAddress(fullAddress);
+      if (!addrRes.isValid) {
+        toast.error(addrRes.error);
+        return;
+      }
+      resolvedPickupAddress = addrRes.cleaned;
     }
 
     setIsSubmitting(true);
@@ -262,7 +280,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
         ? `${outstationDays} Day${outstationDays > 1 ? 's' : ''} ${isInterstate ? 'Interstate' : 'Outstation'} Trip`
         : `${monthlyHoursPerDay} Hours/Day Monthly Chauffeur (${fareBreakdown.tier?.salaryRangeText || 'Negotiable'})`;
 
-    const googleMapsUrl = generateGoogleMapsUrl(addrRes.cleaned, gpsCoords);
+    const googleMapsUrl = generateGoogleMapsUrl(resolvedPickupAddress, gpsCoords);
 
     const newBooking = {
       id: `BK-${Date.now()}`,
@@ -276,7 +294,7 @@ export default function BookingModal({ driver, isOpen, onClose, onBookingConfirm
       time,
       dutyCategory,
       hours: dutyLabel,
-      pickupAddress: addrRes.cleaned,
+      pickupAddress: resolvedPickupAddress,
       mapsUrl: googleMapsUrl,
       coords: gpsCoords,
       totalCost: finalFare,
@@ -305,7 +323,7 @@ I want to book you for personal car driving duty via Mana Drivers:
 
 • Customer Name: ${customerName.trim()}
 • Customer Mobile: +91 ${cleanCustomerMobile}
-• Pickup Address: ${addrRes.cleaned}
+• Pickup Address: ${resolvedPickupAddress}
 • Google Maps Location: ${googleMapsUrl}
 • Pickup Date & Time: ${date} at ${time}
 • Duty Schedule: ${dutyLabel}
@@ -559,7 +577,7 @@ Please confirm your availability!`;
                         key={nh}
                         type="button"
                         onClick={() => setNightHours(nh)}
-                        className={`min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs font-bold border ${
+                        className={`min-h-9.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border ${
                           nightHours === nh
                             ? 'bg-neutral-900 text-white border-neutral-900'
                             : 'bg-white text-neutral-700 border-neutral-200'
@@ -587,7 +605,7 @@ Please confirm your availability!`;
                     setIsInterstate(false);
                     setOutstationDays(1);
                   }}
-                  className={`min-h-[44px] py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                  className={`min-h-11 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
                     !isInterstate && outstationDays === 1
                       ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                       : 'bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-100'
@@ -598,7 +616,7 @@ Please confirm your availability!`;
                 <button
                   type="button"
                   onClick={() => setIsInterstate(true)}
-                  className={`min-h-[44px] py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                  className={`min-h-11 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
                     isInterstate || outstationDays > 1
                       ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                       : 'bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-100'
@@ -620,7 +638,7 @@ Please confirm your availability!`;
                           setOutstationDays(d);
                           setIsInterstate(true);
                         }}
-                        className={`min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs font-bold border ${
+                        className={`min-h-9.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border ${
                           outstationDays === d
                             ? 'bg-neutral-900 text-white border-neutral-900'
                             : 'bg-white text-neutral-700 border-neutral-200'
@@ -739,7 +757,7 @@ Please confirm your availability!`;
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="text-xs font-bold text-neutral-800 flex items-center gap-1.5 font-sans">
                 <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Complete Doorstep Pickup Address *</span>
+                <span>{isLocationDetected ? 'Pickup Location (Live GPS Detected)' : 'Complete Doorstep Pickup Address *'}</span>
               </label>
 
               {/* Address Mode Toggle (100% Free - 0 API Keys) */}
@@ -772,12 +790,19 @@ Please confirm your availability!`;
             </div>
 
             {/* GPS Detection Confirmation Banner */}
-            {addressMode === 'gps' && gpsAddressDetails && (
+            {isLocationDetected && (
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-950 flex items-start gap-2">
                 <Navigation className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold text-emerald-950 block">Live Location Detected:</span>
-                  <span className="text-[11px] text-emerald-800">{gpsAddressDetails}</span>
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-emerald-950">Live Location Detected:</span>
+                    <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-200/70 text-emerald-800 rounded-full">
+                      Entering below details is optional
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-emerald-800 block">
+                    {gpsAddressDetails || `Coordinates: ${gpsCoords?.lat.toFixed(5)}, ${gpsCoords?.lng.toFixed(5)}`}
+                  </span>
                 </div>
               </div>
             )}
@@ -790,36 +815,36 @@ Please confirm your availability!`;
               label="Hyderabad Locality / Area"
               placeholder="Search Hyderabad area (e.g. Kondapur, Banjara Hills)..."
               searchPlaceholder="Type area name (e.g. Gachibowli, Kukatpally)..."
-              required
+              required={!isLocationDetected}
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
-                  Flat / House No, Floor &amp; Building Name *
+                  {isLocationDetected ? 'Flat / House No, Floor (Optional with GPS)' : 'Flat / House No, Floor & Building Name *'}
                 </label>
                 <input
                   type="text"
-                  required
+                  required={!isLocationDetected}
                   maxLength={100}
                   value={houseNo}
                   onChange={(e) => setHouseNo(e.target.value)}
-                  placeholder="e.g. Flat G1, Radha Krishna Towers"
+                  placeholder={isLocationDetected ? 'Optional: e.g. Flat G1, Towers' : 'e.g. Flat G1, Radha Krishna Towers'}
                   className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3.5 py-2.5 text-xs text-neutral-950 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-600"
                 />
               </div>
 
               <div>
                 <label className="block text-[11px] font-semibold text-neutral-600 mb-1">
-                  Street Name &amp; Landmark *
+                  {isLocationDetected ? 'Street Name & Landmark (Optional with GPS)' : 'Street Name & Landmark *'}
                 </label>
                 <input
                   type="text"
-                  required
+                  required={!isLocationDetected}
                   maxLength={150}
                   value={streetLandmark}
                   onChange={(e) => setStreetLandmark(e.target.value)}
-                  placeholder="e.g. Road No 36, Near Police Station"
+                  placeholder={isLocationDetected ? 'Optional: e.g. Road No 36' : 'e.g. Road No 36, Near Police Station'}
                   className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3.5 py-2.5 text-xs text-neutral-950 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-600"
                 />
               </div>
@@ -829,7 +854,7 @@ Please confirm your availability!`;
           {/* Date & Time */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-neutral-800 mb-1.5 flex items-center gap-1.5 font-sans">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-neutral-800 mb-1.5 font-sans">
                 <Calendar className="w-3.5 h-3.5 text-neutral-400" />
                 <span>Pickup Date</span>
               </label>
@@ -843,7 +868,7 @@ Please confirm your availability!`;
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-neutral-800 mb-1.5 flex items-center gap-1.5 font-sans">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-neutral-800 mb-1.5 font-sans">
                 <Clock className="w-3.5 h-3.5 text-neutral-400" />
                 <span>Pickup Time</span>
               </label>

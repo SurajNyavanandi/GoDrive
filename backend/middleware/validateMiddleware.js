@@ -1,4 +1,6 @@
 const { z } = require('zod');
+const mongoose = require('mongoose');
+const env = require('../config/env');
 
 /**
  * Express middleware to validate request payload against a Zod schema.
@@ -18,24 +20,61 @@ const validate = (schema, source = 'body') => {
           field: err.path.join('.'),
           message: err.message,
         }));
+        const primaryMessage = formattedErrors[0]?.message || 'Validation error';
+        const primaryField = formattedErrors[0]?.field;
         return res.status(400).json({
           success: false,
-          message: formattedErrors[0]?.message || 'Validation error',
+          message: primaryMessage,
           code: 'VALIDATION_ERROR',
-          field: formattedErrors[0]?.field,
-          errors: process.env.NODE_ENV !== 'production' ? formattedErrors : undefined,
+          field: primaryField,
+          errors: !env.isProduction ? formattedErrors : undefined,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: primaryMessage,
+            field: primaryField,
+            details: !env.isProduction ? formattedErrors : undefined,
+          },
         });
       }
       return res.status(400).json({
         success: false,
         message: 'Invalid request data',
         code: 'VALIDATION_ERROR',
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid request data',
+        },
       });
     }
   };
 };
 
+/**
+ * Validates that a route parameter is a valid 24-character hexadecimal MongoDB ObjectId.
+ * @param {string} [paramName='id'] - The parameter key in req.params
+ */
+const validateObjectId = (paramName = 'id') => {
+  return (req, res, next) => {
+    const value = req.params[paramName];
+    if (value && !mongoose.Types.ObjectId.isValid(value)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid format for parameter '${paramName}': ${value}`,
+        code: 'INVALID_ID',
+        field: paramName,
+        error: {
+          code: 'INVALID_ID',
+          message: `Invalid format for parameter '${paramName}': ${value}`,
+          field: paramName,
+        },
+      });
+    }
+    next();
+  };
+};
+
 module.exports = {
   validate,
+  validateObjectId,
   z,
 };
